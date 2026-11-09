@@ -62,10 +62,18 @@ foreach ($entry in $panels.Split(",")) {
   & $ADB -s $dev shell am broadcast -n com.ajnetwork.cxbridge/.BootReceiver -a com.ajnetwork.cxbridge.START --es join "''" 2>$null | Out-Null
 
   # configure + start
-  $cfg = @("shell", "am", "broadcast", "-n", "$PKG/.BootReceiver", "-a", "$PKG.CONFIG", "--es", "host", $ma, "--es", "name", "'$name'")
+  # -f 32 = FLAG_INCLUDE_STOPPED_PACKAGES (app was never opened yet)
+  $cfg = @("shell", "am", "broadcast", "-f", "32", "-n", "$PKG/.BootReceiver", "-a", "$PKG.CONFIG", "--es", "host", $ma, "--es", "name", "'$name'")
   if ($token -ne "") { $cfg += @("--es", "token", $token) }
-  & $ADB -s $dev @cfg | Out-Null
-  & $ADB -s $dev shell am start -n "$PKG/.MainActivity" | Tee-Object -Append $log
+  & $ADB -s $dev @cfg | Tee-Object -Append $log
+  $judian = (& $ADB -s $dev shell pm list packages com.judian.jdmediarender) -match "jdmediarender"
+  if ($judian) {
+    # Judian keeps its smart-home UI: AJ Panel runs in the background and puts the song into the Judian music player
+    Write-Host "Judian panel: AJ Panel runs in background, song shown in the panel's own music player"
+    "judian panel: background mode" | Out-File -Append $log -Encoding utf8
+  } else {
+    & $ADB -s $dev shell am start -n "$PKG/.MainActivity" | Tee-Object -Append $log
+  }
 }
 
 Write-Host "`nwaiting 12 s for the players to connect..."
@@ -75,6 +83,12 @@ foreach ($entry in $panels.Split(",")) {
   if ($uninstall) { continue }
   "--- AJPanel log ---" | Out-File -Append $log -Encoding utf8
   & $ADB -s $dev logcat -d -v time -s AJPanel | Out-File -Append $log -Encoding utf8
+  "--- processes ---" | Out-File -Append $log -Encoding utf8
+  & $ADB -s $dev shell "ps -A | grep -E 'snapclient|ajpanel|badaix'" | Out-File -Append $log -Encoding utf8
+  "--- audio tracks ---" | Out-File -Append $log -Encoding utf8
+  & $ADB -s $dev shell "dumpsys media.audio_flinger | grep -E 'Standby|active|Underruns' | head -20" | Out-File -Append $log -Encoding utf8
+  "--- media sessions ---" | Out-File -Append $log -Encoding utf8
+  & $ADB -s $dev shell "dumpsys media_session | grep -E 'package=|state=|metadata' | head -20" | Out-File -Append $log -Encoding utf8
   "--- connections ---" | Out-File -Append $log -Encoding utf8
   & $ADB -s $dev shell "netstat -tn | grep -E ':1704|:8095'" | Out-File -Append $log -Encoding utf8
   $ok = Select-String -Path $log -Pattern "1704.*ESTABLISHED" -Quiet

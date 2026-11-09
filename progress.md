@@ -12,6 +12,8 @@ Newest entries on top. Decisions are `D-###`.
 - 🆕 Local git repo created; owner pushes to GitHub.
 - ⚠️ Android "any app": AJ Audio v0.1 (Java) untested (BUG-018); AriaCast receiver to try.
 
+- 🆕 **AJ Panel v0.2**: Judian panels keep their smart-home UI – the song is pushed into the Judian music player (DLNA metadata bridge, FIX-020). DSPPA uses AJ Panel's own screen/card.
+
 ## Next (in order)
 
 1. **Test AJ Panel v0.1** on .210/.73/.46: deploy script → re-create the MA group with the new `ma_ajpanel_…` players → check sound, sync, card, Pause here, Leave group, reboot recovery. Log bugs.
@@ -34,11 +36,14 @@ Newest entries on top. Decisions are `D-###`.
 - **D-006** (2026-11-09) One panel APK for all panel models; capabilities detected at runtime.
 - **D-010** (2026-11-09) **AJ Panel is the primary panel app** – it replaces the Snapcast app and (later) ControlX Bridge. Panels get new MA player ids `ma_ajpanel_<mac>`.
 - **D-011** (2026-11-09) "Who is playing" is served by our provider API (`ajsnap/now_playing`), not a core MA patch – fewer patches to re-apply on MA updates.
+- **D-013** (2026-11-09) DSPPA panels use AJ Panel as their UI; Judian panels keep their smart-home UI and AJ Panel feeds the song into the Judian music player (DLNA metadata bridge).
 - **D-012** (2026-11-09) Git repo local in `AJ-Audio-System`, owner pushes manually to GitHub.
 
 ## Log
 
 ### 2026-11-09
+- AJ Panel v0.2: `DlnaMetaBridge` for Judian (JdLauncher/JdReceiver decompiled: launcher shows only jdmediarender's songs; DLNA push carries DIDL title/artist/cover). Silent MP3 server verified (valid 128 kbit/s, -91 dB). Deploy script: Judian = background mode, `-f 32` broadcasts, more logs (processes, audio tracks, media sessions).
+- D-013: DSPPA → AJ Panel is the UI; Judian → keep vendor UI, AJ Panel only plays + feeds the song to the vendor player.
 - Built **AJ Panel v0.1** (com.ajnetwork.ajpanel, min SDK 26, bundles snapclient 0.29 armv7+arm64): supervised player, MA poll 1 s, overlay card/chip, full screen, MediaSession, Pause here/Leave group/volume, adb CONFIG broadcast, boot start. NowPlaying logic tested against a mock MA server.
 - `tools/deploy_ajpanel.bat` (install, overlay permission, stop Snapcast app, configure, collect logs26) and `tools/build_java_apk.sh` (all three Java apps build).
 - **ajsnap** fork created (domain ajsnap, buffer 600 / chunk 20 defaults, `ajsnap/now_playing`, `ajsnap/panels`), `server/docker`, `server/ha-addon`, `install_ajsnap.sh`.

@@ -46,6 +46,7 @@ public class PanelService extends Service implements SnapProcess.Listener {
     SnapProcess snap;
     private MediaSession session;
     private Overlay overlay;
+    private DlnaMetaBridge bridge;
     private final Handler main = new Handler(Looper.getMainLooper());
     private final ExecutorService io = Executors.newSingleThreadExecutor();
     private final ExecutorService actions = Executors.newSingleThreadExecutor();
@@ -89,6 +90,13 @@ public class PanelService extends Service implements SnapProcess.Listener {
         cpuLock.acquire();
         snap = new SnapProcess(this, cfg, this);
         overlay = new Overlay(this, cfg);
+        bridge = new DlnaMetaBridge(this, paused -> {
+            NowPlaying n = now;
+            if (n == null) return;
+            if (paused) { if (!n.muted) pauseHere(); }          // pause on the panel's own screen = pause here
+            else if (n.muted) pauseHere();                      // play on the panel's screen = resume here
+            else if (!"playing".equals(n.state)) playPause();   // group was paused -> play the group
+        });
         Log.i("service created, hostID " + cfg.hostId() + " → MA player " + cfg.maPlayerId());
     }
 
@@ -119,6 +127,7 @@ public class PanelService extends Service implements SnapProcess.Listener {
         while (running) {
             NowPlaying n = NowPlaying.fetch(ma, cfg.maPlayerId());
             Bitmap a = n.active() ? Art.get(cfg, n.imageUrl) : null;
+            if (cfg.vendorBridge()) bridge.update(n);
             now = n; art = a;
             String key = n.key() + "|" + n.serverOk + n.registered + n.error;
             final boolean changed = !key.equals(lastKey);
@@ -235,6 +244,7 @@ public class PanelService extends Service implements SnapProcess.Listener {
         if (poller != null) poller.interrupt();
         snap.stop();
         overlay.remove();
+        bridge.stop();
         session.release();
         if (wifiLock.isHeld()) wifiLock.release();
         if (cpuLock.isHeld()) cpuLock.release();

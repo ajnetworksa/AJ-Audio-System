@@ -24,7 +24,10 @@ public class Cfg {
     public boolean resample()  { return p.getBoolean("resample", true); }
     public int latencyMs()     { return p.getInt("latency", 0); }            // per-panel trim (snapclient --latency)
     public boolean player()    { return p.getBoolean("player", true); }      // run embedded sync player
-    public boolean overlay()   { return p.getBoolean("overlay", true); }     // floating now-playing card
+    /** Judian panels keep their own smart-home UI: no floating card by default, song goes to their player instead */
+    public boolean overlay()   { return p.getBoolean("overlay", !DlnaMetaBridge.available(c)); }
+    /** push now-playing into the panel's own music player (Judian) */
+    public boolean vendorBridge() { return p.getBoolean("vendor_bridge", DlnaMetaBridge.available(c)); }
     public String playerIdOverride() { return p.getString("ma_player_id", ""); }
 
     public String maBase() { return "http://" + host() + ":" + maPort(); }

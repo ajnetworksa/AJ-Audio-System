@@ -20,7 +20,7 @@ public class BootReceiver extends BroadcastReceiver {
             SharedPreferences.Editor e = new Cfg(c).edit();
             for (String k : new String[]{"host", "name", "token", "engine", "ma_player_id"}) if (i.hasExtra(k)) e.putString(k, i.getStringExtra(k));
             for (String k : new String[]{"latency", "ma_port", "snap_port"}) if (i.hasExtra(k)) e.putInt(k, i.getIntExtra(k, 0));
-            for (String k : new String[]{"overlay", "player", "resample"}) if (i.hasExtra(k)) e.putBoolean(k, i.getBooleanExtra(k, true));
+            for (String k : new String[]{"overlay", "player", "resample", "vendor_bridge"}) if (i.hasExtra(k)) e.putBoolean(k, i.getBooleanExtra(k, true));
             e.commit();
             Log.i("config updated by broadcast");
             PanelService s = PanelService.instance;
