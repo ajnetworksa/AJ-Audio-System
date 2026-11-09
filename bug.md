@@ -1,0 +1,26 @@
+# bug.md — Every bug we find
+
+Format: `BUG-###` · status **OPEN / FIXED / WORKAROUND / WONTFIX** · where · symptom · cause (if known) · fix → `bug_fix.md#fix-###`.
+Add new bugs at the bottom. Never reuse a number.
+
+| ID | Status | Area | Symptom | Cause | Fix |
+|---|---|---|---|---|---|
+| BUG-001 | FIXED | Judian P8 · AirPlay Server app (io.github.jqssun.airplay 0.0.36) | App crashes the moment it is opened | `UnsatisfiedLinkError: EVP_PKEY_new_raw_public_key` — app bundles OpenSSL 3 as `libcrypto.so`, Android 10 already has system BoringSSL `libcrypto.so` loaded → name clash | [FIX-001](bug_fix.md#fix-001) |
+| BUG-002 | WORKAROUND | Judian panels · launching apps via adb | `monkey -p <pkg> 1` does nothing ("SYS_KEYS has no physical keys") | monkey refuses on devices without physical keys | [FIX-002](bug_fix.md#fix-002) |
+| BUG-003 | WORKAROUND | DSPPA DM938T · installing APKs | Install hangs, later `INSTALL_FAILED_VERIFICATION_FAILURE` | Google Play Protect dialog "Unsafe app blocked – built for an older version of Android" waits on the panel screen | [FIX-003](bug_fix.md#fix-003) |
+| BUG-004 | FIXED | DSPPA · DM858 (Auxdio) app on non-DM858 hardware | App crashes at start | `libadau1701.so` (+8 other native libs) only exist in the DM858 firmware | [FIX-004](bug_fix.md#fix-004) |
+| BUG-005 | FIXED | PC · adb | "device not found" right after `connected` | Two different `adb.exe` versions kill each other's server | [FIX-005](bug_fix.md#fix-005) |
+| BUG-006 | WORKAROUND | DSPPA · large installs | 161 MB install ran 20+ min then failed with empty error | Weak link + streamed install; Play Protect | [FIX-006](bug_fix.md#fix-006) |
+| BUG-007 | FIXED | ControlX Bridge v1.0 | Idle zones 2–4 broadcast "changed" every second (network spam) | state 0 normalised to 2 after comparison | [FIX-007](bug_fix.md#fix-007) |
+| BUG-008 | WORKAROUND | Music Assistant add-on | MA crashes at start: `OSError [Errno 98] bind 8097 address already in use` | A Python SimpleHTTP server from one of the owner's "AJ Netweb" add-ons (host network) uses 8097 | [FIX-008](bug_fix.md#fix-008) |
+| BUG-009 | FIXED | Network · panels → MA | Music stutters / stops; panel→Pi ping avg 2.4 s, max 12.9 s | Panels used 192.168.8.6 = the **Pi's Wi-Fi**; Ethernet is .5 | [FIX-009](bug_fix.md#fix-009) |
+| BUG-010 | FIXED | Panels · Snapcast app | MA shows group playing but no sound on panels | Snapcast players still bound to the old server address / stale process after the IP change | [FIX-010](bug_fix.md#fix-010) |
+| BUG-011 | WORKAROUND | MA · AirPlay Receiver → sync group | iPhone/Airvia connects, group never starts | MA linked duplicate protocol players (EShare-8965 AirPlay on DM938T, "Android AirPlay") to Snapcast panels | [FIX-011](bug_fix.md#fix-011) |
+| BUG-012 | OPEN | Android · Airvia → MA AirPlay Receiver | "Connects, no sound" (iPhone works after FIX-011) | Unknown: Airvia AirPlay variant vs plugin (early stage). Log shows `Playback started` then nothing | — |
+| BUG-013 | OPEN | ControlX Bridge v2.0 on Judian (zones=0) | Logs "bind YJY player: false" every 5 s + rx exception | Bridge still tries YJY AIDL on panels without YJY | planned in AJ Panel |
+| BUG-014 | OPEN (cosmetic) | ControlX Bridge | cmd 16 (room status) query logged as "set 0" | query flag only checked via payload 0x80; cmd 16 has no payload | planned |
+| BUG-015 | FIX PENDING TEST | DSPPA · Snapcast app | App shows ▶ (stopped) while a `libsnapclient.so` process started by the bridge keeps running; no audio track | Starting the service from another app leaves the app UI unbound; orphan process | FIX-015: AJ Panel v0.1 embeds + supervises its own player |
+| BUG-016 | OPEN (monitor) | Panels · Snapcast | Audio track re-created every few seconds/minutes with 1024–2048 underruns (logs23 `removeTrack_l`) | Likely BUG-009 stalls; re-check after FIX-009 | — |
+| BUG-017 | WONTFIX | Android Media Output / YouTube cast list | Panels/groups can't appear there | Google Cast device authentication (Google-signed certs) — see goal.md §4 | Alternatives: app, AriaCast, Bluetooth bridge |
+| BUG-018 | OPEN | AJ Audio v0.1 (phone) | untested: login response field, Player field names, raw URL in play_media | API shapes inferred from commands.json | login (`access_token`) + Player fields now checked against MA source (2026-11-09); play_media URL still to test on device |
+| BUG-019 | OPEN | Panels (all) | Panels didn't show what is playing | Snapcast app has no metadata; vendor home apps read only their own player | FIX-019: AJ Panel overlay + MediaSession (test pending) |

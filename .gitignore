@@ -1,0 +1,28 @@
+# build output (keep releases/)
+build/
+*.apk
+!**/releases/*.apk
+*.idx
+*.ap_
+*.dex
+*.class
+# flutter
+apps/phone-flutter/.dart_tool/
+apps/phone-flutter/.flutter-plugins*
+apps/phone-flutter/android/
+apps/phone-flutter/ios/
+apps/phone-flutter/pubspec.lock
+apps/phone-flutter/*.ipa
+# python
+__pycache__/
+*.pyc
+server/docker/data/
+server/ha-addon/aj_music_assistant/aj/
+# secrets / logs
+*.keystore
+*.jks
+tokens*.txt
+logs*/
+*.log
+.DS_Store
+Thumbs.db

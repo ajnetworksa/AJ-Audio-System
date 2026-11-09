@@ -1,0 +1,19 @@
+# Standalone server (no Home Assistant). Run on the Pi / any Linux box:
+#   cd server && docker compose -f docker/docker-compose.yml up -d --build
+services:
+  music-assistant:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+      args:
+        MA_VERSION: "2.10.9"
+    image: aj-music-assistant:2.10.9
+    container_name: aj-music-assistant
+    restart: unless-stopped
+    network_mode: host        # needed for mDNS discovery, AirPlay, snapserver 1704/1705
+    volumes:
+      - ./data:/data
+    cap_add: [SYS_ADMIN, DAC_READ_SEARCH]
+    security_opt: [apparmor:unconfined]
+    environment:
+      - LOG_LEVEL=info

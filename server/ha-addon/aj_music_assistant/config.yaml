@@ -1,0 +1,21 @@
+# Local Home Assistant add-on: copy the folder aj_music_assistant (after running ../build_addon.sh)
+# to /addons/ on the HA host (Samba or SSH add-on), then Settings -> Add-ons -> Add-on store -> ⋮ -> Check for updates.
+name: AJ Music Assistant
+version: "2.10.9-aj1"
+slug: aj_music_assistant
+description: Music Assistant 2.10.9 + AJ Snap provider for AJ wall panels
+url: https://github.com/music-assistant/server
+arch: [aarch64, amd64]
+startup: application
+boot: auto
+init: false
+host_network: true
+host_dbus: true
+apparmor: false
+privileged: [SYS_ADMIN, DAC_READ_SEARCH]
+map:
+  - media:rw
+  - share:rw
+webui: "http://[HOST]:[PORT:8095]"
+ports:
+  8095/tcp: 8095
