@@ -10,12 +10,27 @@ import android.content.SharedPreferences;
  *   am broadcast -n com.ajnetwork.ajpanel/.BootReceiver -a com.ajnetwork.ajpanel.CONFIG
  *      [--es host 192.168.8.5] [--es name "Living room"] [--es token <MA long-lived token>]
  *      [--es engine oboe|opensl] [--ei latency 0] [--ez overlay true] [--ez player true] [--es ma_player_id <id>]
+ *   ... -a com.ajnetwork.ajpanel.LOGIN --es user panels --es pass <password>
+ *       (logs in once, keeps only a long-lived token; the password is not stored)
  *   ... -a com.ajnetwork.ajpanel.STOP   (stop service + player)
  */
 public class BootReceiver extends BroadcastReceiver {
     @Override public void onReceive(Context c, Intent i) {
         String a = i.getAction() == null ? "" : i.getAction();
         if (a.endsWith(".STOP")) { c.stopService(new Intent(c, PanelService.class)); Log.i("stopped by broadcast"); return; }
+        if (a.endsWith(".LOGIN")) {
+            String u = i.getStringExtra("user"), p = i.getStringExtra("pass");
+            if (u == null || p == null) return;
+            PanelService.start(c);
+            final PendingResult pr = goAsync();
+            new Thread(() -> {
+                for (int k = 0; k < 50 && PanelService.instance == null; k++) try { Thread.sleep(100); } catch (InterruptedException ignored) { }
+                PanelService s = PanelService.instance;
+                if (s != null) s.login(u, p, null); else Log.i("login: service not running");
+                pr.finish();
+            }).start();
+            return;
+        }
         if (a.endsWith(".CONFIG")) {
             SharedPreferences.Editor e = new Cfg(c).edit();
             for (String k : new String[]{"host", "name", "token", "engine", "ma_player_id"}) if (i.hasExtra(k)) e.putString(k, i.getStringExtra(k));

@@ -42,6 +42,7 @@ Newest entries on top. Decisions are `D-###`.
 ## Log
 
 ### 2026-11-09
+- Panels log in with a **built-in MA user** (e.g. `panels`), independent of the owner's Home Assistant login: deploy script asks username/password, panel keeps only a long-lived token (`.LOGIN` broadcast).
 - AJ Panel v0.2: `DlnaMetaBridge` for Judian (JdLauncher/JdReceiver decompiled: launcher shows only jdmediarender's songs; DLNA push carries DIDL title/artist/cover). Silent MP3 server verified (valid 128 kbit/s, -91 dB). Deploy script: Judian = background mode, `-f 32` broadcasts, more logs (processes, audio tracks, media sessions).
 - D-013: DSPPA → AJ Panel is the UI; Judian → keep vendor UI, AJ Panel only plays + feeds the song to the vendor player.
 - Built **AJ Panel v0.1** (com.ajnetwork.ajpanel, min SDK 26, bundles snapclient 0.29 armv7+arm64): supervised player, MA poll 1 s, overlay card/chip, full screen, MediaSession, Pause here/Leave group/volume, adb CONFIG broadcast, boot start. NowPlaying logic tested against a mock MA server.

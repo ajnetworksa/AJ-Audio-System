@@ -11,6 +11,7 @@ param(
   [string]$panels = "192.168.8.210=P8_EN,192.168.8.73=M20_EN,192.168.8.46=smart",
   [string]$apk = "",
   [string]$token = "",
+  [string]$user = "",
   [switch]$disableOld,
   [switch]$uninstall
 )
@@ -22,10 +23,15 @@ if ($apk -eq "") { $apk = Get-ChildItem (Join-Path $here "..\apps\panel\releases
 $logs = Join-Path (Get-Location) "logs26"; New-Item -ItemType Directory -Force $logs | Out-Null
 $PKG = "com.ajnetwork.ajpanel"
 
+$pass = ""
 if (-not $uninstall -and $token -eq "") {
-  Write-Host "Music Assistant long-lived token for the panels (MA -> Settings -> your profile -> Long-lived tokens)."
-  Write-Host "Tip: make a separate MA user 'panel' for the panels. Press Enter to skip and log in on each panel instead."
-  $token = Read-Host "Token"
+  Write-Host "The panels log in to Music Assistant with their own MA user (works next to your Home Assistant login)."
+  Write-Host "Create it once: Music Assistant -> Settings -> Users -> Add user (e.g. 'panels', role User, password 8+ chars)."
+  if ($user -eq "") { $user = Read-Host "MA username for the panels (Enter = skip)" }
+  if ($user -ne "") {
+    $sec = Read-Host "Password for $user" -AsSecureString
+    $pass = [Runtime.InteropServices.Marshal]::PtrToStringAuto([Runtime.InteropServices.Marshal]::SecureStringToBSTR($sec))
+  }
 }
 
 & $ADB kill-server | Out-Null
@@ -66,6 +72,11 @@ foreach ($entry in $panels.Split(",")) {
   $cfg = @("shell", "am", "broadcast", "-f", "32", "-n", "$PKG/.BootReceiver", "-a", "$PKG.CONFIG", "--es", "host", $ma, "--es", "name", "'$name'")
   if ($token -ne "") { $cfg += @("--es", "token", $token) }
   & $ADB -s $dev @cfg | Tee-Object -Append $log
+  if ($pass -ne "") {
+    # panel logs in once and keeps only a long-lived token (password not stored on the panel, not written to the log)
+    $q = "'" + $pass.Replace("'", "'\''") + "'"
+    & $ADB -s $dev shell am broadcast -f 32 -n "$PKG/.BootReceiver" -a "$PKG.LOGIN" --es user "'$user'" --es pass $q | Out-Null
+  }
   $judian = (& $ADB -s $dev shell pm list packages com.judian.jdmediarender) -match "jdmediarender"
   if ($judian) {
     # Judian keeps its smart-home UI: AJ Panel runs in the background and puts the song into the Judian music player

@@ -233,7 +233,7 @@ public class PanelService extends Service implements SnapProcess.Listener {
                 try { t = m.longToken("AJ Panel " + cfg.name() + " " + cfg.hostId()); }
                 catch (Exception e) { Log.e("long-lived token (using session token)", e); t = m.token; }
                 cfg.edit().putString("token", t).apply();
-                Log.i("logged in as " + user);
+                Log.i("logged in as " + user + " (long-lived token saved)");
             } catch (Exception e) { Log.e("login", e); }
             main.post(() -> { reload(); if (done != null) done.run(); });
         });
