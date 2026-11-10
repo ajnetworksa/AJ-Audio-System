@@ -29,7 +29,10 @@ java -jar uber-apk-signer.jar -a build/unsigned.apk --allowResign -o build/signe
 ```
 
 Notes:
-- All our APKs are signed with the **same uber-apk-signer debug key** → updates install over each other. For production create our own release keystore (open item).
+- **Signing (D-014):** one release key for all our Android apps, made once with `tools\make_release_key.bat` (stored in `%USERPROFILE%\.ajnetwork\`, never in git). GitHub secrets `ANDROID_KEYSTORE_B64` + `ANDROID_KEYSTORE_PASS` → CI signs AJ Panel, AJ Audio (Java + Flutter) and ControlX Bridge with it. Without the secrets: Java apps get the uber-apk-signer debug key, Flutter gets a random CI key (warning in the run).
+  Local build with the release key: `KEYSTORE=<jks> KEYSTORE_PASS=<pw> bash tools/build_java_apk.sh apps/panel`.
+  Switching an installed app from debug key to release key needs **one uninstall** (signatures differ).
+- iOS needs no key in CI: the `.ipa` is unsigned; Sideloadly/AltStore signs it with your Apple ID when installing.
 - Re-signed third-party APKs can't update over the original (different signature) → uninstall first.
 - Native libs that are stored uncompressed must be 4 KB-aligned (uber-apk-signer's zipalign handles it).
 

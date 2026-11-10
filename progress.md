@@ -36,10 +36,14 @@ Newest entries on top. Decisions are `D-###`.
 - **D-006** (2026-11-09) One panel APK for all panel models; capabilities detected at runtime.
 - **D-010** (2026-11-09) **AJ Panel is the primary panel app** – it replaces the Snapcast app and (later) ControlX Bridge. Panels get new MA player ids `ma_ajpanel_<mac>`.
 - **D-011** (2026-11-09) "Who is playing" is served by our provider API (`ajsnap/now_playing`), not a core MA patch – fewer patches to re-apply on MA updates.
+- **D-014** (2026-11-10) One release signing key for all Android apps (CI secrets); iOS stays unsigned in CI (signed at install by Sideloadly/AltStore).
 - **D-013** (2026-11-09) DSPPA panels use AJ Panel as their UI; Judian panels keep their smart-home UI and AJ Panel feeds the song into the Judian music player (DLNA metadata bridge).
 - **D-012** (2026-11-09) Git repo local in `AJ-Audio-System`, owner pushes manually to GitHub.
 
 ## Log
+
+### 2026-11-10
+- CI fix: android-java used `setup-android` + `${{ env.ANDROID_SDK_ROOT }}` (empty in env context) → now uses the runner's preinstalled SDK via `$ANDROID_HOME`; actions bumped to checkout/setup-java v5 (Node 24). Release-key signing added to both workflows; `tools/make_release_key.bat`.
 
 ### 2026-11-09
 - Panels log in with a **built-in MA user** (e.g. `panels`), independent of the owner's Home Assistant login: deploy script asks username/password, panel keeps only a long-lived token (`.LOGIN` broadcast).

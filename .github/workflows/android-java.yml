@@ -1,5 +1,6 @@
 name: android-java
-# Builds the Java apps (AJ Panel, AJ Audio v0.1, ControlX Bridge) with the same Gradle-free toolchain as tools/build_java_apk.sh
+# Builds the Java apps (AJ Panel, AJ Audio v0.1, ControlX Bridge) with tools/build_java_apk.sh (no Gradle).
+# Signing: if the repo secrets ANDROID_KEYSTORE_B64 + ANDROID_KEYSTORE_PASS exist -> release key, else debug key.
 on:
   push:
     paths: ["apps/panel/**", "apps/phone-android/**", "legacy/controlx-bridge/**", "tools/build_java_apk.sh", ".github/workflows/android-java.yml"]
@@ -8,19 +9,28 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-java@v4
+      - uses: actions/checkout@v5
+      - uses: actions/setup-java@v5
         with: { distribution: temurin, java-version: "17" }
-      - uses: android-actions/setup-android@v3
-      - run: sdkmanager "platforms;android-35" "build-tools;35.0.0"
-      - name: uber-apk-signer
-        run: curl -sL -o /tmp/uas.jar https://github.com/patrickfav/uber-apk-signer/releases/download/v1.3.0/uber-apk-signer-1.3.0.jar
+      # the ubuntu runner already has the Android SDK in $ANDROID_HOME; just make sure platform/build-tools 35 are there
+      - name: Android SDK packages
+        run: |
+          SDKM=$(ls "$ANDROID_HOME"/cmdline-tools/*/bin/sdkmanager | head -1)
+          yes | "$SDKM" --licenses > /dev/null || true
+          "$SDKM" --install "platforms;android-35" "build-tools;35.0.0" > /dev/null
+          ls "$ANDROID_HOME/platforms/android-35/android.jar" "$ANDROID_HOME/build-tools/35.0.0/lib/d8.jar"
+      - name: uber-apk-signer (debug-key fallback)
+        run: curl -sSL -o "$RUNNER_TEMP/uas.jar" https://github.com/patrickfav/uber-apk-signer/releases/download/v1.3.0/uber-apk-signer-1.3.0.jar
+      - name: Release key from secrets (optional)
+        env:
+          KS_B64: ${{ secrets.ANDROID_KEYSTORE_B64 }}
+        run: |
+          if [ -n "$KS_B64" ]; then echo "$KS_B64" | base64 -d > "$RUNNER_TEMP/release.jks"; echo "KEYSTORE=$RUNNER_TEMP/release.jks" >> "$GITHUB_ENV"; echo "release key: yes"; else echo "release key: no (debug key)"; fi
       - name: Build
         env:
-          SDK: ${{ env.ANDROID_SDK_ROOT }}
-          AAPT2: ${{ env.ANDROID_SDK_ROOT }}/build-tools/35.0.0/aapt2
-          UAS: /tmp/uas.jar
+          KEYSTORE_PASS: ${{ secrets.ANDROID_KEYSTORE_PASS }}
         run: |
+          export SDK="$ANDROID_HOME" AAPT2="$ANDROID_HOME/build-tools/35.0.0/aapt2" UAS="$RUNNER_TEMP/uas.jar"
           bash tools/build_java_apk.sh apps/panel
           bash tools/build_java_apk.sh apps/phone-android
           bash tools/build_java_apk.sh legacy/controlx-bridge

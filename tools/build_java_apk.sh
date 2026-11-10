@@ -25,5 +25,14 @@ java -cp "$D8" com.android.tools.r8.D8 --release --min-api "$MIN" --lib "$AJAR" 
 cd "$B/apk"; unzip -q ../base.apk; cp ../dex/classes.dex .
 [ -d "$APP/lib" ] && cp -r "$APP/lib" .
 zip -q -0 ../unsigned.apk resources.arsc; zip -q -r -9 ../unsigned.apk . -x resources.arsc
-cd ..; java -jar "$UAS" -a unsigned.apk -o signed 2>&1 | grep -v JAVA_TOOL >/dev/null
-OUT="$B/${NAME}_v$VER.apk"; cp signed/*.apk "$OUT"; ls -la "$OUT"
+cd ..; OUT="$B/${NAME}_v$VER.apk"
+if [ -n "$KEYSTORE" ] && [ -f "$KEYSTORE" ]; then
+  # release key (CI secret or tools/make_release_key.bat) -> same signature on every build/PC
+  "$BT/zipalign" -f -p 4 unsigned.apk aligned.apk
+  "$BT/apksigner" sign --ks "$KEYSTORE" --ks-pass env:KEYSTORE_PASS --ks-key-alias "${KEY_ALIAS:-ajnetwork}" --key-pass env:KEYSTORE_PASS --out "$OUT" aligned.apk
+  echo "signed with release key"
+else
+  java -jar "$UAS" -a unsigned.apk -o signed 2>&1 | grep -v JAVA_TOOL >/dev/null
+  cp signed/*.apk "$OUT"; echo "signed with uber-apk-signer debug key"
+fi
+ls -la "$OUT"
