@@ -44,7 +44,7 @@ jobs:
       - name: Collect files
         run: |
           mkdir -p out
-          find dist -type f \( -name '*.apk' -o -name '*.ipa' \) -exec cp {} out/ \;
+          find dist -type f \( -name '*.apk' -o -name '*.ipa' \) ! -name 'base.apk' ! -name 'unsigned.apk' -exec cp {} out/ \;
           ls -la out
       - uses: actions/checkout@v5
         with:

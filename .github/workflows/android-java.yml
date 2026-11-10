@@ -37,7 +37,8 @@ jobs:
       - uses: actions/upload-artifact@v4
         with:
           name: java-apks
+          # only the finished, signed apps (build/ also holds base.apk / unsigned.apk intermediates)
           path: |
-            apps/panel/build/*.apk
-            apps/phone-android/build/*.apk
-            legacy/controlx-bridge/build/*.apk
+            apps/panel/build/*_v*.apk
+            apps/phone-android/build/*_v*.apk
+            legacy/controlx-bridge/build/*_v*.apk
