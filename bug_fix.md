@@ -79,6 +79,7 @@ Each section's id matches the bug in `bug.md` (FIX-001 ↔ BUG-001). Include: wh
 - Found in JdLauncher (`com.judian.launcher.cc.d` "MusicHelper"): the home screen gets title/artist/cover only from `com.judian.jdmediarender` (AIDL `JDMusicPlayerService`, callback 20007 SONG_CHANGE). That app is also a DLNA renderer: a DLNA push creates its song from the DIDL (`dc:title`, `upnp:artist`, `upnp:albumArtURI`) – `i.h.j.j.j.d.onSetDataSource`.
 - AJ Panel v0.2 `DlnaMetaBridge` (on when `com.judian.jdmediarender` is installed): SSDP-finds the panel's own renderer, sends `SetAVTransportURI` with MA's title/artist/cover and a **silent MP3** served by AJ Panel on 127.0.0.1, then `Play`/`Pause`/`Stop` following MA. Real audio still = our snapclient.
 - Pause / play on the Judian screen is read back (`GetTransportInfo`) → **pause here / resume here**.
+- M20_EN: HTTP to its own LAN IP (port 1501) times out → description/control are fetched via 127.0.0.1 (v0.2.1).
 - Note: Judian's parser turns every `&` into `&amp;` before parsing, so metadata is sent with raw `&`.
 - Judian panels: floating card off by default, AJ Panel runs in background (deploy script doesn't open it).
 - Verify: play to the group → Judian home music card shows the song within ~2 s; logcat `-s AJPanel` → `dlna bridge: pushed '…'`.

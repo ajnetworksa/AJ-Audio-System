@@ -109,7 +109,8 @@ public class SnapProcess {
                     lastLine = line;
                     if (line.contains("Connected to") || line.contains("ServerSettings")) connected = true;
                     if (line.contains("onError") || line.contains("Failed to connect") || line.contains("Connection refused")) connected = false;
-                    if (!line.contains("Stats")) Log.i("snap: " + line);
+                    // "No chunks available" = idle, once per second -> don't flood the log
+                    if (!line.contains("Stats") && !line.contains("No chunks available")) Log.i("snap: " + line);
                     listener.onSnapState(true, line);
                 }
                 int code = proc.waitFor();

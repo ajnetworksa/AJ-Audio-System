@@ -1,7 +1,7 @@
 # remove_snapcast_app.ps1 - uninstalls the old Snapcast app (de.badaix.snapcast) from the panels.
 # AJ Panel has its own built-in player, so the old app only creates duplicate/offline players in Music Assistant.
 # CHANGES the panels. Undo: install downloads\de.badaix.snapcast_2902.apk again.   Log -> logs27\
-param([string]$panels = "192.168.8.210,192.168.8.73,192.168.8.46")
+param([string]$panels = "192.168.8.194,192.168.8.73,192.168.8.46")
 $ADB = Join-Path $env:LOCALAPPDATA "Android\Sdk\platform-tools\adb.exe"
 if (-not (Test-Path $ADB)) { $ADB = "adb" }
 $logs = Join-Path (Get-Location) "logs27"; New-Item -ItemType Directory -Force $logs | Out-Null

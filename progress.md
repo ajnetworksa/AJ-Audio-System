@@ -43,6 +43,7 @@ Newest entries on top. Decisions are `D-###`.
 ## Log
 
 ### 2026-11-10
+- **First install (logs26):** AJ Panel installed on P8_EN (now **192.168.8.194**), M20_EN (.73), DSPPA (.46); all logged in as MA user `panels`, snapclient connected to 192.168.8.5:1704 (FLAC 48 kHz, oboe/AAudio; DSPPA resamples to 44.1 kHz). P8: Judian DLNA renderer found (127.0.0.1:1501). M20: own-IP fetch of the renderer description timed out → v0.2.1 fetches via 127.0.0.1. v0.2.1 also hides the per-second "No chunks available" idle lines. Not yet verified: sound + song shown while playing.
 - AJ Panel confirmed running on P8_EN + M20_EN (new Snapcast-protocol players online in MA); old Snapcast-app players show as offline duplicates → `tools/remove_snapcast_app.bat` uninstalls the old app, then remove the grey players in MA.
 - CI fix: android-java used `setup-android` + `${{ env.ANDROID_SDK_ROOT }}` (empty in env context) → now uses the runner's preinstalled SDK via `$ANDROID_HOME`; actions bumped to checkout/setup-java v5 (Node 24). Release-key signing added to both workflows; `tools/make_release_key.bat`.
 

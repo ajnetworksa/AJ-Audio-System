@@ -97,7 +97,7 @@ public class PanelService extends Service implements SnapProcess.Listener {
             else if (n.muted) pauseHere();                      // play on the panel's screen = resume here
             else if (!"playing".equals(n.state)) playPause();   // group was paused -> play the group
         });
-        Log.i("service created, hostID " + cfg.hostId() + " → MA player " + cfg.maPlayerId());
+        Log.i("service created, hostID " + cfg.hostId() + " -> MA player " + cfg.maPlayerId());
     }
 
     @Override public int onStartCommand(Intent intent, int flags, int startId) {

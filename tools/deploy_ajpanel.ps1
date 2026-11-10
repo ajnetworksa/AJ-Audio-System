@@ -8,7 +8,7 @@
 #   deploy_ajpanel.bat -uninstall                        (remove AJ Panel, re-enable Snapcast app)
 param(
   [string]$ma = "192.168.8.5",
-  [string]$panels = "192.168.8.210=P8_EN,192.168.8.73=M20_EN,192.168.8.46=smart",
+  [string]$panels = "192.168.8.194=P8_EN,192.168.8.73=M20_EN,192.168.8.46=dsppa938t",
   [string]$apk = "",
   [string]$token = "",
   [string]$user = "",
@@ -19,7 +19,7 @@ $ErrorActionPreference = "Continue"
 $ADB = Join-Path $env:LOCALAPPDATA "Android\Sdk\platform-tools\adb.exe"
 if (-not (Test-Path $ADB)) { $ADB = "adb" }
 $here = Split-Path -Parent $MyInvocation.MyCommand.Path
-if ($apk -eq "") { $apk = Get-ChildItem (Join-Path $here "..\apps\panel\releases\AJ_Panel_v*.apk") | Sort-Object Name | Select-Object -Last 1 -ExpandProperty FullName }
+if ($apk -eq "") { $apk = Get-ChildItem (Join-Path $here "..\apps\panel\releases\AJ_Panel_v*.apk") | Sort-Object { [version](($_.BaseName -replace '^AJ_Panel_v','') + '.0' * (3 - ($_.BaseName -replace '^AJ_Panel_v','').Split('.').Count)) } | Select-Object -Last 1 -ExpandProperty FullName }
 $logs = Join-Path (Get-Location) "logs26"; New-Item -ItemType Directory -Force $logs | Out-Null
 $PKG = "com.ajnetwork.ajpanel"
 

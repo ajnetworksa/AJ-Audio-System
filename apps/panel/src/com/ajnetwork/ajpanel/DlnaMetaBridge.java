@@ -167,7 +167,10 @@ public class DlnaMetaBridge {
                 String loc = m.group(1);
                 String host = new URL(loc).getHost();
                 if (!host.equals("127.0.0.1") && !host.equals(me)) continue;   // only THIS panel's renderer
-                String ctl = controlUrlFrom(loc);
+                // M20: connecting to its own LAN IP times out, 127.0.0.1 works -> try loopback first
+                String ctl = null;
+                try { ctl = controlUrlFrom(loc.replace("//" + host + ":", "//127.0.0.1:")); } catch (Exception e) { Log.i("ssdp via 127.0.0.1: " + e.getMessage()); }
+                if (ctl == null) ctl = controlUrlFrom(loc);
                 if (ctl != null) return ctl.replace("//" + host + ":", "//127.0.0.1:");
             }
         } catch (Exception e) { Log.e("ssdp", e); }
