@@ -75,4 +75,53 @@ class Ma {
   Future<void> simple(String c, String id) => cmd('players/cmd/$c', {'player_id': id});
   Future<void> playUrl(String queueId, String url) =>
       cmd('player_queues/play_media', {'queue_id': queueId, 'media': url, 'option': 'replace'});
+
+  // ---- groups / plugins ----
+  /// loaded provider instances (domain, instance_id, ...)
+  Future<List<Map<String, dynamic>>> providers() async {
+    final r = await cmd('providers');
+    return (r as List? ?? []).cast<Map<String, dynamic>>();
+  }
+
+  Future<String?> providerInstance(String domain) async {
+    for (final p in await providers()) {
+      if (p['domain'] == domain) return (p['instance_id'] ?? p['lookup_key'] ?? domain).toString();
+    }
+    return null;
+  }
+
+  /// permanent, named group ("Sync group" in Music Assistant) - returns the new group player
+  Future<Map<String, dynamic>?> createGroup(String name, List<String> members) async {
+    final inst = await providerInstance('sync_group');
+    if (inst == null) throw MaException(404, 'Sync group provider not found in Music Assistant');
+    final r = await cmd('players/create_group_player',
+        {'provider': inst, 'name': name, 'members': members, 'dynamic': true});
+    return r is Map<String, dynamic> ? r : null;
+  }
+
+  Future<void> removeGroup(String id) => cmd('players/remove_group_player', {'player_id': id});
+
+  /// expose a player/group as AirPlay receiver ("<name> | Music Assistant")
+  Future<bool> setAirplayReceiver(String playerId, bool on) async {
+    final inst = await providerInstance('airplay_receiver');
+    if (inst == null) return false;
+    await cmd('config/players/save', {
+      'player_id': playerId,
+      'values': {'$inst||plugin||enabled': on},
+    });
+    return true;
+  }
+
+  /// player ids that currently have the AirPlay receiver enabled
+  Future<Set<String>> airplayReceiverPlayers() async {
+    try {
+      final inst = await providerInstance('airplay_receiver');
+      if (inst == null) return {};
+      final v = await cmd('config/providers/get_value', {'instance_id': inst, 'key': 'connected_players'});
+      return {for (final x in (v as List? ?? [])) x.toString()};
+    } catch (_) {
+      return {};
+    }
+  }
 }
+

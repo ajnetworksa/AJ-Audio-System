@@ -21,6 +21,13 @@ Design language: dark background, large touch targets (panel screens are 1024×6
 - Ongoing notification "Playing phone audio on <room>" with **Stop**.
 - Planned: Quick Settings tile "Play to <last room>" (one tap).
 
+### A3b. Groups (v0.3)
+- Home = **GROUPS** (saved groups with name + temporary groups) above **ROOMS**.
+- **New group** button: name, "Save with a name" (saved = permanent Sync group + its own AirPlay receiver "<name> | Music Assistant") or temporary (until ungroup), tick rooms.
+- Group card: members, now playing, played by, ⏮ ⏯ ⏭ ⏹, group volume, AirPlay switch (saved), menu: change rooms / ungroup / delete.
+- Room card: now playing, "in <group>", leave group, mute, volume.
+- ▶ on an empty group explains how to start music (BUG-021).
+
 ### A4. Planned (v0.2+)
 - Saved groups (create_group_player) shown as "Scenes": *Whole House*, *Ground floor*…
 - Now-playing bar with artwork; per-room mute.

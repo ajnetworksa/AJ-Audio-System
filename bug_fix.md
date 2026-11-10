@@ -84,3 +84,7 @@ Each section's id matches the bug in `bug.md` (FIX-001 ↔ BUG-001). Include: wh
 - Judian panels: floating card off by default, AJ Panel runs in background (deploy script doesn't open it).
 - Verify: play to the group → Judian home music card shows the song within ~2 s; logcat `-s AJPanel` → `dlna bridge: pushed '…'`.
 - Undo: AJ Panel settings → untick "Show song in the panel's own music player", or `--ez vendor_bridge false`.
+
+## FIX-021
+**BUG-021 – 500 error on ▶ for a new group**
+- Flutter v0.3: if the player/group is idle with no current media, ▶ shows "Nothing to play yet" (AirPlay to "<group> | Music Assistant", or pick music in MA) instead of sending `play_pause`. Other API errors show MA's message; 403 says an admin user is needed.
