@@ -1,9 +1,11 @@
 name: release
 # Builds everything and publishes a GitHub Release (repo -> Releases) with:
 #   AJ_Panel_vX.apk, AJ_Audio_vX.apk (Java), ControlX_Bridge_vX.apk, AJ_Audio.apk (Flutter), AJ_Audio.ipa (unsigned)
-# - every push to main that changes an app  -> pre-release "latest" (replaced each time)
-# - git tag v0.3.0 && git push origin v0.3.0 -> permanent release v0.3.0
-# - GitHub -> Actions -> release -> Run workflow -> tag of your choice
+# Version (tag) is automatic on every push to main that changes an app:
+#   normal commit -> patch   v0.3.0 -> v0.3.1
+#   "[major]" in a commit message -> v0.3.1 -> v0.4.0      "[breaking]" -> v1.0.0
+# Release notes = changelog of commits since the previous release, grouped by area ("panel: ...").
+# Manual: push a tag (git tag v0.5.0 && git push origin v0.5.0) or Actions -> release -> Run workflow.
 on:
   push:
     tags: ["v*"]            # versioned release, e.g. v0.3.0
@@ -12,9 +14,13 @@ on:
   workflow_dispatch:
     inputs:
       tag:
-        description: "Release tag to create (e.g. v0.2.0)"
-        required: true
-        default: "v0.2.0"
+        description: "Release tag to create (e.g. v0.5.0); empty = automatic"
+        required: false
+        default: ""
+
+concurrency:
+  group: release
+  cancel-in-progress: false
 
 jobs:
   java:
@@ -40,29 +46,58 @@ jobs:
           mkdir -p out
           find dist -type f \( -name '*.apk' -o -name '*.ipa' \) -exec cp {} out/ \;
           ls -la out
-      - name: Release name
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0          # need all tags + history for version and changelog
+          path: src
+      - name: Version + changelog
         id: rel
+        working-directory: src
         run: |
-          if [ -n "${{ github.event.inputs.tag }}" ]; then T="${{ github.event.inputs.tag }}"; PRE=false
-          elif [ "${{ github.ref_type }}" = "tag" ]; then T="${{ github.ref_name }}"; PRE=false
-          else T=latest; PRE=true; fi
-          echo "tag=$T" >> "$GITHUB_OUTPUT"; echo "pre=$PRE" >> "$GITHUB_OUTPUT"
-      - name: Replace previous "latest"
-        if: steps.rel.outputs.tag == 'latest'
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: gh release delete latest --cleanup-tag --yes -R "${{ github.repository }}" || true
+          LAST=$(git tag -l 'v*' --sort=-v:refname | head -1)
+          RANGE=${LAST:+$LAST..}HEAD
+          if [ -n "${{ github.event.inputs.tag }}" ]; then TAG="${{ github.event.inputs.tag }}"
+          elif [ "${{ github.ref_type }}" = "tag" ]; then TAG="${{ github.ref_name }}"
+          else
+            # automatic version:  [breaking] -> X+1.0.0   [major] -> X.Y+1.0   otherwise -> X.Y.Z+1
+            V=${LAST#v}; V=${V:-0.2.9}     # no release yet -> first automatic one is v0.3.0
+            IFS=. read -r MA MI PA <<< "$V"
+            [ -z "$LAST" ] && MA=0 && MI=2 && PA=99
+            MSGS=$(git log --format='%s%n%b' $RANGE)
+            if   grep -qiE '\[breaking\]|BREAKING CHANGE' <<< "$MSGS"; then MA=$((MA+1)); MI=0; PA=0
+            elif grep -qiE '\[major\]' <<< "$MSGS"; then MI=$((MI+1)); PA=0
+            else PA=$((PA+1)); fi
+            [ "$PA" = 100 ] && MI=$((MI+1)) && PA=0
+            TAG="v$MA.$MI.$PA"
+          fi
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+          # changelog = commits since the previous release, grouped by area ("area: what")
+          {
+            echo "## $TAG – $(date -u +%Y-%m-%d)"
+            echo
+            [ -n "$LAST" ] && echo "Changes since **$LAST**:" && echo
+            for AREA in panel phone server tools ci docs legacy; do
+              case $AREA in panel) T="Panel app";; phone) T="Phone app";; server) T="Server";; tools) T="Tools";; ci) T="Build / CI";; docs) T="Docs";; legacy) T="Legacy";; esac
+              # "area: text" or "area v1.2: text" or "area(x): text"
+              LINES=$(git log --no-merges --format='%s' $RANGE | grep -iE "^$AREA([ (][^:]*)?:" | sed -E 's/^[^:]+:[ ]*/- /' | sed -E 's/ *\[(major|breaking)\]//I')
+              [ -n "$LINES" ] && printf '### %s\n%s\n\n' "$T" "$LINES"
+            done
+            OTHER=$(git log --no-merges --format='%s' $RANGE | grep -viE '^(panel|phone|server|tools|ci|docs|legacy)([ (][^:]*)?:' | sed 's/^/- /')
+            [ -n "$OTHER" ] && printf '### Other\n%s\n\n' "$OTHER"
+            echo "### Files"
+            echo '- **Panels:** `AJ_Panel_*.apk` → install with `tools\deploy_ajpanel.bat`'
+            echo '- **Android phone:** `AJ_Audio.apk` (Flutter) or `AJ_Audio_v0.1.apk` (Java, has "play my phone")'
+            echo '- **iPhone:** `AJ_Audio.ipa` is unsigned → install with Sideloadly (Apple ID)'
+            echo '- **Control X:** `ControlX_Bridge_*.apk`'
+            echo
+            echo "Built from commit ${{ github.sha }}."
+          } > "$RUNNER_TEMP/notes.md"
+          cat "$RUNNER_TEMP/notes.md"
       - uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ steps.rel.outputs.tag }}
-          prerelease: ${{ steps.rel.outputs.pre }}
           target_commitish: ${{ github.sha }}
           name: AJ Audio System ${{ steps.rel.outputs.tag }}
-          generate_release_notes: ${{ steps.rel.outputs.pre == 'false' }}
+          body_path: ${{ runner.temp }}/notes.md
+          make_latest: true
           files: out/*
-          body: |
-            Built from commit ${{ github.sha }}.
-            **Panels:** `AJ_Panel_*.apk` → install with `tools\deploy_ajpanel.bat`
-            **Android phone:** `AJ_Audio.apk` (Flutter, new) or `AJ_Audio_v0.1.apk` (Java, has "play my phone")
-            **iPhone:** `AJ_Audio.ipa` is unsigned → install with Sideloadly (Apple ID)
-            **Control X:** `ControlX_Bridge_*.apk`

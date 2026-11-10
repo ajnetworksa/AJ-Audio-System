@@ -43,8 +43,9 @@ Server (D-008): `server/README.md` – same `ajsnap` provider + `patches/` packa
 ## 2a. Releases (GitHub)
 - Every push builds **artifacts** (Actions → the run → bottom "Artifacts" → zip). They expire after 90 days.
 - **Releases** (repo → Releases) are made by `release.yml`:
-  - every push to `main` that changes an app → pre-release **latest** (replaced each push; always the newest build)
-  - `git tag v0.3.0` + `git push origin v0.3.0` → permanent release **v0.3.0** (or Actions → release → Run workflow)
+  - every push to `main` that changes an app → new release with an automatic version: patch by default (v0.3.1), `[major]` in a commit → v0.4.0, `[breaking]` → v1.0.0
+  - release notes = changelog of the commits since the previous release, grouped by area (see `CHANGELOG.md`)
+  - a hand-pushed tag (`git tag v0.5.0` + `git push origin v0.5.0`) or Actions → release → Run workflow with a tag overrides the number
 - `android-java.yml` / `phone-flutter.yml` only run inside the release (and for pull requests / manual runs), so each push builds once.
 
 ## 2b. Git

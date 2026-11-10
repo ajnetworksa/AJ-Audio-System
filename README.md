@@ -12,6 +12,7 @@ panels group and play in sync, phones play from any app, panels show what's play
 | [bug.md](bug.md) → [bug_fix.md](bug_fix.md) | bugs (BUG-###) and their fixes (FIX-###, same number) |
 | [troubleshoot.md](troubleshoot.md) | how to collect and read logs |
 | [ui.md](ui.md) | phone app + panel app screens |
+| [CHANGELOG.md](CHANGELOG.md) | release history, how version numbers are chosen |
 
 ## Repository layout
 
