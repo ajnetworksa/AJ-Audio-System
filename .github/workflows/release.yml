@@ -1,10 +1,14 @@
 name: release
 # Builds everything and publishes a GitHub Release (repo -> Releases) with:
 #   AJ_Panel_vX.apk, AJ_Audio_vX.apk (Java), ControlX_Bridge_vX.apk, AJ_Audio.apk (Flutter), AJ_Audio.ipa (unsigned)
-# Start it:  git tag v0.2.0 && git push origin v0.2.0     or  GitHub -> Actions -> release -> Run workflow
+# - every push to main that changes an app  -> pre-release "latest" (replaced each time)
+# - git tag v0.3.0 && git push origin v0.3.0 -> permanent release v0.3.0
+# - GitHub -> Actions -> release -> Run workflow -> tag of your choice
 on:
   push:
-    tags: ["v*"]
+    tags: ["v*"]            # versioned release, e.g. v0.3.0
+    branches: [main]        # every push to main -> rolling "latest" release
+    paths: ["apps/**", "legacy/**", "tools/build_java_apk.sh", ".github/workflows/**"]
   workflow_dispatch:
     inputs:
       tag:
@@ -21,6 +25,8 @@ jobs:
     secrets: inherit
   publish:
     needs: [java, flutter]
+    # publish what was built even if one part (e.g. iOS) failed
+    if: ${{ !cancelled() && (needs.java.result == 'success' || needs.flutter.result == 'success') }}
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -34,14 +40,28 @@ jobs:
           mkdir -p out
           find dist -type f \( -name '*.apk' -o -name '*.ipa' \) -exec cp {} out/ \;
           ls -la out
+      - name: Release name
+        id: rel
+        run: |
+          if [ -n "${{ github.event.inputs.tag }}" ]; then T="${{ github.event.inputs.tag }}"; PRE=false
+          elif [ "${{ github.ref_type }}" = "tag" ]; then T="${{ github.ref_name }}"; PRE=false
+          else T=latest; PRE=true; fi
+          echo "tag=$T" >> "$GITHUB_OUTPUT"; echo "pre=$PRE" >> "$GITHUB_OUTPUT"
+      - name: Replace previous "latest"
+        if: steps.rel.outputs.tag == 'latest'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release delete latest --cleanup-tag --yes -R "${{ github.repository }}" || true
       - uses: softprops/action-gh-release@v2
         with:
-          tag_name: ${{ github.event.inputs.tag || github.ref_name }}
+          tag_name: ${{ steps.rel.outputs.tag }}
+          prerelease: ${{ steps.rel.outputs.pre }}
           target_commitish: ${{ github.sha }}
-          name: AJ Audio System ${{ github.event.inputs.tag || github.ref_name }}
-          generate_release_notes: true
+          name: AJ Audio System ${{ steps.rel.outputs.tag }}
+          generate_release_notes: ${{ steps.rel.outputs.pre == 'false' }}
           files: out/*
           body: |
+            Built from commit ${{ github.sha }}.
             **Panels:** `AJ_Panel_*.apk` → install with `tools\deploy_ajpanel.bat`
             **Android phone:** `AJ_Audio.apk` (Flutter, new) or `AJ_Audio_v0.1.apk` (Java, has "play my phone")
             **iPhone:** `AJ_Audio.ipa` is unsigned → install with Sideloadly (Apple ID)

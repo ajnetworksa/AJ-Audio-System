@@ -1,7 +1,6 @@
 name: phone-flutter
 on:
-  push:
-    paths: ["apps/phone-flutter/**", ".github/workflows/phone-flutter.yml"]
+  pull_request:         # check PRs; pushes to main are built by release.yml
   workflow_dispatch:
   workflow_call:        # used by release.yml
 

@@ -42,7 +42,10 @@ Server (D-008): `server/README.md` – same `ajsnap` provider + `patches/` packa
 
 ## 2a. Releases (GitHub)
 - Every push builds **artifacts** (Actions → the run → bottom "Artifacts" → zip). They expire after 90 days.
-- A **Release** (repo → Releases, permanent download links) is made by `release.yml`: `git tag v0.2.0` + `git push origin v0.2.0`, or Actions → **release** → Run workflow → tag.
+- **Releases** (repo → Releases) are made by `release.yml`:
+  - every push to `main` that changes an app → pre-release **latest** (replaced each push; always the newest build)
+  - `git tag v0.3.0` + `git push origin v0.3.0` → permanent release **v0.3.0** (or Actions → release → Run workflow)
+- `android-java.yml` / `phone-flutter.yml` only run inside the release (and for pull requests / manual runs), so each push builds once.
 
 ## 2b. Git
 - Repo root = `AJ-Audio-System`. Branch `main`. **Commit after every piece of work** (rule 9 in agent.md); message `area: what` + body with why/test result.
