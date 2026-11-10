@@ -29,6 +29,7 @@ Start at §1 (symptom → first check). Collect logs with §2. Read them with §
 | `23_why_no_sound.bat` | volumes, active audio tracks, output device, Snapcast screen | `logs23\<ip>\` |
 | `24_sound_test.bat` | (changes) restarts players, interactive "do you hear it?" test | `logs24\` |
 | `25_ma_disable_dupes.bat` | (changes) MA API: list players, disable duplicates, dump configs | `logs25\` (incl. `commands.json`) |
+| `AJ-Audio-System\tools\why_no_play.bat` | read-only: MA players/groups/queues via API (asks MA password) + AJ Panel log, connections, audio output per panel | `logs28\` |
 | `AJ-Audio-System\tools\deploy_ajpanel.bat` | (changes) installs/configures AJ Panel, stops Snapcast app; collects AJPanel log + 1704 connections | `logs26\<ip>.txt` |
 
 Manual essentials:
