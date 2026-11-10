@@ -3,6 +3,7 @@ on:
   push:
     paths: ["apps/phone-flutter/**", ".github/workflows/phone-flutter.yml"]
   workflow_dispatch:
+  workflow_call:        # used by release.yml
 
 defaults:
   run:

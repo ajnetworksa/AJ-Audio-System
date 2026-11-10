@@ -1,0 +1,48 @@
+name: release
+# Builds everything and publishes a GitHub Release (repo -> Releases) with:
+#   AJ_Panel_vX.apk, AJ_Audio_vX.apk (Java), ControlX_Bridge_vX.apk, AJ_Audio.apk (Flutter), AJ_Audio.ipa (unsigned)
+# Start it:  git tag v0.2.0 && git push origin v0.2.0     or  GitHub -> Actions -> release -> Run workflow
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Release tag to create (e.g. v0.2.0)"
+        required: true
+        default: "v0.2.0"
+
+jobs:
+  java:
+    uses: ./.github/workflows/android-java.yml
+    secrets: inherit
+  flutter:
+    uses: ./.github/workflows/phone-flutter.yml
+    secrets: inherit
+  publish:
+    needs: [java, flutter]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+      - name: Collect files
+        run: |
+          mkdir -p out
+          find dist -type f \( -name '*.apk' -o -name '*.ipa' \) -exec cp {} out/ \;
+          ls -la out
+      - uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.event.inputs.tag || github.ref_name }}
+          target_commitish: ${{ github.sha }}
+          name: AJ Audio System ${{ github.event.inputs.tag || github.ref_name }}
+          generate_release_notes: true
+          files: out/*
+          body: |
+            **Panels:** `AJ_Panel_*.apk` → install with `tools\deploy_ajpanel.bat`
+            **Android phone:** `AJ_Audio.apk` (Flutter, new) or `AJ_Audio_v0.1.apk` (Java, has "play my phone")
+            **iPhone:** `AJ_Audio.ipa` is unsigned → install with Sideloadly (Apple ID)
+            **Control X:** `ControlX_Bridge_*.apk`

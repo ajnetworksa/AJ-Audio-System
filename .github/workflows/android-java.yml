@@ -5,6 +5,7 @@ on:
   push:
     paths: ["apps/panel/**", "apps/phone-android/**", "legacy/controlx-bridge/**", "tools/build_java_apk.sh", ".github/workflows/android-java.yml"]
   workflow_dispatch:
+  workflow_call:        # used by release.yml
 jobs:
   build:
     runs-on: ubuntu-latest

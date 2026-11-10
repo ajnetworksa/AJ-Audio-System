@@ -40,6 +40,10 @@ Phone app (Flutter, D-007): built only by GitHub Actions (`.github/workflows/pho
 
 Server (D-008): `server/README.md` – same `ajsnap` provider + `patches/` packaged as Docker image and as local HA add-on.
 
+## 2a. Releases (GitHub)
+- Every push builds **artifacts** (Actions → the run → bottom "Artifacts" → zip). They expire after 90 days.
+- A **Release** (repo → Releases, permanent download links) is made by `release.yml`: `git tag v0.2.0` + `git push origin v0.2.0`, or Actions → **release** → Run workflow → tag.
+
 ## 2b. Git
 - Repo root = `AJ-Audio-System`. Branch `main`. Commit after every working step; message `area: what` (e.g. `panel: pause here`).
 - Never commit tokens/passwords (`.gitignore` blocks `tokens*.txt`, logs, keystores).
