@@ -30,9 +30,9 @@ The older test scripts `1_…bat` … `25_…bat` and logs live in `D:\Devlopmen
 
 | Name in MA | Model | IP | Android | CPU / ABI | Notes |
 |---|---|---|---|---|---|
-| P8_EN | Judian P8 (Tuya Zigbee gateway) | 192.168.8.210 | 10 (SDK 29) | Allwinner A133, **armeabi-v7a only**, 1 GB | adb :5555, no root, SELinux permissive, root sshd (key-only) |
+| P8_EN | Judian P8 (Tuya Zigbee gateway) | **192.168.8.194** (was .210) | 10 (SDK 29) | Allwinner A133, **armeabi-v7a only**, 1 GB | adb :5555, no root, SELinux permissive, root sshd (key-only) |
 | M20_EN | Judian M20 | 192.168.8.73 | 10 | Allwinner | adb :5555 |
-| smart | DSPPA DM938T (built by YJY) | 192.168.8.46 | 8.1 (SDK 27) | Rockchip PX30, arm64 + armv7, 2 GB | Google Play Protect active, EShare (licensed) installed, YJY player has AIDL control |
+| smart / dsppa938t | DSPPA DM938T (built by YJY) | 192.168.8.46 | 8.1 (SDK 27) | Rockchip PX30, arm64 + armv7, 2 GB | Google Play Protect active, EShare (licensed) installed, YJY player has AIDL control |
 | — | Raspberry Pi (HA OS + Music Assistant 2.10.9) | **192.168.8.5** eth / 192.168.8.6 wlan | — | arm64 | MA web 8095, stream 8097, snapserver 1704/1705 |
 | — | Windows PC (build/adb host) | 192.168.8.143 | — | — | Android SDK at `%LOCALAPPDATA%\Android\Sdk` |
 
@@ -46,6 +46,14 @@ The older test scripts `1_…bat` … `25_…bat` and logs live in `D:\Devlopmen
 6. Every bug you find → `bug.md` (new BUG id). Every fix → `bug_fix.md` with the same id. Update `progress.md` at the end of each work session.
 7. Don't guess API shapes: Music Assistant publishes its command list at `GET http://<ma>:8095/api-docs/commands.json` (copy in `New folder\logs25\commands.json`).
 8. Keep the panel app **one APK for all panels**; device differences go in a capability table (zones, audio streams, YJY/Judian services) detected at runtime.
+9. **Commit after every piece of work** – every change, fix, build, new script or doc update gets its own git commit right away, so the history shows *what* was done and *when*:
+   - one logical change per commit; never leave work uncommitted at the end of a session
+   - message: `area: what was done` (areas: `panel`, `phone`, `server`, `ci`, `tools`, `docs`, `legacy`), then a short body with **why** and any test result, e.g.
+     `panel: show song in Judian player (DLNA bridge)` / body: `M20 needs 127.0.0.1; tested on P8 + M20`
+   - mention the bug/decision id when there is one (`FIX-020`, `D-013`)
+   - commit releases (`*/releases/*.apk`) together with the source change that produced them
+   - never commit tokens, passwords, keystores or logs (see `.gitignore`)
+   - the owner pushes to GitHub; tell him when there are commits to push
 
 ## 4. Key technical facts (learned the hard way)
 

@@ -45,7 +45,7 @@ Server (D-008): `server/README.md` – same `ajsnap` provider + `patches/` packa
 - A **Release** (repo → Releases, permanent download links) is made by `release.yml`: `git tag v0.2.0` + `git push origin v0.2.0`, or Actions → **release** → Run workflow → tag.
 
 ## 2b. Git
-- Repo root = `AJ-Audio-System`. Branch `main`. Commit after every working step; message `area: what` (e.g. `panel: pause here`).
+- Repo root = `AJ-Audio-System`. Branch `main`. **Commit after every piece of work** (rule 9 in agent.md); message `area: what` + body with why/test result.
 - Never commit tokens/passwords (`.gitignore` blocks `tokens*.txt`, logs, keystores).
 - The owner pushes manually to GitHub.
 
