@@ -43,6 +43,7 @@ Newest entries on top. Decisions are `D-###`.
 ## Log
 
 ### 2026-11-10
+- AJ Panel confirmed running on P8_EN + M20_EN (new Snapcast-protocol players online in MA); old Snapcast-app players show as offline duplicates → `tools/remove_snapcast_app.bat` uninstalls the old app, then remove the grey players in MA.
 - CI fix: android-java used `setup-android` + `${{ env.ANDROID_SDK_ROOT }}` (empty in env context) → now uses the runner's preinstalled SDK via `$ANDROID_HOME`; actions bumped to checkout/setup-java v5 (Node 24). Release-key signing added to both workflows; `tools/make_release_key.bat`.
 
 ### 2026-11-09
