@@ -6,6 +6,8 @@
 #   deploy_ajpanel.bat -panels "192.168.8.46=Living"     (one panel, custom name)
 #   deploy_ajpanel.bat -disableOld                       (also disable the Snapcast app so it can't start again)
 #   deploy_ajpanel.bat -uninstall                        (remove AJ Panel, re-enable Snapcast app)
+#   deploy_ajpanel.bat -panels "192.168.8.46=dsppa938t" -asHome     (AJ Panel becomes the home screen; Judian panels are skipped)
+#   deploy_ajpanel.bat -panels "192.168.8.46=dsppa938t" -restoreHome (vendor home screen again)
 param(
   [string]$ma = "192.168.8.5",
   [string]$panels = "192.168.8.194=P8_EN,192.168.8.73=M20_EN,192.168.8.46=dsppa938t",
@@ -13,6 +15,8 @@ param(
   [string]$token = "",
   [string]$user = "",
   [switch]$disableOld,
+  [switch]$asHome,          # DSPPA: make AJ Panel the panel's home screen (undo: -asHome:$false -restoreHome)
+  [switch]$restoreHome,
   [switch]$uninstall
 )
 $ErrorActionPreference = "Continue"
@@ -83,6 +87,15 @@ foreach ($entry in $panels.Split(",")) {
     Write-Host "Judian panel: AJ Panel runs in background, song shown in the panel's own music player"
     "judian panel: background mode" | Out-File -Append $log -Encoding utf8
   } else {
+    if ($asHome) {
+      & $ADB -s $dev shell pm enable "$PKG/.HomeAlias" | Tee-Object -Append $log
+      & $ADB -s $dev shell cmd package set-home-activity "$PKG/.HomeAlias" | Tee-Object -Append $log
+      Write-Host "AJ Panel is now the home screen (Home button opens it). Undo with -restoreHome"
+    }
+    if ($restoreHome) {
+      & $ADB -s $dev shell pm disable "$PKG/.HomeAlias" | Tee-Object -Append $log
+      Write-Host "Vendor home screen restored (press Home once and pick it if Android asks)"
+    }
     & $ADB -s $dev shell am start -n "$PKG/.MainActivity" | Tee-Object -Append $log
   }
 }

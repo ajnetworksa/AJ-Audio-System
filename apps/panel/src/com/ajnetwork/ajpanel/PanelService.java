@@ -48,6 +48,9 @@ public class PanelService extends Service implements SnapProcess.Listener {
     private Overlay overlay;
     private DlnaMetaBridge bridge;
     private VolumeSync volume;
+    Breaks breaks;
+    volatile Site site;
+    private long lastSite;
     private final Handler main = new Handler(Looper.getMainLooper());
     private final ExecutorService io = Executors.newSingleThreadExecutor();
     private final ExecutorService actions = Executors.newSingleThreadExecutor();
@@ -92,6 +95,7 @@ public class PanelService extends Service implements SnapProcess.Listener {
         snap = new SnapProcess(this, cfg, this);
         overlay = new Overlay(this, cfg);
         volume = new VolumeSync(this, ma, cfg);
+        breaks = new Breaks(this, ma, cfg);
         bridge = new DlnaMetaBridge(this, paused -> {
             NowPlaying n = now;
             if (n == null) return;
@@ -132,6 +136,11 @@ public class PanelService extends Service implements SnapProcess.Listener {
             Bitmap a = n.active() ? Art.get(cfg, n.imageUrl) : null;
             if (cfg.vendorBridge()) bridge.update(n);
             volume.update(n);
+            if (n.serverOk && System.currentTimeMillis() - lastSite > 3000) {
+                lastSite = System.currentTimeMillis();
+                try { site = Site.fetch(ma); } catch (Exception e) { Log.e("players/all", e); }
+                breaks.update(site, n);
+            }
             now = n; art = a;
             String key = n.key() + "|" + n.serverOk + n.registered + n.error;
             final boolean changed = !key.equals(lastKey);
@@ -226,6 +235,35 @@ public class PanelService extends Service implements SnapProcess.Listener {
         async(c + " " + target, () -> ma.simple(c, target));
     }
     public void setVolume(int v) { async("volume " + v, () -> ma.volume(cfg.maPlayerId(), v)); }
+
+    // ---------------- v1: groups, breaks, play-to ----------------
+    /** join a saved group (this room becomes a member of its session / preset) */
+    public void joinGroup(String groupId) {
+        async("join " + groupId, () -> {
+            if (breaks.active() && breaks.groupId().equals(groupId)) breaks.end(site, "joined by hand");
+            ma.setMembers(groupId, new org.json.JSONArray().put(cfg.maPlayerId()), null);
+        });
+        lastSite = 0;
+    }
+    /** take a break from the group: mode = Breaks.TIME/MINE/GROUP_END */
+    public void startBreak(String groupId, String mode, long untilMs, boolean quiet) {
+        async("break " + mode, () -> breaks.start(groupId, mode, untilMs, quiet));
+        lastSite = 0;
+    }
+    public void endBreak() { async("rejoin now", () -> breaks.end(site, "rejoin now")); lastSite = 0; }
+    public void extendBreak(long ms) { breaks.extend(ms); lastKey = ""; }
+    /** play what this room plays on more rooms: this room leads, the others join */
+    public void playOn(java.util.List<String> roomIds) {
+        async("play on " + roomIds, () -> {
+            org.json.JSONArray add = new org.json.JSONArray();
+            for (String id : roomIds) if (!id.equals(cfg.maPlayerId())) add.put(id);
+            if (add.length() > 0) ma.setMembers(cfg.maPlayerId(), add, null);
+        });
+        lastSite = 0;
+    }
+    /** the group this room belongs to right now (saved group or a room leading/followed), "" = none */
+    public String currentGroupId() { NowPlaying n = now; return n == null ? "" : n.groupId.equals(cfg.maPlayerId()) ? "" : n.groupId; }
+    public String myId() { return cfg.maPlayerId(); }
 
     /** login with MA user/password, then swap for a long-lived token stored on the panel */
     public void login(String user, String pass, Runnable done) {

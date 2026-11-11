@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
-    package="com.ajnetwork.ajpanel" android:versionCode="4" android:versionName="0.2.2">
+    package="com.ajnetwork.ajpanel" android:versionCode="5" android:versionName="0.3.0">
     <uses-sdk android:minSdkVersion="26" android:targetSdkVersion="29"/>
     <uses-permission android:name="android.permission.INTERNET"/>
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE"/>
@@ -21,6 +21,16 @@
                 <category android:name="android.intent.category.LAUNCHER"/>
             </intent-filter>
         </activity>
+        <activity android:name=".SettingsActivity" android:exported="false" android:label="AJ Panel settings"
+            android:configChanges="orientation|screenSize|keyboardHidden"/>
+        <!-- optional: AJ Panel as the panel's home screen (DSPPA). Off by default; deploy_ajpanel.bat -asHome turns it on -->
+        <activity-alias android:name=".HomeAlias" android:targetActivity=".MainActivity" android:enabled="false" android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN"/>
+                <category android:name="android.intent.category.HOME"/>
+                <category android:name="android.intent.category.DEFAULT"/>
+            </intent-filter>
+        </activity-alias>
         <service android:name=".PanelService" android:exported="false" android:foregroundServiceType="mediaPlayback"/>
         <receiver android:name=".BootReceiver" android:exported="true">
             <intent-filter>
