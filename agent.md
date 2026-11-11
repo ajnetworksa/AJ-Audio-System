@@ -54,6 +54,7 @@ The older test scripts `1_…bat` … `25_…bat` and logs live in `D:\Devlopmen
    - the subject line goes straight into the release changelog → write it for the owner, not for the code
    - add `[major]` to the subject for a big new feature (→ next minor version, e.g. v0.4.0), `[breaking]` when panels/phones must be reinstalled or reconfigured (→ v1.0.0); otherwise the release is a patch (v0.3.1). See `CHANGELOG.md`
    - commit releases (`*/releases/*.apk`) together with the source change that produced them
+   - **bump the app version** whenever an app changes (panel: `versionName`/`versionCode` in its AndroidManifest; phone: `version:` in `pubspec.yaml`) – the version is in the release file name, so the owner can see which app is new
    - never commit tokens, passwords, keystores or logs (see `.gitignore`)
    - the owner pushes to GitHub; tell him when there are commits to push
 

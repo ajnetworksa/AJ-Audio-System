@@ -37,14 +37,14 @@ jobs:
             echo "$KS_B64" | base64 -d > "$RUNNER_TEMP/release.jks"
             "$ANDROID_HOME/build-tools/$(ls "$ANDROID_HOME/build-tools" | sort -V | tail -1)/apksigner" sign \
               --ks "$RUNNER_TEMP/release.jks" --ks-pass env:KEYSTORE_PASS --ks-key-alias ajnetwork --key-pass env:KEYSTORE_PASS \
-              --out AJ_Audio.apk "$APK"
+              --out "AJ_Audio_v$(grep -m1 '^version:' pubspec.yaml | sed -E 's/version: *([0-9.]+).*/\1/').apk" "$APK"
             echo "signed with release key"
           else
-            cp "$APK" AJ_Audio.apk
+            cp "$APK" "AJ_Audio_v$(grep -m1 '^version:' pubspec.yaml | sed -E 's/version: *([0-9.]+).*/\1/').apk"
             echo "::warning::No ANDROID_KEYSTORE_B64 secret - APK has a random CI debug key; each build must be uninstalled before installing the next"
           fi
       - uses: actions/upload-artifact@v4
-        with: { name: aj-audio-apk, path: apps/phone-flutter/AJ_Audio.apk }
+        with: { name: aj-audio-apk, path: apps/phone-flutter/AJ_Audio_v*.apk }
 
   ios:
     runs-on: macos-latest
@@ -68,6 +68,6 @@ jobs:
       - name: Package unsigned IPA (sign with Sideloadly / AltStore)
         run: |
           mkdir -p Payload && cp -r build/ios/iphoneos/Runner.app Payload/
-          zip -qr AJ_Audio.ipa Payload
+          zip -qr "AJ_Audio_v$(grep -m1 '^version:' pubspec.yaml | sed -E 's/version: *([0-9.]+).*/\1/').ipa" Payload
       - uses: actions/upload-artifact@v4
-        with: { name: aj-audio-ipa-unsigned, path: apps/phone-flutter/AJ_Audio.ipa }
+        with: { name: aj-audio-ipa-unsigned, path: apps/phone-flutter/AJ_Audio_v*.ipa }

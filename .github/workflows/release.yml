@@ -86,8 +86,10 @@ jobs:
             [ -n "$OTHER" ] && printf '### Other\n%s\n\n' "$OTHER"
             echo "### Files"
             echo '- **Panels:** `AJ_Panel_*.apk` → install with `tools\deploy_ajpanel.bat`'
-            echo '- **Android phone:** `AJ_Audio.apk` (Flutter) or `AJ_Audio_v0.1.apk` (Java, has "play my phone")'
-            echo '- **iPhone:** `AJ_Audio.ipa` is unsigned → install with Sideloadly (Apple ID)'
+            echo '- **Android phone:** `AJ_Audio_v0.3.x.apk` (Flutter app) · `AJ_Audio_v0.1.apk` = old Java app (only for "play my phone")'
+            echo '- **iPhone:** `AJ_Audio_v0.3.x.ipa` is unsigned → install with Sideloadly (Apple ID)'
+            echo
+            echo 'Every release contains all apps; a file name only changes when that app got a new version.'
             echo '- **Control X:** `ControlX_Bridge_*.apk`'
             echo
             echo "Built from commit ${{ github.sha }}."
