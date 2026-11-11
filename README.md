@@ -20,6 +20,7 @@ panels group and play in sync, phones play from any app, panels show what's play
 |---|---|
 | `apps/panel/` | **AJ Panel** – primary app on every panel: sync player + now playing + pause here / leave group |
 | `apps/phone-flutter/` | **AJ Audio** phone app, Flutter (Android + iOS), built by GitHub Actions |
+| `apps/setup-flutter/` | **AJ Setup** installer app, Flutter (Android + iOS): rooms, groups, users, logs, panel updates |
 | `apps/phone-android/` | AJ Audio v0.1 (Java) – reference client, has "play my phone" capture |
 | `server/` | AJ Music Assistant: `ajsnap` provider fork + patches → Docker **and** local HA add-on |
 | `legacy/controlx-bridge/` | ControlX Bridge v2.0 (Control X ↔ YJY player), to be merged into AJ Panel |

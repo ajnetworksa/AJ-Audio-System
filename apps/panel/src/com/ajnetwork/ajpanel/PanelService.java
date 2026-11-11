@@ -49,6 +49,7 @@ public class PanelService extends Service implements SnapProcess.Listener {
     private DlnaMetaBridge bridge;
     private VolumeSync volume;
     Breaks breaks;
+    private PanelHttp http;
     volatile Site site;
     private long lastSite;
     private final Handler main = new Handler(Looper.getMainLooper());
@@ -96,6 +97,8 @@ public class PanelService extends Service implements SnapProcess.Listener {
         overlay = new Overlay(this, cfg);
         volume = new VolumeSync(this, ma, cfg);
         breaks = new Breaks(this, ma, cfg);
+        http = new PanelHttp(this, cfg);
+        http.start();
         bridge = new DlnaMetaBridge(this, paused -> {
             NowPlaying n = now;
             if (n == null) return;
@@ -264,6 +267,8 @@ public class PanelService extends Service implements SnapProcess.Listener {
     /** the group this room belongs to right now (saved group or a room leading/followed), "" = none */
     public String currentGroupId() { NowPlaying n = now; return n == null ? "" : n.groupId.equals(cfg.maPlayerId()) ? "" : n.groupId; }
     public String myId() { return cfg.maPlayerId(); }
+    /** settings changed from the Setup app (network thread) */
+    void reloadFromAnyThread() { main.post(() -> { ma.base = cfg.maBase(); reload(); }); }
 
     /** login with MA user/password, then swap for a long-lived token stored on the panel */
     public void login(String user, String pass, Runnable done) {
@@ -287,6 +292,7 @@ public class PanelService extends Service implements SnapProcess.Listener {
         snap.stop();
         overlay.remove();
         bridge.stop();
+        http.stop();
         session.release();
         if (wifiLock.isHeld()) wifiLock.release();
         if (cpuLock.isHeld()) cpuLock.release();

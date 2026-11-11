@@ -59,7 +59,8 @@ foreach ($entry in $panels.Split(",")) {
   & $ADB -s $dev shell rm /data/local/tmp/ajpanel.apk
 
   # permissions: floating card + keep running
-  & $ADB -s $dev shell appops set $PKG SYSTEM_ALERT_WINDOW allow | Tee-Object -Append $log
+  & $ADB -s $dev shell appops set $PKG SYSTEM_ALERT_WINDOW allow | Tee-Object -Append $log  # allow updates pushed from the AJ Setup app (one tap "Install" on the panel)
+  & $ADB -s $dev shell appops set $PKG REQUEST_INSTALL_PACKAGES allow | Tee-Object -Append $log
   & $ADB -s $dev shell dumpsys deviceidle whitelist +$PKG | Tee-Object -Append $log
   & $ADB -s $dev shell cmd appops set $PKG RUN_IN_BACKGROUND allow 2>$null | Out-Null
 

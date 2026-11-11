@@ -46,7 +46,7 @@ playing and who is playing it**.
 | R10 | Panel protocol work (Tuya/Zigbee, panel-side features) | owner will check later |
 | R11 | From a panel: send what plays here to a group / more rooms, or join a group | AJ Panel v0.3.0 (test pending) |
 | R12 | Leaving a group is **never permanent**: timed break or "until I stop my music", auto-rejoin | AJ Panel v0.3.0 (test pending) |
-| R13 | **Installer app** (admin): names, groups, AirPlay, users/permissions, logs from MA and panels | designed (ui.md D, D-015) |
+| R13 | **Installer app** (admin): names, groups, AirPlay, users/permissions, logs from MA and panels | AJ Setup v0.1 built (CI), test pending |
 | R14 | Clients need no app: AirPlay / Bluetooth to named groups; client app optional | designed (ui.md E) |
 
 ## 4. Non-goals / hard limits (do not spend time here)

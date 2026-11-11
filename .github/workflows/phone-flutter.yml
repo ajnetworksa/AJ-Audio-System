@@ -1,16 +1,24 @@
 name: phone-flutter
+# Builds the two Flutter apps for Android (APK) and iPhone (unsigned IPA):
+#   apps/phone-flutter  -> AJ Audio  (client)
+#   apps/setup-flutter  -> AJ Setup  (installer)
 on:
   pull_request:         # check PRs; pushes to main are built by release.yml
   workflow_dispatch:
   workflow_call:        # used by release.yml
 
-defaults:
-  run:
-    working-directory: apps/phone-flutter
-
 jobs:
   android:
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { dir: apps/phone-flutter, project: aj_audio, label: "AJ Audio", file: AJ_Audio, art: aj-audio }
+          - { dir: apps/setup-flutter, project: aj_setup, label: "AJ Setup", file: AJ_Setup, art: aj-setup }
+    defaults:
+      run:
+        working-directory: ${{ matrix.dir }}
     steps:
       - uses: actions/checkout@v5
       - uses: actions/setup-java@v5
@@ -18,13 +26,13 @@ jobs:
       - uses: subosito/flutter-action@v2
         with: { channel: stable, cache: true }
       - name: Generate platform folder
-        run: flutter create --org com.ajnetwork --project-name aj_audio --platforms android .
-      - name: Network permissions (LAN http to Music Assistant)
+        run: flutter create --org com.ajnetwork --project-name ${{ matrix.project }} --platforms android .
+      - name: Network permissions (LAN http to Music Assistant and panels), app name
         run: |
           M=android/app/src/main/AndroidManifest.xml
           grep -q 'android.permission.INTERNET' $M || sed -i 's#<application#<uses-permission android:name="android.permission.INTERNET"/>\n    <application#' $M
           grep -q usesCleartextTraffic $M || sed -i 's#<application#<application android:usesCleartextTraffic="true"#' $M
-          sed -i 's#android:label="aj_audio"#android:label="AJ Audio"#' $M
+          sed -i 's#android:label="${{ matrix.project }}"#android:label="${{ matrix.label }}"#' $M
       - run: flutter pub get
       - run: flutter build apk --release
       - name: Sign with our release key (if secrets set) - same key every build, so updates install over the old app
@@ -33,41 +41,51 @@ jobs:
           KEYSTORE_PASS: ${{ secrets.ANDROID_KEYSTORE_PASS }}
         run: |
           APK=build/app/outputs/flutter-apk/app-release.apk
+          OUT="${{ matrix.file }}_v$(grep -m1 '^version:' pubspec.yaml | sed -E 's/version: *([0-9.]+).*/\1/').apk"
           if [ -n "$KS_B64" ]; then
             echo "$KS_B64" | base64 -d > "$RUNNER_TEMP/release.jks"
             "$ANDROID_HOME/build-tools/$(ls "$ANDROID_HOME/build-tools" | sort -V | tail -1)/apksigner" sign \
               --ks "$RUNNER_TEMP/release.jks" --ks-pass env:KEYSTORE_PASS --ks-key-alias ajnetwork --key-pass env:KEYSTORE_PASS \
-              --out "AJ_Audio_v$(grep -m1 '^version:' pubspec.yaml | sed -E 's/version: *([0-9.]+).*/\1/').apk" "$APK"
+              --out "$OUT" "$APK"
             echo "signed with release key"
           else
-            cp "$APK" "AJ_Audio_v$(grep -m1 '^version:' pubspec.yaml | sed -E 's/version: *([0-9.]+).*/\1/').apk"
+            cp "$APK" "$OUT"
             echo "::warning::No ANDROID_KEYSTORE_B64 secret - APK has a random CI debug key; each build must be uninstalled before installing the next"
           fi
       - uses: actions/upload-artifact@v4
-        with: { name: aj-audio-apk, path: apps/phone-flutter/AJ_Audio_v*.apk }
+        with: { name: "${{ matrix.art }}-apk", path: "${{ matrix.dir }}/${{ matrix.file }}_v*.apk" }
 
   ios:
     runs-on: macos-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { dir: apps/phone-flutter, project: aj_audio, label: "AJ Audio", file: AJ_Audio, art: aj-audio }
+          - { dir: apps/setup-flutter, project: aj_setup, label: "AJ Setup", file: AJ_Setup, art: aj-setup }
+    defaults:
+      run:
+        working-directory: ${{ matrix.dir }}
     steps:
       - uses: actions/checkout@v5
       - uses: subosito/flutter-action@v2
         with: { channel: stable, cache: true }
       - name: Generate platform folder
-        run: flutter create --org com.ajnetwork --project-name aj_audio --platforms ios .
+        run: flutter create --org com.ajnetwork --project-name ${{ matrix.project }} --platforms ios .
       - name: Info.plist (LAN http, local network, name)
         run: |
           P=ios/Runner/Info.plist
           /usr/libexec/PlistBuddy -c "Add :NSAppTransportSecurity dict" $P || true
           /usr/libexec/PlistBuddy -c "Add :NSAppTransportSecurity:NSAllowsArbitraryLoads bool true" $P || true
-          /usr/libexec/PlistBuddy -c "Add :NSLocalNetworkUsageDescription string 'AJ Audio talks to your Music Assistant server and wall panels.'" $P || true
+          /usr/libexec/PlistBuddy -c "Add :NSLocalNetworkUsageDescription string '${{ matrix.label }} talks to your Music Assistant server and wall panels.'" $P || true
           /usr/libexec/PlistBuddy -c "Add :NSBonjourServices array" $P || true
           /usr/libexec/PlistBuddy -c "Add :NSBonjourServices:0 string _mass._tcp" $P || true
-          /usr/libexec/PlistBuddy -c "Set :CFBundleDisplayName 'AJ Audio'" $P || true
+          /usr/libexec/PlistBuddy -c "Set :CFBundleDisplayName '${{ matrix.label }}'" $P || true
       - run: flutter pub get
       - run: flutter build ios --release --no-codesign
       - name: Package unsigned IPA (sign with Sideloadly / AltStore)
         run: |
           mkdir -p Payload && cp -r build/ios/iphoneos/Runner.app Payload/
-          zip -qr "AJ_Audio_v$(grep -m1 '^version:' pubspec.yaml | sed -E 's/version: *([0-9.]+).*/\1/').ipa" Payload
+          zip -qr "${{ matrix.file }}_v$(grep -m1 '^version:' pubspec.yaml | sed -E 's/version: *([0-9.]+).*/\1/').ipa" Payload
       - uses: actions/upload-artifact@v4
-        with: { name: aj-audio-ipa-unsigned, path: apps/phone-flutter/AJ_Audio_v*.ipa }
+        with: { name: "${{ matrix.art }}-ipa-unsigned", path: "${{ matrix.dir }}/${{ matrix.file }}_v*.ipa" }

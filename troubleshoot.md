@@ -84,7 +84,7 @@ Output thread … name AudioOut_D …
 
 - Ping meaning: < 10 ms good · 10–50 ok · spikes > 200 ms cause audio gaps · > 1000 ms = stall (BUG-009).
 - Same spikes on **all** panels at the same moment → shared cause (AP or server link), not the panel.
-- Ports: MA web **8095**, MA stream **8097**, snapserver **1704** (audio) / **1705** (control) / 1780 (http), Control X **40188/40189 UDP**, our DLNA **49494**, AJ Audio phone stream **8765**, AirPlay **7000**, adb **5555**.
+- Ports: AJ Panel setup API **8766** (`/api/info` open, rest needs MA admin token) · MA web **8095**, MA stream **8097**, snapserver **1704** (audio) / **1705** (control) / 1780 (http), Control X **40188/40189 UDP**, our DLNA **49494**, AJ Audio phone stream **8765**, AirPlay **7000**, adb **5555**.
 - Who uses a port on the Pi (from the SSH add-on):
   ```bash
   curl -si --max-time 3 http://127.0.0.1:8097/ | head -8

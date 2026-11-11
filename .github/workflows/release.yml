@@ -90,6 +90,7 @@ jobs:
             echo '- **iPhone:** `AJ_Audio_v0.3.x.ipa` is unsigned → install with Sideloadly (Apple ID)'
             echo
             echo 'Every release contains all apps; a file name only changes when that app got a new version.'
+            echo '- **Installer:** `AJ_Setup_v*.apk` (Android) / `AJ_Setup_v*.ipa` (iPhone, Sideloadly) – admin app for rooms, groups, users, logs, panel updates'
             echo '- **Control X:** `ControlX_Bridge_*.apk`'
             echo
             echo "Built from commit ${{ github.sha }}."
