@@ -217,7 +217,7 @@ class _RoomDetailState extends State<RoomDetail> {
               ),
             const Divider(color: C.line),
             SettingRow(label: 'Max volume', trailing: Text('${maxVol.round()} %', style: const TextStyle(color: C.sub))),
-            Slider(value: maxVol, min: 10, max: 100, divisions: 18, onChanged: (v) => setState(() => maxVol = v)),
+            Slider(value: maxVol.clamp(10, 100).toDouble(), min: 10, max: 100, divisions: 18, onChanged: (v) => setState(() => maxVol = v)),
             if (panel) ...[
               SettingRow(
                 label: 'Sound delay trim',
