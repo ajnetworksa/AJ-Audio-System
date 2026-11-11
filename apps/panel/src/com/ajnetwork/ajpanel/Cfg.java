@@ -24,6 +24,8 @@ public class Cfg {
     public boolean resample()  { return p.getBoolean("resample", true); }
     public int latencyMs()     { return p.getInt("latency", 0); }            // per-panel trim (snapclient --latency)
     public boolean player()    { return p.getBoolean("player", true); }      // run embedded sync player
+    /** volume = the panel's real media volume (synced with MA both ways); false = old software volume in snapclient */
+    public boolean systemVolume() { return p.getBoolean("system_volume", true); }
     /** Judian panels keep their own smart-home UI: no floating card by default, song goes to their player instead */
     public boolean overlay()   { return p.getBoolean("overlay", !DlnaMetaBridge.available(c)); }
     /** push now-playing into the panel's own music player (Judian) */

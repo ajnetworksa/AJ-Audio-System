@@ -47,6 +47,7 @@ public class PanelService extends Service implements SnapProcess.Listener {
     private MediaSession session;
     private Overlay overlay;
     private DlnaMetaBridge bridge;
+    private VolumeSync volume;
     private final Handler main = new Handler(Looper.getMainLooper());
     private final ExecutorService io = Executors.newSingleThreadExecutor();
     private final ExecutorService actions = Executors.newSingleThreadExecutor();
@@ -90,6 +91,7 @@ public class PanelService extends Service implements SnapProcess.Listener {
         cpuLock.acquire();
         snap = new SnapProcess(this, cfg, this);
         overlay = new Overlay(this, cfg);
+        volume = new VolumeSync(this, ma, cfg);
         bridge = new DlnaMetaBridge(this, paused -> {
             NowPlaying n = now;
             if (n == null) return;
@@ -109,7 +111,8 @@ public class PanelService extends Service implements SnapProcess.Listener {
     public void reload() {
         ma.base = cfg.maBase();
         ma.token = cfg.token();
-        String sig = cfg.player() + cfg.host() + cfg.snapPort() + cfg.hostId() + cfg.engine() + cfg.resample() + cfg.latencyMs();
+        String sig = cfg.player() + cfg.host() + cfg.snapPort() + cfg.hostId() + cfg.engine() + cfg.resample() + cfg.latencyMs() + cfg.systemVolume();
+        if (volume != null) volume.reset();
         if (!sig.equals(snapSig)) {   // only restart audio when its settings changed
             snapSig = sig;
             snap.stop();
@@ -128,6 +131,7 @@ public class PanelService extends Service implements SnapProcess.Listener {
             NowPlaying n = NowPlaying.fetch(ma, cfg.maPlayerId());
             Bitmap a = n.active() ? Art.get(cfg, n.imageUrl) : null;
             if (cfg.vendorBridge()) bridge.update(n);
+            volume.update(n);
             now = n; art = a;
             String key = n.key() + "|" + n.serverOk + n.registered + n.error;
             final boolean changed = !key.equals(lastKey);

@@ -93,6 +93,8 @@ public class SnapProcess {
                 String fpb = am.getProperty(AudioManager.PROPERTY_OUTPUT_FRAMES_PER_BUFFER);
                 cmd.add("--sampleformat"); cmd.add(cfg.resample() && rate != null ? rate + ":*:*" : "*:16:*");
                 if (cfg.latencyMs() != 0) { cmd.add("--latency"); cmd.add(String.valueOf(cfg.latencyMs())); }
+                // volume is applied to the panel's real media volume by VolumeSync, not inside snapclient
+                if (cfg.systemVolume()) { cmd.add("--mixer"); cmd.add("none"); }
                 cmd.add("--logfilter"); cmd.add("*:info,Stats:debug");
                 ProcessBuilder pb = new ProcessBuilder(cmd).redirectErrorStream(true);
                 Map<String, String> env = pb.environment();

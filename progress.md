@@ -46,6 +46,7 @@ Newest entries on top. Decisions are `D-###`.
 ## Log
 
 ### 2026-11-11
+- AJ Panel v0.2.2: real panel volume synced with MA both ways (BUG-022 / FIX-022).
 - UI research + revamp mockups (design canvas "AJ Audio UI Revamp": 5 panel screens, 5 installer screens, 1 client screen); spec in ui.md §C–E, R11–R14, D-015…D-017. `tools/panel_screenshots.bat` to capture more DSPPA/Judian screens.
 
 ### 2026-11-10

@@ -116,13 +116,14 @@ public class MainActivity extends Activity implements PanelService.Listener {
         CheckBox ov = check("Show floating now-playing card", cfg.overlay());
         CheckBox pl = check("Run built-in sync player", cfg.player());
         CheckBox vb = check("Show song in the panel's own music player (Judian)", cfg.vendorBridge());
-        for (View v : new View[]{host, name, u, p, lat, opensl, ov, pl, vb}) s.addView(v);
+        CheckBox sysVol = check("Volume = panel volume (buttons and app stay in sync)", cfg.systemVolume());
+        for (View v : new View[]{host, name, u, p, lat, opensl, ov, pl, vb, sysVol}) s.addView(v);
         Button save = Ui.button(this, "Save & connect");
         save.setOnClickListener(v -> {
             int l = 0; try { l = Integer.parseInt(lat.getText().toString().trim()); } catch (Exception ignored) { }
             cfg.edit().putString("host", host.getText().toString().trim()).putString("name", name.getText().toString().trim())
                     .putInt("latency", l).putString("engine", opensl.isChecked() ? "opensl" : "oboe")
-                    .putBoolean("overlay", ov.isChecked()).putBoolean("player", pl.isChecked()).putBoolean("vendor_bridge", vb.isChecked()).apply();
+                    .putBoolean("overlay", ov.isChecked()).putBoolean("player", pl.isChecked()).putBoolean("vendor_bridge", vb.isChecked()).putBoolean("system_volume", sysVol.isChecked()).apply();
             String user = u.getText().toString().trim();
             PanelService sv = PanelService.instance;
             if (sv == null) { PanelService.start(this); return; }
