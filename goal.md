@@ -44,6 +44,10 @@ playing and who is playing it**.
 | R8 | Must run on **all panels** (32-bit Android 10 Judian, 64-bit Android 8.1 PX30 DSPPA, more later), no root | design constraint |
 | R9 | Keep **Control X** (DSPPA/Auxdio app) control of the YJY player working | ✅ ControlX Bridge v1.1/v2.0 |
 | R10 | Panel protocol work (Tuya/Zigbee, panel-side features) | owner will check later |
+| R11 | From a panel: send what plays here to a group / more rooms, or join a group | designed (ui.md C) |
+| R12 | Leaving a group is **never permanent**: timed break or "until I stop my music", auto-rejoin | designed (ui.md C, D-016) |
+| R13 | **Installer app** (admin): names, groups, AirPlay, users/permissions, logs from MA and panels | designed (ui.md D, D-015) |
+| R14 | Clients need no app: AirPlay / Bluetooth to named groups; client app optional | designed (ui.md E) |
 
 ## 4. Non-goals / hard limits (do not spend time here)
 

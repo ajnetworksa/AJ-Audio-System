@@ -36,11 +36,17 @@ Newest entries on top. Decisions are `D-###`.
 - **D-006** (2026-11-09) One panel APK for all panel models; capabilities detected at runtime.
 - **D-010** (2026-11-09) **AJ Panel is the primary panel app** – it replaces the Snapcast app and (later) ControlX Bridge. Panels get new MA player ids `ma_ajpanel_<mac>`.
 - **D-011** (2026-11-09) "Who is playing" is served by our provider API (`ajsnap/now_playing`), not a core MA patch – fewer patches to re-apply on MA updates.
+- **D-015** (2026-11-11) Phone side splits in two: **AJ Setup** (installer/admin app: rooms, groups, users, logs) and **AJ Audio** (optional client rooms remote). Same Flutter repo, two app targets. Clients mainly use AirPlay/Bluetooth to named groups.
+- **D-016** (2026-11-11) "Take a break": saved groups are MA **dynamic sync groups** (members = preset pulled in on play, removable per session, dissolve on stop – checked in sync_group/player.py). Break = `set_members(remove=[me])` + panel stores {group, until/mode}; at expiry `set_members(add=[me])` if the session still runs; while on a break the panel removes itself again if a new session pulls it in. Works on stock MA; moves server-side into ajsnap later so it survives panel reboots/offline.
+- **D-017** (2026-11-11) Panel UI follows the DSPPA home look (clock, landscape, right rail, bottom now-playing bar); one APK, Judian keeps vendor UI + bridge.
 - **D-014** (2026-11-10) One release signing key for all Android apps (CI secrets); iOS stays unsigned in CI (signed at install by Sideloadly/AltStore).
 - **D-013** (2026-11-09) DSPPA panels use AJ Panel as their UI; Judian panels keep their smart-home UI and AJ Panel feeds the song into the Judian music player (DLNA metadata bridge).
 - **D-012** (2026-11-09) Git repo local in `AJ-Audio-System`, owner pushes manually to GitHub.
 
 ## Log
+
+### 2026-11-11
+- UI research + revamp mockups (design canvas "AJ Audio UI Revamp": 5 panel screens, 5 installer screens, 1 client screen); spec in ui.md §C–E, R11–R14, D-015…D-017. `tools/panel_screenshots.bat` to capture more DSPPA/Judian screens.
 
 ### 2026-11-10
 - Flutter app built by CI and running on the owner's Samsung; temporary grouping works (P8 leads M20 + smart). ▶ gave 500 (BUG-021). **Flutter v0.3**: Groups section (saved named groups via Sync group provider + temporary groups), "New group" sheet (name / save or temporary / rooms), change rooms, ungroup, delete, per-group AirPlay receiver switch, AirPlay on by default for new saved groups + "AirPlay for all groups" button, leave-group per room. Saving groups / AirPlay switch need an MA **admin** user (scope config.players.write).

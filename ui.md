@@ -63,3 +63,28 @@ Design language: dark background, large touch targets (panel screens are 1024×6
 
 ### B3. Settings screen (long-press chip, or app icon)
 - Server address (auto via mDNS), panel name, zone count (YJY), output stream, buffer/latency, logs export.
+
+---
+
+# v2 redesign (2026-11-11) – mockups: "AJ Audio UI Revamp" design canvas (claude.ai, private to the owner)
+
+Research: Sonos (rooms list with now-playing, "group" sheet with ticks, one home screen), WiiM Home (persistent named groups), in-wall keypads/touchpads (trivum, Russound, Powersoft WM touch: big targets, one zone focus), installer tools (Control4 Composer Express, BluOS configuration utility). Panel look follows the **DSPPA DM938T home** the owner likes: big clock top-left, calm landscape background, icon rail on the right, one now-playing bar at the bottom.
+
+## C. Panel app v1 (AJ Panel)
+- **Home**: clock + date + room name; tiles "PLAY HERE OR JOIN": saved groups (state, "you are in this group"), "This room only" (Bluetooth/AirPlay name); now-playing bar (art, title, artist · group (n) · played by, ⏮ ⏯ ⏭, volume).
+- **Now playing**: big art, group chip + source chip, played by, progress, transport for the group; box **THIS ROOM**: room volume, *Mute here*, *Take a break from group…*, *Add rooms…*.
+- **Take a break** (never permanent): 15 min · 1 h · 2 h · until 07:00 · until I stop my own music (rejoin 5 min after it ends) · until the group's music ends. Option "quiet while away" (else Bluetooth/AirPlay may play here). Other rooms keep playing.
+- **Away banner**: "On a break from Whole House · back in 42 min" with *+30 min* and *Rejoin now*; tiles for Bluetooth, AirPlay, sleep timer.
+- **Play this on…**: whatever plays on this panel (e.g. AirPlay to the room) can be moved to a group or extra rooms without restarting the song; busy groups show who is using them; rooms on a break / offline are marked.
+- Judian panels keep their own UI; only the break/rejoin logic and the song bridge run there.
+
+## D. Installer app (new: "AJ Setup")
+For installers only; clients use AirPlay/Bluetooth to named groups (no app).
+- Sign in once with an MA **admin**; site overview: server OK, panels online, "needs attention" list.
+- **Rooms & panels**: rename (also AirPlay name), model/IP/app version/Wi-Fi quality, AirPlay receiver, show card on panel, max volume, delay trim, test sound, restart player, get panel log, update app.
+- **Groups**: name, rooms, AirPlay receiver, "rooms may take a break (max …)", start volume.
+- **Users & access**: MA users with allowed rooms/groups (`player_filter`), "may pause other people's music", guest join codes; protect the `panels` user.
+- **Logs & diagnostics**: one-tap full report (MA log + diagnostics + every panel log + ping check, no secrets), per-source view/share, live checks.
+
+## E. Client app (AJ Audio, optional)
+Rooms tab: active group card with transport, room tiles (who plays, on a break), hint how to play from any app via AirPlay/Bluetooth; tabs Rooms · Groups · Settings.
