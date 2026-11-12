@@ -13,8 +13,9 @@ public class CaptureTile extends TileService {
     @Override public void onStartListening() { refresh(); }
 
     @Override public void onClick() {
-        if (CaptureService.running) { Capture.stop(this); refreshLater(); return; }
-        Intent i = new Intent(this, CaptureActivity.class).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+        CaptureService.restoreIfNeeded(this);
+        // like AirPlay / Media output: show the rooms and groups to pick from (and Stop when playing)
+        Intent i = new Intent(this, PickerActivity.class).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
         if (Build.VERSION.SDK_INT >= 34) {
             startActivityAndCollapse(PendingIntent.getActivity(this, 0, i, PendingIntent.FLAG_IMMUTABLE | PendingIntent.FLAG_UPDATE_CURRENT));
         } else {

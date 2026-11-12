@@ -21,6 +21,11 @@ class MainActivity : FlutterActivity() {
                     Capture.start(this)
                     result.success(true)
                 }
+                "configure" -> {
+                    Capture.configure(this, call.argument<String>("server") ?: "", call.argument<String>("token") ?: "",
+                        call.argument<Boolean>("mute") ?: true)
+                    result.success(true)
+                }
                 "stop" -> { Capture.stop(this); result.success(true) }
                 "status" -> result.success(Capture.status(this))
                 else -> result.notImplemented()

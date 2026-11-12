@@ -28,6 +28,12 @@ public final class Capture {
         c.startActivity(i);
     }
 
+    public static void configure(Context c, String server, String token, boolean mute) {
+        saveTarget(c, server, token, "", "");
+        prefs(c).edit().putBoolean("mute_phone", mute).apply();
+        CaptureService.restoreIfNeeded(c);
+    }
+
     public static void stop(Context c) {
         c.startService(new Intent(c, CaptureService.class).setAction(CaptureService.ACTION_STOP));
     }
@@ -38,6 +44,8 @@ public final class Capture {
         m.put("target", prefs(c).getString("target", ""));
         m.put("targetName", prefs(c).getString("targetName", ""));
         m.put("error", CaptureService.lastError);
+        m.put("mute", prefs(c).getBoolean("mute_phone", true));
+        m.put("muteBroken", prefs(c).getBoolean("mute_breaks_capture", false));
         return m;
     }
 }

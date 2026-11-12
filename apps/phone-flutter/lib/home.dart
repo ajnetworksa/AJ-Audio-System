@@ -26,10 +26,16 @@ class _HomePageState extends State<HomePage> {
   // play my phone
   Map<String, dynamic> cap = {'running': false};
   String? capTarget;
+  bool muteOn = true;
 
   @override
   void initState() {
     super.initState();
+    PhoneCapture.status().then((st) async {
+      final m = st['mute'] != false;
+      await PhoneCapture.configure(server: widget.ma.base, token: widget.ma.token, mute: m);
+      if (mounted) setState(() { cap = st; muteOn = m; });
+    });
     refresh();
     timer = Timer.periodic(const Duration(seconds: 2), (_) => refresh());
   }
@@ -241,6 +247,18 @@ class _HomePageState extends State<HomePage> {
               : 'Send any app\'s sound to a room or group. Tip: add the "Play my phone" tile to Quick Settings for one tap.',
           style: const TextStyle(color: Colors.white70, height: 1.35),
         ),
+        Row(children: [
+          const Expanded(child: Text('Mute this phone while playing', style: TextStyle(color: Colors.white))),
+          Switch(
+            value: muteOn,
+            onChanged: (v) {
+              setState(() => muteOn = v);
+              PhoneCapture.configure(server: widget.ma.base, token: widget.ma.token, mute: v);
+            },
+          ),
+        ]),
+        if (cap['muteBroken'] == true)
+          const Text('This phone silences the stream when muted, so its volume stays on.', style: TextStyle(color: Colors.white60, fontSize: 12)),
         if (err.isNotEmpty && !running) Padding(padding: const EdgeInsets.only(top: 6), child: Text(err, style: const TextStyle(color: Color(0xFFFF8A80)))),
         const SizedBox(height: 10),
         if (!running)

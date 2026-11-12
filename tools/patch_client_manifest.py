@@ -20,6 +20,9 @@ if "usesCleartextTraffic" not in s:
 components = """
         <activity android:name=".CaptureActivity" android:exported="false"
             android:theme="@android:style/Theme.Translucent.NoTitleBar" android:excludeFromRecents="true"/>
+        <activity android:name=".PickerActivity" android:exported="false"
+            android:theme="@android:style/Theme.Translucent.NoTitleBar" android:excludeFromRecents="true"
+            android:taskAffinity="" android:launchMode="singleInstance"/>
         <service android:name=".CaptureService" android:exported="false"
             android:foregroundServiceType="mediaProjection"/>
         <service android:name=".CaptureTile" android:exported="true" android:label="Play my phone"

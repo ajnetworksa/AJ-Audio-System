@@ -38,7 +38,7 @@ import java.nio.charset.StandardCharsets;
  */
 @TargetApi(29)
 public class CaptureService extends Service {
-    static final String ACTION_START = "start", ACTION_STOP = "stop";
+    static final String ACTION_START = "start", ACTION_STOP = "stop", ACTION_SWITCH = "switch";
     static final String TAG = "AJCapture";
     static volatile boolean running;
     static volatile String lastError = "";
@@ -49,11 +49,49 @@ public class CaptureService extends Service {
     private AriaWs audio, meta;
     private Thread worker;
     private PowerManager.WakeLock wake;
+    private volatile boolean mutedByUs, muteCheck;
+    private long mutedAt;
+
+    private static boolean isSilent(byte[] f) {
+        for (int i = 0; i < f.length; i += 2) { int v = (short) ((f[i] & 0xFF) | (f[i + 1] << 8)); if (v > 30 || v < -30) return false; }
+        return true;
+    }
+
+    /** mute / restore this phone's media volume (what was playing on the phone's own speaker) */
+    private void mutePhone(boolean mute) {
+        try {
+            android.media.AudioManager am = (android.media.AudioManager) getSystemService(AUDIO_SERVICE);
+            am.adjustStreamVolume(android.media.AudioManager.STREAM_MUSIC,
+                    mute ? android.media.AudioManager.ADJUST_MUTE : android.media.AudioManager.ADJUST_UNMUTE, 0);
+            mutedByUs = mute;
+            Capture.prefs(this).edit().putBoolean("muted_by_us", mute).apply();
+            if (mute) { mutedAt = System.currentTimeMillis(); muteCheck = true; }
+            Log.i(TAG, mute ? "phone muted" : "phone volume restored");
+        } catch (Exception e) { Log.w(TAG, "mute", e); }
+    }
+
+    /** if the app was killed while the phone was muted, restore the volume next time */
+    static void restoreIfNeeded(android.content.Context c) {
+        if (!Capture.prefs(c).getBoolean("muted_by_us", false) || running) return;
+        android.media.AudioManager am = (android.media.AudioManager) c.getSystemService(AUDIO_SERVICE);
+        am.adjustStreamVolume(android.media.AudioManager.STREAM_MUSIC, android.media.AudioManager.ADJUST_UNMUTE, 0);
+        Capture.prefs(c).edit().putBoolean("muted_by_us", false).apply();
+    }
 
     @Override public IBinder onBind(Intent i) { return null; }
 
     @Override public int onStartCommand(Intent i, int flags, int startId) {
         if (i == null || ACTION_STOP.equals(i.getAction())) { stopAll(); stopSelf(); return START_NOT_STICKY; }
+        if (ACTION_SWITCH.equals(i.getAction())) {
+            // move the running stream to another room/group (picker) – no new consent needed
+            new Thread(() -> {
+                try {
+                    selectSource(Capture.prefs(this).getString("server", ""), Capture.prefs(this).getString("token", ""), Capture.prefs(this).getString("target", ""));
+                    getSystemService(NotificationManager.class).notify(NID, notification("Playing phone audio on " + Capture.prefs(this).getString("targetName", ""), "Tap Stop to end"));
+                } catch (Exception e) { lastError = String.valueOf(e.getMessage()); }
+            }, "aj-switch").start();
+            return START_NOT_STICKY;
+        }
         String name = Capture.prefs(this).getString("targetName", "music system");
         Notification n = notification("Playing phone audio on " + name, "Tap Stop to end");
         if (Build.VERSION.SDK_INT >= 29) startForeground(NID, n, ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PROJECTION);
@@ -103,6 +141,8 @@ public class CaptureService extends Service {
 
             rec.startRecording();
             byte[] frame = new byte[FRAME];
+            long soundSince = 0, silentSince = 0;
+            boolean muteOk = !Capture.prefs(this).getBoolean("mute_breaks_capture", false) && Capture.prefs(this).getBoolean("mute_phone", true);
             while (running) {
                 int off = 0;
                 while (off < FRAME && running) {
@@ -112,6 +152,25 @@ public class CaptureService extends Service {
                 }
                 if (audio.isClosed()) throw new IllegalStateException("Music server closed the connection");
                 audio.sendBinary(frame);
+                // mute the phone's own speaker once real sound flows; if this phone then only captures
+                // silence (its capture follows the volume), unmute again and remember that for next time
+                boolean silent = isSilent(frame);
+                long now = System.currentTimeMillis();
+                if (muteOk && !mutedByUs && !silent) {
+                    if (soundSince == 0) soundSince = now;
+                    if (now - soundSince > 800) { mutePhone(true); silentSince = 0; }
+                } else if (mutedByUs && muteCheck) {
+                    if (silent) {
+                        if (silentSince == 0) silentSince = now;
+                        if (now - silentSince > 3000) {
+                            mutePhone(false); muteOk = false; muteCheck = false;
+                            Capture.prefs(this).edit().putBoolean("mute_breaks_capture", true).apply();
+                            Log.w(TAG, "capture is silent while muted on this phone - leaving volume on");
+                        }
+                    } else if (silentSince == 0 && now - mutedAt > 3000) {
+                        muteCheck = false;   // sound still flows while muted: muting is fine on this phone
+                    } else { silentSince = 0; }
+                }
             }
         } catch (Exception e) {
             Log.w(TAG, "stream", e);
@@ -134,7 +193,7 @@ public class CaptureService extends Service {
         api(server, token, "players/cmd/select_source", new JSONObject().put("player_id", target).put("source", inst));
     }
 
-    private static Object api(String server, String token, String cmd, JSONObject args) throws Exception {
+    static Object api(String server, String token, String cmd, JSONObject args) throws Exception {
         HttpURLConnection c = (HttpURLConnection) new URL(server + "/api").openConnection();
         c.setConnectTimeout(5000); c.setReadTimeout(15000);
         c.setRequestMethod("POST"); c.setDoOutput(true);
@@ -186,6 +245,7 @@ public class CaptureService extends Service {
                 meta.sendText(new JSONObject().put("type", "update").put("data", new JSONObject().put("is_playing", false)).toString());
             } catch (Exception ignored) { }
         }
+        if (mutedByUs) mutePhone(false);
         if (audio != null) audio.close();
         if (meta != null) meta.close();
         audio = null; meta = null;
