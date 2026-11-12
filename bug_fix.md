@@ -102,3 +102,10 @@ Each section's id matches the bug in `bug.md` (FIX-001 ↔ BUG-001). Include: wh
 - v0.5: the Quick Settings tile opens an AirPlay-style **picker** (groups, then rooms; tap = start or move; Stop). The phone's own speaker is **muted** once sound flows and restored on stop (if a phone's capture goes silent while muted, the app unmutes and remembers not to mute on that phone). The "Start recording or casting?" question can be skipped per phone with `tools\phone_allow_capture.bat` (Android app-op `PROJECT_MEDIA allow`, set once over USB/Wireless debugging).
 - Limits: one phone at a time (AriaCast rule); apps that forbid capture (some DRM/video apps) stay silent.
 - Verify: start from the app or tile → MA log "AriaCast sender connected from <phone ip>", the group plays.
+
+## FIX-024
+**BUG-024 – panel volume changing by itself (M20, DSPPA)**
+- AJ Panel v0.3.2 `VolumeSync`: a local volume change goes to MA only after it has stayed the same for 2 s (vendor fades are ignored; a fade that ends where it started sends nothing); never while MA has the room muted (Android then reports 0); echoes of our own volume/mute changes are ignored for 1.5 s; after un-mute the panel comes back at MA's volume. **Fight guard:** 4 local pushes within 60 s → MA is the only source for 10 min and the panel is put back to MA's volume (`volume: panel keeps changing its own volume – MA volume wins for 10 min`).
+- At start a muted room now really mutes the panel (before, MA showed "muted" but the panel kept playing). Unmute it from the app/MA if a room is silent after the update.
+- Verify: `logcat -s AJPanel | findstr volume` on M20/DSPPA – no more `panel N/100 -> MA` every few seconds; app slider and panel buttons still work.
+- Undo: panel settings → untick "Volume = panel volume".

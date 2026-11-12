@@ -47,6 +47,7 @@ Newest entries on top. Decisions are `D-###`.
 ## Log
 
 ### 2026-11-12
+- AJ Panel v0.3.2: volume no longer jumps on M20/DSPPA (BUG-024/FIX-024 – vendor fades ignored, mute respected, fight guard).
 - **AJ Audio Client v0.5.0**: Quick Settings tile → AirPlay-style picker (groups/rooms, move while playing, Stop); phone auto-muted while playing and restored on stop (self-check if a phone's capture follows the volume); consent prompt can be skipped per phone with `tools/phone_allow_capture.bat` (app-op PROJECT_MEDIA; SystemUI's MediaProjectionPermissionActivity grants immediately when `hasProjectionPermission` is true – checked in AOSP main).
 - **Android Media output re-researched** (AOSP MediaRoute2ProviderService/MediaRoute2Info main branch, Samsung Audio Mirroring, androidx/media#3500): only Bluetooth, certified Google Cast and system-privileged providers (`MODIFY_AUDIO_ROUTING`) can appear; owner rejected Bluetooth → network solution = "Play my phone".
 - **AJ Audio Client v0.4.0** (renamed from AJ Audio): "Play my phone" card + Quick Settings tile; native capture service streams to MA's AriaCast Receiver and selects it on the chosen room/group (FIX-023). CI patches the generated manifest (`tools/patch_client_manifest.py`).
