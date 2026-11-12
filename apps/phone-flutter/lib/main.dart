@@ -12,7 +12,7 @@ class AjAudioApp extends StatelessWidget {
   const AjAudioApp({super.key});
   @override
   Widget build(BuildContext context) => MaterialApp(
-        title: 'AJ Audio',
+        title: 'AJ Audio Client',
         debugShowCheckedModeBanner: false,
         theme: ThemeData(
           brightness: Brightness.dark,
@@ -95,7 +95,7 @@ class _LoginPageState extends State<LoginPage> {
 
   @override
   Widget build(BuildContext context) => Scaffold(
-        appBar: AppBar(title: const Text('AJ Audio – sign in')),
+        appBar: AppBar(title: const Text('AJ Audio Client – sign in')),
         body: ListView(padding: const EdgeInsets.all(20), children: [
           TextField(controller: server, decoration: const InputDecoration(labelText: 'Server (Music Assistant)')),
           TextField(controller: user, decoration: const InputDecoration(labelText: 'Username')),

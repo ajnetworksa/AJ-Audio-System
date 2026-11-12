@@ -36,7 +36,7 @@ playing and who is playing it**.
 |---|---|---|
 | R1 | Panels play music **in sync** when grouped; music keeps playing in the background | ✅ works with MA + Snapcast (see progress.md) |
 | R2 | **Group / ungroup** panels from the phone (Android **and** iOS) | Android Java v0.1 built (untested) · Flutter v0.2 skeleton + CI (D-007), first build pending |
-| R3 | Play **from any phone app** (YouTube, etc.) to a panel or group | iPhone ✅ via AirPlay · Android: app capture v0.1 / AriaCast / Bluetooth bridge |
+| R3 | Play **from any phone app** (YouTube, etc.) to a panel or group | iPhone ✅ via AirPlay · Android: AJ Audio Client "Play my phone" + Quick Settings tile (v0.4, test pending) |
 | R4 | Panel must **show what is playing** (title, artist, art, which group) | AJ Panel v0.1 built (test pending) |
 | R5 | Panel shows **which user** is playing; someone at the panel can **pause or close music for that panel only** | AJ Panel v0.1 + ajsnap `now_playing` (D-011), test pending |
 | R6 | **User-based access**: who may use which panel / play to which group | planned — MA built-in per-user `player_filter` (D-009) + our additions |

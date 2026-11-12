@@ -1,7 +1,7 @@
 name: phone-flutter
 # Builds the two Flutter apps for Android (APK) and iPhone (unsigned IPA):
-#   apps/phone-flutter  -> AJ Audio  (client)
-#   apps/setup-flutter  -> AJ Setup  (installer)
+#   apps/phone-flutter  -> AJ Audio Client     (clients; "Play my phone" on Android)
+#   apps/setup-flutter  -> AJ Audio Installer  (installers / admins)
 on:
   pull_request:         # check PRs; pushes to main are built by release.yml
   workflow_dispatch:
@@ -14,8 +14,8 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - { dir: apps/phone-flutter, project: aj_audio, label: "AJ Audio", file: AJ_Audio, art: aj-audio }
-          - { dir: apps/setup-flutter, project: aj_setup, label: "AJ Setup", file: AJ_Setup, art: aj-setup }
+          - { dir: apps/phone-flutter, project: aj_audio, label: "AJ Audio Client", file: AJ_Audio_Client, art: aj-audio }
+          - { dir: apps/setup-flutter, project: aj_setup, label: "AJ Audio Installer", file: AJ_Audio_Installer, art: aj-setup }
     defaults:
       run:
         working-directory: ${{ matrix.dir }}
@@ -33,6 +33,8 @@ jobs:
           grep -q 'android.permission.INTERNET' $M || sed -i 's#<application#<uses-permission android:name="android.permission.INTERNET"/>\n    <application#' $M
           grep -q usesCleartextTraffic $M || sed -i 's#<application#<application android:usesCleartextTraffic="true"#' $M
           sed -i 's#android:label="${{ matrix.project }}"#android:label="${{ matrix.label }}"#' $M
+          # AJ Audio Client: "Play my phone" (capture service, quick settings tile, permissions)
+          if [ "${{ matrix.project }}" = "aj_audio" ]; then python3 "$GITHUB_WORKSPACE/tools/patch_client_manifest.py" $M; fi
       - run: flutter pub get
       - run: flutter build apk --release
       - name: Sign with our release key (if secrets set) - same key every build, so updates install over the old app
@@ -61,8 +63,8 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - { dir: apps/phone-flutter, project: aj_audio, label: "AJ Audio", file: AJ_Audio, art: aj-audio }
-          - { dir: apps/setup-flutter, project: aj_setup, label: "AJ Setup", file: AJ_Setup, art: aj-setup }
+          - { dir: apps/phone-flutter, project: aj_audio, label: "AJ Audio Client", file: AJ_Audio_Client, art: aj-audio }
+          - { dir: apps/setup-flutter, project: aj_setup, label: "AJ Audio Installer", file: AJ_Audio_Installer, art: aj-setup }
     defaults:
       run:
         working-directory: ${{ matrix.dir }}

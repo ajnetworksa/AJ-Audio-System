@@ -38,12 +38,19 @@ Newest entries on top. Decisions are `D-###`.
 - **D-011** (2026-11-09) "Who is playing" is served by our provider API (`ajsnap/now_playing`), not a core MA patch – fewer patches to re-apply on MA updates.
 - **D-015** (2026-11-11) Phone side splits in two: **AJ Setup** (installer/admin app: rooms, groups, users, logs) and **AJ Audio** (optional client rooms remote). Same Flutter repo, two app targets. Clients mainly use AirPlay/Bluetooth to named groups.
 - **D-016** (2026-11-11) "Take a break": saved groups are MA **dynamic sync groups** (members = preset pulled in on play, removable per session, dissolve on stop – checked in sync_group/player.py). Break = `set_members(remove=[me])` + panel stores {group, until/mode}; at expiry `set_members(add=[me])` if the session still runs; while on a break the panel removes itself again if a new session pulls it in. Works on stock MA; moves server-side into ajsnap later so it survives panel reboots/offline.
+- **D-018** (2026-11-12) Android "any app → group" = AJ Audio Client capture → MA AriaCast Receiver (WebSocket PCM) + `select_source`; Media output stays Cast/Bluetooth-only (BUG-017). Apps renamed **AJ Audio Client** / **AJ Audio Installer**.
 - **D-017** (2026-11-11) Panel UI follows the DSPPA home look (clock, landscape, right rail, bottom now-playing bar); one APK, Judian keeps vendor UI + bridge.
 - **D-014** (2026-11-10) One release signing key for all Android apps (CI secrets); iOS stays unsigned in CI (signed at install by Sideloadly/AltStore).
 - **D-013** (2026-11-09) DSPPA panels use AJ Panel as their UI; Judian panels keep their smart-home UI and AJ Panel feeds the song into the Judian music player (DLNA metadata bridge).
 - **D-012** (2026-11-09) Git repo local in `AJ-Audio-System`, owner pushes manually to GitHub.
 
 ## Log
+
+### 2026-11-12
+- **Android Media output re-researched** (AOSP MediaRoute2ProviderService/MediaRoute2Info main branch, Samsung Audio Mirroring, androidx/media#3500): only Bluetooth, certified Google Cast and system-privileged providers (`MODIFY_AUDIO_ROUTING`) can appear; owner rejected Bluetooth → network solution = "Play my phone".
+- **AJ Audio Client v0.4.0** (renamed from AJ Audio): "Play my phone" card + Quick Settings tile; native capture service streams to MA's AriaCast Receiver and selects it on the chosen room/group (FIX-023). CI patches the generated manifest (`tools/patch_client_manifest.py`).
+- **AJ Audio Installer v0.2.0** (renamed from AJ Setup).
+- D-018: Android "any app" path = capture → AriaCast (MA-native, live PCM) instead of HTTP AAC + play_media.
 
 ### 2026-11-11
 - **AJ Setup v0.1 (installer app, Flutter, `apps/setup-flutter`)**: admin sign-in, overview (server, rooms online, needs attention, test sound everywhere), Rooms (rename = AirPlay name, AirPlay switch, max volume, delay trim, now-playing card, test sound, restart player, panel log, update panel app from GitHub release), Groups (create/rename/rooms/AirPlay/delete), Users & access (add, role, allowed rooms, password, delete, `panels` protected), Logs (checks, MA log, panel logs, one-tap full report – tokens scrubbed). CI builds AJ Audio + AJ Setup (APK + IPA) via a matrix. Not compiled locally (no Flutter here).

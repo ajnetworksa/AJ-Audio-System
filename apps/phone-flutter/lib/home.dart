@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:io' show Platform;
 import 'package:flutter/material.dart';
 import 'ma.dart';
+import 'capture.dart';
 
 const _accent = Color(0xFF40A0FF);
 
@@ -22,6 +23,9 @@ class _HomePageState extends State<HomePage> {
   String error = '';
   Timer? timer;
   int tick = 0;
+  // play my phone
+  Map<String, dynamic> cap = {'running': false};
+  String? capTarget;
 
   @override
   void initState() {
@@ -41,6 +45,7 @@ class _HomePageState extends State<HomePage> {
       final all = await widget.ma.players();
       final a = await widget.ma.ajPanels();
       if (tick++ % 10 == 0) airplay = await widget.ma.airplayReceiverPlayers();
+      if (PhoneCapture.supported) cap = await PhoneCapture.status();
       all.removeWhere((p) => p['hide_in_ui'] == true || p['enabled'] == false);
       all.sort((x, y) => '${x['name']}'.toLowerCase().compareTo('${y['name']}'.toLowerCase()));
       if (mounted) setState(() { players = all; aj = a; error = ''; });
@@ -195,6 +200,73 @@ class _HomePageState extends State<HomePage> {
     }, ok: 'Group "$name" created – AirPlay name: "$name | Music Assistant"');
   }
 
+  // ---------- play my phone ----------
+  List<Map<String, dynamic>> get targets => [...savedGroups, ...tempGroups, ...rooms.where((r) => r['available'] != false && !tempGroups.contains(r))];
+
+  Future<void> startCapture() async {
+    final id = capTarget ?? (targets.isEmpty ? null : targets.first['player_id'] as String);
+    if (id == null) {
+      toast('No room or group to play on');
+      return;
+    }
+    await PhoneCapture.start(server: widget.ma.base, token: widget.ma.token, target: id, targetName: nameOf(id));
+    toast('Allow "Start recording / casting" – then everything your phone plays goes to ${nameOf(id)}');
+  }
+
+  Widget captureCard() {
+    final running = cap['running'] == true;
+    final err = '${cap['error'] ?? ''}';
+    final list = targets;
+    final sel = capTarget != null && list.any((t) => t['player_id'] == capTarget) ? capTarget : (list.isEmpty ? null : list.first['player_id'] as String);
+    return Container(
+      margin: const EdgeInsets.fromLTRB(4, 8, 4, 4),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(18),
+        gradient: LinearGradient(colors: running ? const [Color(0xFF1E5A3A), Color(0xFF1E3A66)] : const [Color(0xFF1E3A66), Color(0xFF2B2156)]),
+      ),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Row(children: [
+          Icon(running ? Icons.cast_connected : Icons.phone_android, color: Colors.white),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(running ? 'Playing phone audio on ${cap['targetName']}' : 'Play my phone',
+                style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+          ),
+        ]),
+        const SizedBox(height: 6),
+        Text(
+          running
+              ? 'Everything your phone plays (YouTube, Spotify, TikTok…) is heard there. Stop here or in the notification.'
+              : 'Send any app\'s sound to a room or group. Tip: add the "Play my phone" tile to Quick Settings for one tap.',
+          style: const TextStyle(color: Colors.white70, height: 1.35),
+        ),
+        if (err.isNotEmpty && !running) Padding(padding: const EdgeInsets.only(top: 6), child: Text(err, style: const TextStyle(color: Color(0xFFFF8A80)))),
+        const SizedBox(height: 10),
+        if (!running)
+          Row(children: [
+            Expanded(
+              child: DropdownButton<String>(
+                isExpanded: true,
+                value: sel,
+                items: [for (final t in list) DropdownMenuItem(value: t['player_id'] as String, child: Text('${t['name']}', overflow: TextOverflow.ellipsis))],
+                onChanged: (v) => setState(() => capTarget = v),
+              ),
+            ),
+            const SizedBox(width: 10),
+            FilledButton.icon(onPressed: () { capTarget = sel; startCapture(); }, icon: const Icon(Icons.play_arrow), label: const Text('Start')),
+          ])
+        else
+          FilledButton.icon(
+            style: FilledButton.styleFrom(backgroundColor: const Color(0xFFFF8A80), foregroundColor: Colors.black),
+            onPressed: () async { await PhoneCapture.stop(); await Future.delayed(const Duration(milliseconds: 500)); refresh(); },
+            icon: const Icon(Icons.stop),
+            label: const Text('Stop'),
+          ),
+      ]),
+    );
+  }
+
   // ---------- widgets ----------
   Widget volumeSlider(String id, num? level, Future<void> Function(int) set) {
     final v = dragging[id] ?? (level ?? 0).toDouble();
@@ -337,7 +409,7 @@ class _HomePageState extends State<HomePage> {
     final temp = tempGroups;
     return Scaffold(
       appBar: AppBar(
-        title: const Text('AJ Audio'),
+        title: const Text('AJ Audio Client'),
         actions: [
           IconButton(
             tooltip: 'AirPlay receiver on for all saved groups',
@@ -362,6 +434,7 @@ class _HomePageState extends State<HomePage> {
         onRefresh: refresh,
         child: ListView(padding: const EdgeInsets.all(8), children: [
           if (error.isNotEmpty) Padding(padding: const EdgeInsets.all(8), child: Text(error, style: const TextStyle(color: Colors.redAccent))),
+          if (PhoneCapture.supported) captureCard(),
           header('GROUPS'),
           if (saved.isEmpty && temp.isEmpty)
             const Padding(padding: EdgeInsets.all(8), child: Text('No groups yet – tap "New group".', style: TextStyle(color: Colors.white54))),

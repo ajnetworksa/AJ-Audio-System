@@ -9,7 +9,19 @@ build/
 # flutter
 apps/phone-flutter/.dart_tool/
 apps/phone-flutter/.flutter-plugins*
-apps/phone-flutter/android/
+apps/phone-flutter/android/*
+!apps/phone-flutter/android/app/
+apps/phone-flutter/android/app/*
+!apps/phone-flutter/android/app/src/
+apps/phone-flutter/android/app/src/*
+!apps/phone-flutter/android/app/src/main/
+apps/phone-flutter/android/app/src/main/*
+!apps/phone-flutter/android/app/src/main/java/
+!apps/phone-flutter/android/app/src/main/kotlin/
+apps/setup-flutter/android/
+apps/setup-flutter/ios/
+apps/setup-flutter/.dart_tool/
+apps/setup-flutter/pubspec.lock
 apps/phone-flutter/ios/
 apps/phone-flutter/pubspec.lock
 apps/phone-flutter/*.ipa

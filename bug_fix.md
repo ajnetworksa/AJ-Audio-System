@@ -94,3 +94,10 @@ Each section's id matches the bug in `bug.md` (FIX-001 ↔ BUG-001). Include: wh
 - AJ Panel v0.2.2 starts snapclient with `--mixer none` and `VolumeSync` keeps Android STREAM_MUSIC and the MA player volume equal: MA/app/group volume → panel volume; panel buttons / vendor UI → MA; mute from MA → panel mute. At start the panel's current volume is sent to MA (no jump to MA's default 25 %). Works in the panel's own steps (DSPPA 0–15, Judian 0–100).
 - Verify: move the room slider in the phone app → panel volume bar moves; press the panel's volume keys → slider in the app follows within ~1 s. logcat `-s AJPanel` → `volume: MA 40% -> panel 6/15` / `volume: panel 9/15 -> MA 60%`.
 - Undo: panel settings → untick "Volume = panel volume", or `--ez system_volume false`.
+
+## FIX-023
+**BUG-023 / BUG-017 – play any Android app on the system (network, no Bluetooth)**
+- AJ Audio Client v0.4 ("Play my phone" card + Quick Settings tile "Play my phone"): Android 10+ playback capture (MediaProjection consent each time – Android rule) → 48 kHz stereo PCM, 20 ms frames over WebSocket to Music Assistant's **AriaCast Receiver** plugin (`ws://<server>:12889/audio`, metadata on `/metadata`). Before announcing playback the app calls `players/cmd/select_source(target, <ariacast instance>)` so it plays on the chosen room/group.
+- Needs once in Music Assistant: Settings → Providers → Add → **AriaCast Receiver** (pick any player; the app chooses the target itself).
+- Limits: one phone at a time (AriaCast rule); apps that forbid capture (some DRM/video apps) stay silent; the phone keeps playing locally (turn its volume down if it doesn't follow).
+- Verify: start from the app or tile → MA log "AriaCast sender connected from <phone ip>", the group plays.

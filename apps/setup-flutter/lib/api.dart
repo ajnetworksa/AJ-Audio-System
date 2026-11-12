@@ -41,13 +41,13 @@ class Api {
   /// sign in, keep a long-lived token; returns the user
   Future<Map<String, dynamic>> login(String user, String pass) async {
     token = '';
-    final r = await cmd('auth/login', {'username': user, 'password': pass, 'device_name': 'AJ Setup'});
+    final r = await cmd('auth/login', {'username': user, 'password': pass, 'device_name': 'AJ Audio Installer'});
     if (r is! Map || r['success'] != true) {
       throw ApiException(401, r is Map ? '${r['error'] ?? 'Sign-in failed'}' : 'Sign-in failed');
     }
     token = '${r['access_token']}';
     try {
-      final t = await cmd('auth/token/create', {'name': 'AJ Setup'});
+      final t = await cmd('auth/token/create', {'name': 'AJ Audio Installer'});
       if (t is String && t.isNotEmpty) token = t;
     } catch (_) {}
     return Map<String, dynamic>.from(r['user'] as Map);

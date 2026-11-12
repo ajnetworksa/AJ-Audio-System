@@ -21,7 +21,7 @@ class AjSetupApp extends StatelessWidget {
   const AjSetupApp({super.key});
   @override
   Widget build(BuildContext context) => MaterialApp(
-        title: 'AJ Setup',
+        title: 'AJ Audio Installer',
         debugShowCheckedModeBanner: false,
         theme: ajTheme(),
         home: const Start(),
@@ -117,7 +117,7 @@ class _LoginPageState extends State<LoginPage> {
         child: Scaffold(
           body: SafeArea(
             child: ListView(padding: const EdgeInsets.fromLTRB(24, 48, 24, 24), children: [
-              const Text('AJ SETUP · INSTALLER', style: TextStyle(color: C.sub, fontWeight: FontWeight.w700, letterSpacing: 1.2, fontSize: 13)),
+              const Text('AJ AUDIO · INSTALLER', style: TextStyle(color: C.sub, fontWeight: FontWeight.w700, letterSpacing: 1.2, fontSize: 13)),
               const SizedBox(height: 6),
               const Text('Connect to the music server', style: TextStyle(fontSize: 28, fontWeight: FontWeight.w800)),
               const SizedBox(height: 8),
@@ -194,7 +194,7 @@ class _OverviewState extends State<Overview> {
     final offline = rooms.where((r) => !r.online).toList();
     final host = widget.s.api.host;
     return AjPage(
-      title: 'AJ Setup',
+      title: 'AJ Audio Installer',
       onRefresh: load,
       action: PopupMenuButton<String>(
         onSelected: (v) async {
