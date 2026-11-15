@@ -109,3 +109,11 @@ Each section's id matches the bug in `bug.md` (FIX-001 ↔ BUG-001). Include: wh
 - At start a muted room now really mutes the panel (before, MA showed "muted" but the panel kept playing). Unmute it from the app/MA if a room is silent after the update.
 - Verify: `logcat -s AJPanel | findstr volume` on M20/DSPPA – no more `panel N/100 -> MA` every few seconds; app slider and panel buttons still work.
 - Undo: panel settings → untick "Volume = panel volume".
+
+## FIX-025
+**BUG-025 – play YouTube (any app) from a panel in other rooms**
+- AJ Panel v0.5.0 **Share**: Android 10 playback capture of the other apps on the panel (our own sync player excluded), 48 kHz PCM → Music Assistant **AriaCast Receiver** → `select_source` on the chosen saved group or rooms (first room leads, others join). Title/artist of the app (YouTube video title …) is sent along when the panel's notification listener is allowed.
+- The panel itself keeps playing the app directly; if it is part of the chosen saved group it takes a break from it while sharing (no double sound), rejoining when sharing stops.
+- Shown on the Playing screen: "YouTube is playing on this panel → Share", while sharing "This panel's sound plays in … · Change · Stop"; also the *Share* button.
+- `deploy_ajpanel.bat` pre-grants RECORD_AUDIO, `appops PROJECT_MEDIA allow` and the notification listener, so the panel never asks.
+- Limits: the other rooms are ~1 s behind the sharing panel (live capture + MA buffer); one sender at a time (AriaCast, also shared with "Play my phone"); apps that forbid capture stay silent; needs the AriaCast Receiver plugin in MA and Android 10+ on the panel.

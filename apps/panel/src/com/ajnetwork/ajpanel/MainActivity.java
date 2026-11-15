@@ -89,6 +89,8 @@ public class MainActivity extends Activity implements PanelService.Listener {
         show(NOW);
     }
 
+    @Override protected void onNewIntent(Intent i) { super.onNewIntent(i); shareSig = ""; }
+
     @Override protected void onResume() { super.onResume(); PanelService.addListener(this); h.post(tick); }
     @Override protected void onPause() { PanelService.removeListener(this); h.removeCallbacks(tick); super.onPause(); }
     @Override public void onBackPressed() {
@@ -151,7 +153,7 @@ public class MainActivity extends Activity implements PanelService.Listener {
     }
 
     private void show(int p) {
-        page = p; roomsSig = "";
+        page = p; roomsSig = ""; shareSig = "";
         content.removeAllViews();
         idleClock = null; idleDate = null;
         if (p == NOW) buildNow(); else if (p == MUSIC) buildMusic(); else buildRooms();
@@ -162,7 +164,7 @@ public class MainActivity extends Activity implements PanelService.Listener {
 
     // =================================== PLAYING ===================================
     private Cover npCover; private LinearLayout npIdleLeft; private TextView idleClock, idleDate;
-    private LinearLayout npBanner, npPlayingBox, npElsewhere, npElsewhereList;
+    private LinearLayout npShare, npBanner, npPlayingBox, npElsewhere, npElsewhereList;
     private TextView npBrowse, npZone, npTitle, npArtist, npMeta, npElapsed, npDuration, npVolLabel, npVolValue, npBreak;
     private Slider npProgress, npVol;
     private FrameLayout npPlay, npMute;
@@ -191,6 +193,8 @@ public class MainActivity extends Activity implements PanelService.Listener {
 
         npBanner = new LinearLayout(this); npBanner.setOrientation(LinearLayout.VERTICAL);
         r.addView(npBanner);
+        npShare = new LinearLayout(this); npShare.setOrientation(LinearLayout.VERTICAL);
+        r.addView(npShare);
 
         // where this music plays: tap to group
         LinearLayout zone = new LinearLayout(this); zone.setGravity(Gravity.CENTER_VERTICAL);
@@ -248,13 +252,17 @@ public class MainActivity extends Activity implements PanelService.Listener {
         r.addView(vol, top(-1, -2, 4));
 
         LinearLayout acts = new LinearLayout(this);
-        TextView grp = pill(this, "Group rooms", 0); grp.setOnClickListener(v -> openGroupSheet()); grp.setTag("grp");
-        npBreak = pill(this, "Take a break", 0); npBreak.setOnClickListener(v -> openBreak());
-        npBrowse = pill(this, "Browse music", 1); npBrowse.setOnClickListener(v -> show(MUSIC));
+        TextView grp = pill(this, "Group", 0); grp.setOnClickListener(v -> openGroupSheet());
+        npBreak = pill(this, "Break", 0); npBreak.setOnClickListener(v -> openBreak());
+        npBrowse = pill(this, "Browse", 1); npBrowse.setOnClickListener(v -> show(MUSIC));
+        TextView shr = pill(this, "Share", 0); shr.setOnClickListener(v -> openShareSheet());
         acts.addView(npBrowse, new LinearLayout.LayoutParams(-2, dp(48)));
         acts.addView(grp, side(-2, 48, 12));
         acts.addView(npBreak, side(-2, 48, 12));
-        r.addView(acts, top(-2, -2, 22));
+        acts.addView(shr, side(-2, 48, 12));
+        HorizontalScrollView ahs = new HorizontalScrollView(this); ahs.setHorizontalScrollBarEnabled(false);
+        ahs.addView(acts);
+        r.addView(ahs, top(-1, -2, 22));
 
         content.addView(row, new FrameLayout.LayoutParams(-1, -1));
         elsewhereSig = "";
@@ -301,6 +309,7 @@ public class MainActivity extends Activity implements PanelService.Listener {
         npBreak.setVisibility(grouped() ? View.VISIBLE : View.GONE);
         npBrowse.setVisibility(act ? View.GONE : View.VISIBLE);
         renderBanner();
+        renderShare();
     }
 
     private String zoneLabel() {
@@ -806,6 +815,128 @@ public class MainActivity extends Activity implements PanelService.Listener {
             if (musicStatus != null && musicStatus.getText().toString().startsWith("Tap to play")) musicStatus.setText("Tap to play on " + targetName());
         });
         return r;
+    }
+
+    // =================================== SHARE this panel's sound (YouTube …) ===================================
+    private String shareSig = "";
+    private final Set<String> sharePick = new LinkedHashSet<>();
+    private String shareGroup = "";
+
+    /** banner on the Playing screen: another app plays here → offer to play it in other rooms; or sharing status */
+    private void renderShare() {
+        MediaListener.Local l = ShareService.running ? null : MediaListener.playing(this);
+        String sig = ShareService.running + ShareService.sharingTo + ShareService.sharingWhat + (l == null ? "" : l.app + l.title) + ShareService.lastError;
+        if (sig.equals(shareSig)) return;
+        shareSig = sig;
+        npShare.removeAllViews();
+        if (!ShareService.running && l == null) return;
+        LinearLayout b = new LinearLayout(this); b.setGravity(Gravity.CENTER_VERTICAL);
+        b.setBackground(box(this, 0x1F6FDC8C, 16)); b.setPadding(dp(16), dp(10), dp(10), dp(10));
+        Bars bars = new Bars(this); bars.playing(true);
+        b.addView(bars, new LinearLayout.LayoutParams(dp(16), dp(14)));
+        LinearLayout tx = new LinearLayout(this); tx.setOrientation(LinearLayout.VERTICAL); tx.setPadding(dp(12), 0, dp(8), 0);
+        if (ShareService.running) {
+            tx.addView(Theme.text(this, "This panel's sound plays in " + ShareService.sharingTo, 16, TEXT, MEDIUM));
+            TextView d = Theme.text(this, ShareService.sharingWhat.isEmpty() ? "Anything you play here is heard there too" : ShareService.sharingWhat, 13, SUB, REGULAR);
+            d.setPadding(0, dp(4), 0, 0); tx.addView(d);
+            b.addView(tx, new LinearLayout.LayoutParams(0, -2, 1));
+            TextView ch = pill(this, "Change", 0); ch.setMinHeight(dp(40)); ch.setOnClickListener(v -> openShareSheet());
+            TextView st = pill(this, "Stop", 1); st.setMinHeight(dp(40)); st.setOnClickListener(v -> { ShareService.stop(this); shareSig = ""; });
+            b.addView(ch, new LinearLayout.LayoutParams(-2, dp(40)));
+            b.addView(st, side(-2, 40, 8));
+        } else {
+            tx.addView(Theme.text(this, l.app + " is playing on this panel", 16, TEXT, MEDIUM));
+            if (!l.title.isEmpty()) { TextView d = Theme.text(this, l.title + (l.artist.isEmpty() ? "" : " · " + l.artist), 13, SUB, REGULAR); d.setPadding(0, dp(4), 0, 0); tx.addView(d); }
+            b.addView(tx, new LinearLayout.LayoutParams(0, -2, 1));
+            TextView go = pill(this, "Share", 1); go.setMinHeight(dp(40)); go.setOnClickListener(v -> openShareSheet());
+            b.addView(go, new LinearLayout.LayoutParams(-2, dp(40)));
+        }
+        npShare.addView(b, new LinearLayout.LayoutParams(-1, -2));
+        npShare.addView(new View(this), new LinearLayout.LayoutParams(1, dp(18)));
+    }
+
+    /** pick where this panel's sound should also play: a saved group, or rooms */
+    private void openShareSheet() {
+        Site st = site();
+        if (st == null) return;
+        sharePick.clear(); shareGroup = "";
+        sheetLayer.removeAllViews();
+        LinearLayout sh = new LinearLayout(this); sh.setOrientation(LinearLayout.VERTICAL);
+        sh.setBackground(box(this, SURFACE, 0)); sh.setClickable(true);
+        sh.setPadding(dp(28), dp(26), dp(28), dp(22));
+        LinearLayout head = new LinearLayout(this); head.setGravity(Gravity.CENTER_VERTICAL);
+        head.addView(Theme.text(this, "Play this panel in…", 24, TEXT, MEDIUM), new LinearLayout.LayoutParams(0, -2, 1));
+        FrameLayout x = iconButton(this, CLOSE, 44, 22, 2, "Close"); x.setOnClickListener(v -> closeSheet());
+        head.addView(x);
+        sh.addView(head);
+        TextView expl = Theme.text(this, "Whatever plays on " + myName() + " (YouTube, Spotify, a browser …) is heard in the rooms you pick. The other rooms are about a second behind this one.", 14, SUB, REGULAR);
+        expl.setSingleLine(false); expl.setMaxLines(3); expl.setLineSpacing(0, 1.15f);
+        sh.addView(expl, top(-1, -2, 8));
+        ScrollView sv = new ScrollView(this); sv.setVerticalScrollBarEnabled(false);
+        LinearLayout list = new LinearLayout(this); list.setOrientation(LinearLayout.VERTICAL);
+        sv.addView(list);
+        sh.addView(sv, top(-1, 0, 14, 1));
+        LinearLayout foot = new LinearLayout(this); foot.setGravity(Gravity.CENTER_VERTICAL);
+        if (ShareService.running) {
+            TextView stop = pill(this, "Stop sharing", 2); stop.setOnClickListener(v -> { ShareService.stop(this); closeSheet(); shareSig = ""; });
+            foot.addView(stop, new LinearLayout.LayoutParams(-2, dp(52)));
+        }
+        foot.addView(new View(this), new LinearLayout.LayoutParams(0, 1, 1));
+        TextView go = pill(this, "Play", 1);
+        foot.addView(go, new LinearLayout.LayoutParams(-2, dp(52)));
+        sh.addView(foot, top(-1, -2, 14));
+        go.setOnClickListener(v -> {
+            if (shareGroup.isEmpty() && sharePick.isEmpty()) return;
+            String label;
+            if (!shareGroup.isEmpty()) label = st.nameOf(shareGroup);
+            else { List<String> names = new ArrayList<>(); for (String id : sharePick) names.add(st.nameOf(id)); label = android.text.TextUtils.join(", ", names); }
+            ShareService.request(this, shareGroup, new ArrayList<>(sharePick), label);
+            closeSheet(); shareSig = "";
+        });
+        int w = (int) Math.min(520, wDp * 0.48f);
+        sheetLayer.addView(sh, new FrameLayout.LayoutParams(dp(w), -1, Gravity.END));
+        sheetLayer.setVisibility(View.VISIBLE);
+        renderShareList(list, go);
+    }
+
+    private void renderShareList(LinearLayout list, TextView go) {
+        Site st = site();
+        list.removeAllViews();
+        if (st == null) return;
+        if (!st.groups.isEmpty()) list.addView(Theme.text(this, "Groups", 15, SUB, MEDIUM), top(-2, -2, 4));
+        for (Site.Group g : st.groups) {
+            boolean sel = g.id.equals(shareGroup);
+            String sub = g.members.size() + " rooms" + (g.members.contains(me()) ? " · this room keeps playing on its own" : "");
+            list.addView(shareRow(GROUP, g.name, sub, sel, true, () -> { shareGroup = sel ? "" : g.id; sharePick.clear(); renderShareList(list, go); }));
+        }
+        list.addView(Theme.text(this, "Rooms", 15, SUB, MEDIUM), top(-2, -2, 18));
+        for (Site.Room r : st.rooms) {
+            if (r.id.equals(me())) continue;
+            boolean sel = sharePick.contains(r.id);
+            View row = shareRow(SPEAKER, r.name, !r.available ? "Offline" : r.playing() && !r.title.isEmpty() ? "Playing " + r.title : "", sel, false,
+                    () -> { if (sel) sharePick.remove(r.id); else sharePick.add(r.id); shareGroup = ""; renderShareList(list, go); });
+            if (!r.available) { row.setAlpha(0.4f); row.setOnClickListener(null); }
+            list.addView(row);
+        }
+        go.setText(!shareGroup.isEmpty() ? "Play in " + st.nameOf(shareGroup) : sharePick.isEmpty() ? "Pick rooms" : "Play in " + sharePick.size() + (sharePick.size() == 1 ? " room" : " rooms"));
+        go.setAlpha(shareGroup.isEmpty() && sharePick.isEmpty() ? 0.5f : 1f);
+    }
+
+    private View shareRow(int icon, String name, String sub, boolean sel, boolean radio, Runnable tap) {
+        LinearLayout row = new LinearLayout(this); row.setGravity(Gravity.CENTER_VERTICAL);
+        row.setPadding(dp(6), dp(12), dp(6), dp(12));
+        clickable(row, box(this, 0x00000000, 12), 12);
+        FrameLayout tick = new FrameLayout(this);
+        tick.setBackground(sel ? box(this, TEXT, 14) : outline(this, 0x00000000, 0x66FFFFFF, 14));
+        if (sel) tick.addView(new Icon(this, CHECK, INK), new FrameLayout.LayoutParams(dp(18), dp(18), Gravity.CENTER));
+        row.addView(tick, new LinearLayout.LayoutParams(dp(28), dp(28)));
+        row.addView(new Icon(this, icon, SUB), side(22, 22, 14));
+        LinearLayout tx = new LinearLayout(this); tx.setOrientation(LinearLayout.VERTICAL); tx.setPadding(dp(12), 0, 0, 0);
+        tx.addView(Theme.text(this, name, 17, TEXT, MEDIUM));
+        if (!sub.isEmpty()) { TextView s = Theme.text(this, sub, 13, SUB, REGULAR); s.setPadding(0, dp(4), 0, 0); tx.addView(s); }
+        row.addView(tx, new LinearLayout.LayoutParams(0, -2, 1));
+        row.setOnClickListener(v -> tap.run());
+        return row;
     }
 
     // =================================== GROUP sheet ===================================

@@ -59,10 +59,15 @@ foreach ($entry in $panels.Split(",")) {
   & $ADB -s $dev shell rm /data/local/tmp/ajpanel.apk
 
   # permissions: floating card + keep running
-  & $ADB -s $dev shell appops set $PKG SYSTEM_ALERT_WINDOW allow | Tee-Object -Append $log  # allow updates pushed from the AJ Setup app (one tap "Install" on the panel)
+  & $ADB -s $dev shell appops set $PKG SYSTEM_ALERT_WINDOW allow | Tee-Object -Append $log
+  # allow updates pushed from the AJ Setup app (one tap "Install" on the panel)
   & $ADB -s $dev shell appops set $PKG REQUEST_INSTALL_PACKAGES allow | Tee-Object -Append $log
   & $ADB -s $dev shell dumpsys deviceidle whitelist +$PKG | Tee-Object -Append $log
   & $ADB -s $dev shell cmd appops set $PKG RUN_IN_BACKGROUND allow 2>$null | Out-Null
+  # "Share panel sound" (YouTube etc. -> other rooms): no questions on the panel screen
+  & $ADB -s $dev shell pm grant $PKG android.permission.RECORD_AUDIO 2>$null | Out-Null
+  & $ADB -s $dev shell appops set $PKG PROJECT_MEDIA allow | Tee-Object -Append $log
+  & $ADB -s $dev shell cmd notification allow_listener $PKG/$PKG.MediaListener 2>$null | Tee-Object -Append $log
 
   # old player off (AJ Panel has its own) - otherwise the panel plays twice / orphan process (BUG-015)
   & $ADB -s $dev shell am start-foreground-service -n de.badaix.snapcast/.SnapclientService -a ACTION_STOP 2>$null | Out-Null

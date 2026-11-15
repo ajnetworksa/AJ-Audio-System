@@ -85,6 +85,7 @@ Sonos-like music player, calm near-black, no gradients/emoji; vector icons drawn
 - **Rooms**: *Scenes* row (Everywhere + saved MA groups; tap = join it, or send my music there when it is idle) and *All rooms* cards per zone (cover, name, song, live bars, "This room"/"3 rooms together") with **Join** (it plays), **Add** (idle → joins my music), **Group** (my zone).
 - **Group sheet** (right side): scene shortcuts (Only this room / Everywhere / saved groups), tick list of rooms, per-room volume for rooms already playing together, *Take a break*, *Play in N rooms*.
 - **Break** dialog unchanged in logic, restyled.
+- **Share** (v0.5.0): when another app (YouTube …) plays on the panel the Playing screen offers *Share*; sheet "Play this panel in…" = one saved group or ticked rooms; status banner with *Change* / *Stop*.
 - **Music** (v0.4.1, rail): search box + tabs Recent · Playlists · Albums · Artists · Radio · Songs (favourite songs, else newest) from the MA library; tap = play now. **Play on** picker: where this room plays now (default), only this room, or any saved group – so a group can be started from the wall without a phone. Idle Playing screen has *Browse music*.
 
 ## D. Installer app (new: "AJ Setup")
