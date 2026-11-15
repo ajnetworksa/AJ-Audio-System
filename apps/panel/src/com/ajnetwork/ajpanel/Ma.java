@@ -109,7 +109,15 @@ public class Ma {
     }
     /** AJ server extension (ajsnap provider). Returns null if the server doesn't have it. */
     public JSONObject ajNowPlaying(String id) {
+        // official Music Assistant doesn't have this command and logs an ERROR for every call –
+        // after the first "invalid command" answer, don't ask again for 30 min
+        if (System.currentTimeMillis() < ajOffUntil) return null;
         try { Object r = cmd("ajsnap/now_playing", new JSONObject().put("player_id", id)); return r instanceof JSONObject ? (JSONObject) r : null; }
+        catch (ApiException e) {
+            if (e.code == 400 || e.code == 404) ajOffUntil = System.currentTimeMillis() + 30 * 60_000L;
+            return null;
+        }
         catch (Exception e) { return null; }
     }
+    private volatile long ajOffUntil;
 }

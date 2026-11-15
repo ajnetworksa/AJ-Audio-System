@@ -80,6 +80,12 @@ foreach ($entry in $panels.Split(",")) {
   # configure + start
   # -f 32 = FLAG_INCLUDE_STOPPED_PACKAGES (app was never opened yet)
   $cfg = @("shell", "am", "broadcast", "-f", "32", "-n", "$PKG/.BootReceiver", "-a", "$PKG.CONFIG", "--es", "host", $ma, "--es", "name", "'$name'")
+  # stable Music Assistant player id from the Wi-Fi/LAN MAC (used only if the panel has no id yet, e.g. after a reinstall)
+  $mac = (& $ADB -s $dev shell "cat /sys/class/net/wlan0/address 2>/dev/null || cat /sys/class/net/eth0/address 2>/dev/null" | Select-Object -First 1)
+  if ($mac -and ("$mac".Trim().ToLower() -match '^([0-9a-f]{2}:){5}[0-9a-f]{2}$')) {
+    $mac = "$mac".Trim().ToLower().Replace(":", "")
+    if ($mac -ne "000000000000" -and $mac -ne "020000000000") { $cfg += @("--es", "host_id_default", "ajpanel_$mac") }
+  }
   if ($token -ne "") { $cfg += @("--es", "token", $token) }
   & $ADB -s $dev @cfg | Tee-Object -Append $log
   if ($pass -ne "") {

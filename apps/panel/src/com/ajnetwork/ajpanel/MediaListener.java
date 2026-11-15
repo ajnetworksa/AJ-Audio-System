@@ -29,6 +29,14 @@ public class MediaListener extends NotificationListenerService {
             List<MediaController> l = m.getActiveSessions(new ComponentName(c, MediaListener.class));
             for (MediaController mc : l) {
                 if (c.getPackageName().equals(mc.getPackageName())) continue;
+                // Judian: while Music Assistant plays here, our DLNA bridge keeps the panel's own music player "playing"
+                // a silent track with MA's song title – that is not another app (when MA is idle the bridge stops it,
+                // so a song the user starts in that player still counts)
+                if ("com.judian.jdmediarender".equals(mc.getPackageName()) && new Cfg(c).vendorBridge()) {
+                    PanelService ps = PanelService.instance;
+                    NowPlaying np = ps == null ? null : ps.now;
+                    if (np != null && np.active()) continue;
+                }
                 PlaybackState st = mc.getPlaybackState();
                 if (st == null || st.getState() != PlaybackState.STATE_PLAYING) continue;
                 Local x = new Local();

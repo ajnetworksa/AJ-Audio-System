@@ -212,6 +212,12 @@ public class ShareService extends Service {
         List<String> rooms = new ArrayList<>(Arrays.asList(prefs(this).getString("rooms", "").split(",")));
         rooms.remove(me); rooms.remove("");
         if (rooms.isEmpty()) throw new IllegalStateException("Pick at least one other room");
+        // this panel must lead: if it is a member of another room's group or a saved group, MA would add the rooms
+        // THERE instead (set_members is redirected to the active group) – take it out first
+        Site.Room mine = Site.fetch(ma).room(me);
+        if (mine != null && (!mine.syncedTo.isEmpty() || !mine.activeGroup.isEmpty())) {
+            try { ma.ungroup(me); Thread.sleep(500); } catch (Exception e) { Log.e("share: ungroup this panel first", e); }
+        }
         JSONArray add = new JSONArray();
         for (String r : rooms) add.put(r);
         ma.setMembers(me, add, null);

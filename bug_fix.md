@@ -147,3 +147,13 @@ Each section's id matches the bug in `bug.md` (FIX-001 ↔ BUG-001). Include: wh
 - Port 12889 refused = MA's **AriaCast Receiver** plugin isn't running (after moving to the AJ Music Assistant add-on it has to be added again: Settings → Providers → Add → AriaCast Receiver, choose the main room/group as its player). The Client now checks for the plugin first and says exactly that; the Installer's overview shows a warning while it is missing.
 - Client 0.5.1 uses the same order as the panels (FIX-028): send sound first, then select the source (retry after "playing").
 - "Start recording or casting?": Android asks every time unless the phone has the app-op set once – `tools\phone_allow_capture.bat` (USB or Wireless debugging). The Client shows a hint while it isn't set; in the question choose **Entire screen** (with "A single app" only that one app is heard).
+
+## FIX-030
+**Code review 2026-11-15 (official Music Assistant setup) – BUG-030…033**
+- Panel `Ma.ajNowPlaying` / Client `ajPanels`: after the first "invalid command" (400/404) answer they stop asking for 30 min – no more error spam in the official MA log. "Played by" only shows with the AJ server; everything else works the same.
+- Stable panel id: `deploy_ajpanel.bat` reads the panel's Wi-Fi/LAN MAC over adb and passes `host_id_default=ajpanel_<mac>`; the panel uses it only when it has no id yet (fresh install / after uninstall), so future reinstalls keep the same MA player. The app also reads `/sys/class/net/*/address` before falling back to ANDROID_ID. Existing panels keep their current id (no new player now).
+  - Clean-up once: in MA → Settings → Players remove the old unavailable AJ panel players, and in the Installer (Groups) remove dead members such as `ma_ajpanel_8aef75a3d2e1` from Demo and add the current DSPPA player.
+- `MediaListener` ignores the Judian player while MA plays on that panel (it's our silent bridge track); a song started in the Judian player while MA is idle still counts.
+- Share to rooms: the panel first leaves any group it is in, then leads the picked rooms.
+- Client: "Nothing to play yet" text updated (Play my phone exists now).
+- Checked against MA 2.10.9 source: every command/field the apps use exists (players/all, players/get, set_members, group_volume, volume_mute, play_announcement, create_group_player, config/players/save + `||plugin||enabled`, auth/*, music/*, player_queues/play_media, select_source legacy plugin path).

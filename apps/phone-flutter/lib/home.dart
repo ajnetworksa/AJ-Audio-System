@@ -121,8 +121,8 @@ class _HomePageState extends State<HomePage> {
         content: Text(Platform.isIOS
             ? 'Start music on your iPhone: Control Centre → AirPlay → "$name | Music Assistant".\n\n'
                 'Or pick music in the Music Assistant web page for "$name".'
-            : 'Pick music in the Music Assistant web page for "$name", or AirPlay to "$name | Music Assistant" from an iPhone.\n\n'
-                '"Play my phone" (any Android app → panels) is coming to this app next.'),
+            : 'Use "Play my phone" above (any app on this phone → $name), pick music in Music Assistant or on a panel\'s Music page, '
+                'or AirPlay to "$name | Music Assistant" from an iPhone.'),
         actions: [TextButton(onPressed: () => Navigator.pop(c), child: const Text('OK'))],
       ),
     );

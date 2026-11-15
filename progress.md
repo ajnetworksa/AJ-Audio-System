@@ -48,6 +48,7 @@ Newest entries on top. Decisions are `D-###`.
 ## Log
 
 ### 2026-11-15
+- Code review for the official-MA setup: log spam, unstable DSPPA player id, Judian share false positive, share grouping redirect fixed (Panel 0.5.3, Client 0.5.2; BUG-030…033).
 - AJ Panel v0.5.2: Share fixed (AriaCast order, errors on screen, direct fallback); DSPPA is Android 8.1 → Share explains alternatives (BUG-028/FIX-028).
 - Server: AJ Music Assistant HA add-on installable straight from GitHub (repository.yaml, official add-on settings incl. HA login/ingress, data move guide `server/ha-addon/README.md`).
 - AJ Panel v0.5.1: the sharing panel plays too, in sync with the other rooms (share mode, BUG-026/FIX-026).

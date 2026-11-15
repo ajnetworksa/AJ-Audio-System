@@ -64,6 +64,14 @@ public class Cfg {
                 if (!sb.toString().equals("020000000000")) return sb.toString();
             }
         } catch (Exception ignored) { }
+        // Android 8+: getHardwareAddress() is often empty for apps – the kernel file still has it on most panels
+        for (String ifc : new String[]{"wlan0", "eth0"}) {
+            try (java.io.BufferedReader r = new java.io.BufferedReader(new java.io.FileReader("/sys/class/net/" + ifc + "/address"))) {
+                String m = r.readLine();
+                if (m != null && m.matches("([0-9a-fA-F]{2}:){5}[0-9a-fA-F]{2}") && !m.equals("02:00:00:00:00:00") && !m.equals("00:00:00:00:00:00"))
+                    return m.replace(":", "").toLowerCase();
+            } catch (Exception ignored) { }
+        }
         return null;
     }
 
