@@ -38,6 +38,15 @@ public final class Capture {
         c.startService(new Intent(c, CaptureService.class).setAction(CaptureService.ACTION_STOP));
     }
 
+    /** true when Android won't ask "Start recording or casting?" (app-op PROJECT_MEDIA allowed via phone_allow_capture.bat) */
+    static boolean noPrompt(Context c) {
+        try {
+            android.app.AppOpsManager ao = (android.app.AppOpsManager) c.getSystemService(Context.APP_OPS_SERVICE);
+            return ao.unsafeCheckOpNoThrow("android:project_media", android.os.Process.myUid(), c.getPackageName())
+                    == android.app.AppOpsManager.MODE_ALLOWED;
+        } catch (Throwable t) { return false; }
+    }
+
     public static Map<String, Object> status(Context c) {
         Map<String, Object> m = new HashMap<>();
         m.put("running", CaptureService.running);
@@ -46,6 +55,7 @@ public final class Capture {
         m.put("error", CaptureService.lastError);
         m.put("mute", prefs(c).getBoolean("mute_phone", true));
         m.put("muteBroken", prefs(c).getBoolean("mute_breaks_capture", false));
+        m.put("noPrompt", noPrompt(c));
         return m;
     }
 }

@@ -259,6 +259,14 @@ class _HomePageState extends State<HomePage> {
         ]),
         if (cap['muteBroken'] == true)
           const Text('This phone silences the stream when muted, so its volume stays on.', style: TextStyle(color: Colors.white60, fontSize: 12)),
+        if (!running && cap['noPrompt'] != true)
+          const Padding(
+            padding: EdgeInsets.only(top: 4),
+            child: Text(
+                'Android asks "Start recording or casting?" each time – choose "Entire screen" (needed so every app is heard). '
+                'Your installer can switch this question off once for this phone (tools\\phone_allow_capture.bat).',
+                style: TextStyle(color: Colors.white60, fontSize: 12, height: 1.35)),
+          ),
         if (err.isNotEmpty && !running) Padding(padding: const EdgeInsets.only(top: 6), child: Text(err, style: const TextStyle(color: Color(0xFFFF8A80)))),
         const SizedBox(height: 10),
         if (!running)

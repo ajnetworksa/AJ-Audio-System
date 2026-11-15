@@ -154,6 +154,7 @@ class _OverviewState extends State<Overview> {
   String error = '';
   bool loading = true;
   int users = 0;
+  bool aria = true;   // AriaCast Receiver plugin present (needed for "Play my phone" and panel Share)
 
   @override
   void initState() {
@@ -167,6 +168,7 @@ class _OverviewState extends State<Overview> {
       final p = await widget.s.api.players();
       int u = 0;
       try { u = (await widget.s.api.users()).length; } catch (_) {}
+      try { aria = await widget.s.api.providerInstance('ariacast_receiver') != null; } catch (_) {}
       setState(() { ms = t; players = p.map(Room.new).toList(); users = u; error = ''; loading = false; });
     } catch (e) {
       setState(() { error = '$e'; ms = null; loading = false; });
@@ -240,6 +242,20 @@ class _OverviewState extends State<Overview> {
               const SizedBox(width: 10),
               Expanded(child: Text('${r.name} is offline. Check power and Wi-Fi.', style: const TextStyle(height: 1.3))),
               TextButton(onPressed: () => open(RoomDetail(s: widget.s, room: r)), child: const Text('Details')),
+            ]),
+          ),
+        if (!aria && ms != null)
+          const Glass(
+            child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Icon(Icons.warning_amber_rounded, color: C.warn),
+              SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  'Phone & panel sharing is off. In Music Assistant: Settings → Providers → Add → "AriaCast Receiver", '
+                  'pick your main room or group as its player, Save. Needed for "Play my phone" and the panels\' Share.',
+                  style: TextStyle(height: 1.35),
+                ),
+              ),
             ]),
           ),
         const Label('Manage'),

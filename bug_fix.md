@@ -141,3 +141,9 @@ Each section's id matches the bug in `bug.md` (FIX-001 ↔ BUG-001). Include: wh
 - Panels whose capture goes silent when their own media volume is 0: instead of stopping, sharing switches to **direct** – the panel plays the app itself (a little ahead of the other rooms) and our synced copy is muted.
 - **Android 8/9 panels (DSPPA DM938T = Android 8.1)**: Android has no way for one app to pick up another app's sound before Android 10 (without root/system rights). *Share* there explains this and offers what works in sync: Music page (library + streaming services added in MA), Spotify Connect, phones (AirPlay / Play my phone).
 - Tip: in MA → AriaCast Receiver set the "connected player" to the main group/room – on the first share after a server restart that player gets the sound for ~1 s before it moves to the chosen rooms.
+
+## FIX-029
+**BUG-029 – Play my phone: connection refused on 12889, consent question every time**
+- Port 12889 refused = MA's **AriaCast Receiver** plugin isn't running (after moving to the AJ Music Assistant add-on it has to be added again: Settings → Providers → Add → AriaCast Receiver, choose the main room/group as its player). The Client now checks for the plugin first and says exactly that; the Installer's overview shows a warning while it is missing.
+- Client 0.5.1 uses the same order as the panels (FIX-028): send sound first, then select the source (retry after "playing").
+- "Start recording or casting?": Android asks every time unless the phone has the app-op set once – `tools\phone_allow_capture.bat` (USB or Wireless debugging). The Client shows a hint while it isn't set; in the question choose **Entire screen** (with "A single app" only that one app is heard).

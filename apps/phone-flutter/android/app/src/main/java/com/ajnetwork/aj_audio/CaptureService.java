@@ -131,15 +131,51 @@ public class CaptureService extends Service {
             rec = new AudioRecord.Builder().setAudioFormat(fmt).setBufferSizeInBytes(Math.max(min, FRAME * 8))
                     .setAudioPlaybackCaptureConfig(cfg).build();
 
-            audio = new AriaWs(host, PORT, "/audio", s -> Log.i(TAG, "audio: " + s));
-            meta = new AriaWs(host, PORT, "/metadata", null);
-            // route the AriaCast source to the chosen room/group BEFORE announcing playback,
-            // so Music Assistant doesn't start it on its default player
-            selectSource(server, token, target);
+            // the music server must run the AriaCast Receiver plugin (port 12889)
+            String inst = ariaInstance(server, token);
+            try {
+                audio = new AriaWs(host, PORT, "/audio", s -> Log.i(TAG, "audio: " + s));
+                meta = new AriaWs(host, PORT, "/metadata", null);
+            } catch (java.io.IOException e) {
+                String m = String.valueOf(e.getMessage());
+                if (m.contains("ECONNREFUSED") || m.contains("refused") || m.contains("timed out") || m.contains("failed to connect"))
+                    throw new IllegalStateException("The music server's AriaCast Receiver isn't running (port 12889). In Music Assistant: Settings → Providers → AriaCast Receiver – add it or check its error.");
+                throw e;
+            }
+            // send sound right away (MA drops a source that sends nothing for 1 s), then point the room/group at it
+            rec.startRecording();
+            Thread pump = new Thread(this::pumpSafe, "aj-capture-pump");
+            pump.start();
+            boolean early = false;
+            try { api(server, token, "players/cmd/select_source", new JSONObject().put("player_id", target).put("source", inst)); early = true; }
+            catch (Exception e) { Log.i(TAG, "select before play not possible yet: " + e.getMessage()); }
             meta.sendText(new JSONObject().put("type", "update").put("data", new JSONObject()
                     .put("title", Build.MODEL + " audio").put("artist", "AJ Audio Client").put("is_playing", true)).toString());
+            if (!early) {
+                // first stream since the server started: the plugin only offers its source once it plays
+                Exception last = null;
+                for (int t = 0; t < 4 && running; t++) {
+                    Thread.sleep(700);
+                    try { api(server, token, "players/cmd/select_source", new JSONObject().put("player_id", target).put("source", inst)); last = null; break; }
+                    catch (Exception e) { last = e; }
+                }
+                if (last != null) throw new IllegalStateException("The music server didn't start the sound: " + last.getMessage());
+            }
+            pump.join();
+            if (pumpError != null) throw pumpError;
+        } catch (Exception e) {
+            Log.w(TAG, "stream", e);
+            if (running) fail(e.getMessage() == null ? e.toString() : e.getMessage());
+        }
+    }
 
-            rec.startRecording();
+    private volatile Exception pumpError;
+    private void pumpSafe() {
+        try { pump(); } catch (Exception e) { if (running) { pumpError = e; fail(e.getMessage() == null ? e.toString() : e.getMessage()); } }
+    }
+
+    private void pump() throws Exception {
+        {
             byte[] frame = new byte[FRAME];
             long soundSince = 0, silentSince = 0;
             boolean muteOk = !Capture.prefs(this).getBoolean("mute_breaks_capture", false) && Capture.prefs(this).getBoolean("mute_phone", true);
@@ -172,10 +208,19 @@ public class CaptureService extends Service {
                     } else { silentSince = 0; }
                 }
             }
-        } catch (Exception e) {
-            Log.w(TAG, "stream", e);
-            if (running) fail(e.getMessage() == null ? e.toString() : e.getMessage());
         }
+    }
+
+    private String ariaInstance(String server, String token) throws Exception {
+        Object provs = api(server, token, "providers", new JSONObject());
+        if (provs instanceof JSONArray) {
+            JSONArray a = (JSONArray) provs;
+            for (int i = 0; i < a.length(); i++) {
+                JSONObject p = a.optJSONObject(i);
+                if (p != null && "ariacast_receiver".equals(p.optString("domain"))) return p.optString("instance_id");
+            }
+        }
+        throw new IllegalStateException("The music server needs the \"AriaCast Receiver\" plugin: Music Assistant → Settings → Providers → Add → AriaCast Receiver");
     }
 
     /** Music Assistant API: find the AriaCast plugin instance and select it as source on the target */
