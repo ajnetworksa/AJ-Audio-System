@@ -39,12 +39,16 @@ Newest entries on top. Decisions are `D-###`.
 - **D-015** (2026-11-11) Phone side splits in two: **AJ Setup** (installer/admin app: rooms, groups, users, logs) and **AJ Audio** (optional client rooms remote). Same Flutter repo, two app targets. Clients mainly use AirPlay/Bluetooth to named groups.
 - **D-016** (2026-11-11) "Take a break": saved groups are MA **dynamic sync groups** (members = preset pulled in on play, removable per session, dissolve on stop – checked in sync_group/player.py). Break = `set_members(remove=[me])` + panel stores {group, until/mode}; at expiry `set_members(add=[me])` if the session still runs; while on a break the panel removes itself again if a new session pulls it in. Works on stock MA; moves server-side into ajsnap later so it survives panel reboots/offline.
 - **D-018** (2026-11-12) Android "any app → group" = AJ Audio Client capture → MA AriaCast Receiver (WebSocket PCM) + `select_source`; Media output stays Cast/Bluetooth-only (BUG-017). Apps renamed **AJ Audio Client** / **AJ Audio Installer**.
+- **D-019** (2026-11-15) Panel UI v2: Sonos-style player (rail, Playing, Rooms with Scenes + zone cards, Group sheet); owner found v1 looked like a web page. Supersedes D-017's layout.
 - **D-017** (2026-11-11) Panel UI follows the DSPPA home look (clock, landscape, right rail, bottom now-playing bar); one APK, Judian keeps vendor UI + bridge.
 - **D-014** (2026-11-10) One release signing key for all Android apps (CI secrets); iOS stays unsigned in CI (signed at install by Sideloadly/AltStore).
 - **D-013** (2026-11-09) DSPPA panels use AJ Panel as their UI; Judian panels keep their smart-home UI and AJ Panel feeds the song into the Judian music player (DLNA metadata bridge).
 - **D-012** (2026-11-09) Git repo local in `AJ-Audio-System`, owner pushes manually to GitHub.
 
 ## Log
+
+### 2026-11-15
+- AJ Panel v0.4.0: new Sonos-style UI and group handling (scenes + tick-to-group sheet, Join/Add on room cards, group volume, per-room volume).
 
 ### 2026-11-12
 - AJ Panel v0.3.2: volume no longer jumps on M20/DSPPA (BUG-024/FIX-024 – vendor fades ignored, mute respected, fight guard).

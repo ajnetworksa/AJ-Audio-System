@@ -264,6 +264,34 @@ public class PanelService extends Service implements SnapProcess.Listener {
         });
         lastSite = 0;
     }
+    public void setRoomVolume(String id, int v) { async("volume " + id + " " + v, () -> ma.volume(id, v)); lastSite = 0; }
+    /** volume of the whole zone this room plays in */
+    public void setGroupVolume(int v) {
+        NowPlaying n = now; if (n == null) return;
+        String g = n.groupId.isEmpty() ? cfg.maPlayerId() : n.groupId;
+        if (g.equals(cfg.maPlayerId()) && !n.isLeader) { setVolume(v); return; }
+        async("group volume " + v, () -> ma.groupVolume(g, v)); lastSite = 0;
+    }
+    /** change who plays together with this room (from the Group sheet) */
+    public void applyGroup(java.util.List<String> add, java.util.List<String> remove) {
+        NowPlaying n = now; if (n == null) return;
+        String target = n.groupId.isEmpty() ? cfg.maPlayerId() : n.groupId;
+        async("group +" + add + " -" + remove + " on " + target, () -> {
+            org.json.JSONArray a = new org.json.JSONArray(), r = new org.json.JSONArray();
+            for (String id : add) a.put(id);
+            for (String id : remove) if (!id.equals(cfg.maPlayerId())) r.put(id);
+            if (a.length() > 0 || r.length() > 0) ma.setMembers(target, a.length() > 0 ? a : null, r.length() > 0 ? r : null);
+        });
+        lastSite = 0;
+    }
+    /** join the music of another room / zone (its leader) or a saved group */
+    public void joinZone(String leaderId) {
+        Site st = site;
+        if (st != null && st.group(leaderId) != null) { joinGroup(leaderId); return; }
+        async("join " + leaderId, () -> ma.setMembers(leaderId, new org.json.JSONArray().put(cfg.maPlayerId()), null));
+        lastSite = 0;
+    }
+
     /** the group this room belongs to right now (saved group or a room leading/followed), "" = none */
     public String currentGroupId() { NowPlaying n = now; return n == null ? "" : n.groupId.equals(cfg.maPlayerId()) ? "" : n.groupId; }
     public String myId() { return cfg.maPlayerId(); }

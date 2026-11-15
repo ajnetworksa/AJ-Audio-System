@@ -16,6 +16,29 @@ public final class Art {
     public static synchronized Bitmap get(Cfg cfg, String url) {
         if (url == null || url.isEmpty()) return null;
         if (url.equals(lastUrl)) return last;
+        Bitmap b = download(cfg, url, 512);
+        lastUrl = url; last = b;
+        return b;
+    }
+
+    // ---- small covers for the room cards (loaded in the background, kept in a little cache) ----
+    public interface Done { void got(Bitmap b); }
+    private static final android.util.LruCache<String, Bitmap> thumbs = new android.util.LruCache<>(24);
+    private static final java.util.concurrent.ExecutorService pool = java.util.concurrent.Executors.newSingleThreadExecutor();
+    private static final android.os.Handler main = new android.os.Handler(android.os.Looper.getMainLooper());
+    public static Bitmap cached(String url) { return url == null || url.isEmpty() ? null : thumbs.get(url); }
+    public static void thumb(Cfg cfg, String url, Done d) {
+        if (url == null || url.isEmpty()) { d.got(null); return; }
+        Bitmap b = thumbs.get(url);
+        if (b != null) { d.got(b); return; }
+        pool.execute(() -> {
+            Bitmap x = download(cfg, url, 160);
+            if (x != null) thumbs.put(url, x);
+            main.post(() -> d.got(x));
+        });
+    }
+
+    static Bitmap download(Cfg cfg, String url, int max) {
         Bitmap b = null;
         try {
             String u = url.startsWith("http") ? url : cfg.maBase() + (url.startsWith("/") ? "" : "/") + url;
@@ -28,10 +51,9 @@ public final class Art {
                     o.inPreferredConfig = Bitmap.Config.RGB_565;
                     b = BitmapFactory.decodeStream(in, null, o);
                 }
-                if (b != null && b.getWidth() > 512) b = Bitmap.createScaledBitmap(b, 512, 512 * b.getHeight() / b.getWidth(), true);
+                if (b != null && b.getWidth() > max) b = Bitmap.createScaledBitmap(b, max, max * b.getHeight() / b.getWidth(), true);
             }
         } catch (Exception e) { Log.e("art " + url, e); }
-        lastUrl = url; last = b;
         return b;
     }
 }

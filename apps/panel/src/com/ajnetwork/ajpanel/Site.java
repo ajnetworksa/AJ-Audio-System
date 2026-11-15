@@ -10,12 +10,15 @@ import java.util.List;
 /** Snapshot of all Music Assistant players: saved groups and rooms (for tiles, "Play this on…", breaks). */
 public class Site {
     public static class Room {
-        public String id, name, state = "idle", title = "", syncedTo = "", activeGroup = "";
-        public boolean available = true;
+        public String id, name, state = "idle", title = "", artist = "", image = "", syncedTo = "", activeGroup = "";
+        public boolean available = true, muted;
+        public int volume = -1;
+        public boolean playing() { return "playing".equals(state) || "paused".equals(state); }
         public List<String> members = new ArrayList<>();
     }
     public static class Group {
-        public String id, name, state = "idle", title = "", artist = "";
+        public String id, name, state = "idle", title = "", artist = "", image = "";
+        public int volume = -1;
         public List<String> members = new ArrayList<>();
         public boolean playing() { return "playing".equals(state) || "paused".equals(state); }
     }
@@ -42,13 +45,16 @@ public class Site {
             if ("group".equals(s(p, "type"))) {
                 Group g = new Group();
                 g.id = s(p, "player_id"); g.name = s(p, "name"); g.state = s(p, "playback_state");
-                g.title = s(m, "title"); g.artist = s(m, "artist");
+                g.title = s(m, "title"); g.artist = s(m, "artist"); g.image = s(m, "image_url");
+                g.volume = p.optInt("volume_level", -1);
                 g.members = list(p.optJSONArray("group_members"));
                 site.groups.add(g);
             } else {
                 Room x = new Room();
                 x.id = s(p, "player_id"); x.name = s(p, "name"); x.state = s(p, "playback_state");
-                x.title = s(m, "title"); x.syncedTo = s(p, "synced_to"); x.activeGroup = s(p, "active_group");
+                x.title = s(m, "title"); x.artist = s(m, "artist"); x.image = s(m, "image_url");
+                x.volume = p.optInt("volume_level", -1); x.muted = p.optBoolean("volume_muted", false);
+                x.syncedTo = s(p, "synced_to"); x.activeGroup = s(p, "active_group");
                 x.available = p.optBoolean("available", true);
                 x.members = list(p.optJSONArray("group_members"));
                 site.rooms.add(x);
@@ -65,6 +71,30 @@ public class Site {
         Room x = room(id); if (x != null) return x.name;
         Group g = group(id); return g != null ? g.name : id;
     }
+    /** the player that leads this room's music right now: active saved group, sync leader, or the room itself */
+    public String zoneOf(Room r) {
+        if (!r.activeGroup.isEmpty()) { Group g = group(r.activeGroup); if (g != null && g.members.contains(r.id)) return g.id; }
+        if (!r.syncedTo.isEmpty() && room(r.syncedTo) != null) return r.syncedTo;
+        return r.id;
+    }
+    /** rooms that play together right now, keyed by their zone leader (order = room order) */
+    public java.util.LinkedHashMap<String, List<Room>> zones() {
+        java.util.LinkedHashMap<String, List<Room>> z = new java.util.LinkedHashMap<>();
+        for (Room r : rooms) {
+            String k = zoneOf(r);
+            List<Room> l = z.get(k); if (l == null) { l = new ArrayList<>(); z.put(k, l); }
+            l.add(r);
+        }
+        return z;
+    }
+    /** rooms in the zone led by id (saved group members / leader + followers) */
+    public List<String> zoneMembers(String id) {
+        List<String> out = new ArrayList<>();
+        for (Room r : rooms) if (zoneOf(r).equals(id)) out.add(r.id);
+        if (out.isEmpty()) out.add(id);
+        return out;
+    }
+
     /** is this room currently part of that group (session member)? */
     public boolean inGroup(String roomId, Group g) {
         Room x = room(roomId);

@@ -78,6 +78,14 @@ Research: Sonos (rooms list with now-playing, "group" sheet with ticks, one home
 - **Play this on…**: whatever plays on this panel (e.g. AirPlay to the room) can be moved to a group or extra rooms without restarting the song; busy groups show who is using them; rooms on a break / offline are marked.
 - Judian panels keep their own UI; only the break/rejoin logic and the song bridge run there.
 
+## F. Panel app v2 (AJ Panel 0.4, D-019) – replaces §C
+Sonos-like music player, calm near-black, no gradients/emoji; vector icons drawn in code; the album art (blurred, darkened) is the only colour.
+- **Rail** (left): clock · *Playing* · *Rooms* · *Settings*.
+- **Playing**: big cover; zone chip ("Living Room · 3 rooms" → Group sheet); title / artist · album / played by · source; thin progress; ⏮ ⏯ ⏭; **group volume** when grouped (room volume otherwise), speaker icon = mute this room; *Group rooms*, *Take a break*. Idle: big clock + date, "Nothing playing in <room>", up to 3 "Playing in other rooms" rows with **Join**.
+- **Rooms**: *Scenes* row (Everywhere + saved MA groups; tap = join it, or send my music there when it is idle) and *All rooms* cards per zone (cover, name, song, live bars, "This room"/"3 rooms together") with **Join** (it plays), **Add** (idle → joins my music), **Group** (my zone).
+- **Group sheet** (right side): scene shortcuts (Only this room / Everywhere / saved groups), tick list of rooms, per-room volume for rooms already playing together, *Take a break*, *Play in N rooms*.
+- **Break** dialog unchanged in logic, restyled.
+
 ## D. Installer app (new: "AJ Setup")
 For installers only; clients use AirPlay/Bluetooth to named groups (no app).
 - Sign in once with an MA **admin**; site overview: server OK, panels online, "needs attention" list.
