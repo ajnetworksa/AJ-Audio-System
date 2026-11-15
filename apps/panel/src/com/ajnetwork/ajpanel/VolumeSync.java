@@ -37,6 +37,7 @@ public class VolumeSync {
     private volatile int stream = AudioManager.STREAM_MUSIC;  // ALARM while sharing (our PcmRelay plays there)
     private volatile boolean maWins;
     private int savedMusic = -1;
+    private boolean shareOn;
 
     private int pendingIdx = -1;      // local value waiting to settle
     private long pendingSince = 0;
@@ -159,8 +160,18 @@ public class VolumeSync {
      * Share mode (FIX-026): the synced music plays on the ALARM stream, the media stream (the shared app, e.g.
      * YouTube, playing directly on this panel) is turned down to 0 so this room hears only the synced copy.
      */
+    /** share fallback: the media stream (the app itself) is this room's sound again, MA volume drives it */
+    public synchronized void shareDirect() {
+        stream = AudioManager.STREAM_MUSIC;
+        if (savedMusic >= 0) am.setStreamVolume(AudioManager.STREAM_MUSIC, savedMusic, 0);
+        ownSetAt = SystemClock.elapsedRealtime();
+        first = true; lastMuted = null; pendingIdx = -1; maWins = true;
+        Log.i("volume: share direct – media stream back to " + savedMusic);
+    }
+
     public synchronized void shareMode(boolean on) {
-        if (on == (stream == AudioManager.STREAM_ALARM)) return;
+        if (on == shareOn) return;
+        shareOn = on;
         if (on) {
             savedMusic = am.getStreamVolume(AudioManager.STREAM_MUSIC);
             stream = AudioManager.STREAM_ALARM;

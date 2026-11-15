@@ -818,17 +818,35 @@ public class MainActivity extends Activity implements PanelService.Listener {
     }
 
     // =================================== SHARE this panel's sound (YouTube …) ===================================
-    private String shareSig = "";
+    private String shareSig = "", dismissedError = "";
     private final Set<String> sharePick = new LinkedHashSet<>();
     private String shareGroup = "";
 
     /** banner on the Playing screen: another app plays here → offer to play it in other rooms; or sharing status */
     private void renderShare() {
         MediaListener.Local l = ShareService.running ? null : MediaListener.playing(this);
-        String sig = ShareService.running + ShareService.sharingTo + ShareService.sharingWhat + (l == null ? "" : l.app + l.title) + ShareService.lastError;
+        boolean err = !ShareService.running && !ShareService.lastError.isEmpty() && !ShareService.lastError.equals(dismissedError);
+        String sig = ShareService.running + ShareService.sharingTo + ShareService.sharingWhat + ShareService.step + ShareService.direct
+                + (l == null ? "" : l.app + l.title) + err + ShareService.lastError;
         if (sig.equals(shareSig)) return;
         shareSig = sig;
         npShare.removeAllViews();
+        if (err) {
+            LinearLayout b = new LinearLayout(this); b.setGravity(Gravity.CENTER_VERTICAL);
+            b.setBackground(box(this, 0x33FF6B6B, 16)); b.setPadding(dp(16), dp(10), dp(10), dp(10));
+            LinearLayout tx = new LinearLayout(this); tx.setOrientation(LinearLayout.VERTICAL); tx.setPadding(0, 0, dp(8), 0);
+            tx.addView(Theme.text(this, "Sharing stopped", 16, TEXT, MEDIUM));
+            TextView d = Theme.text(this, ShareService.lastError, 13, 0xFFFFC9C9, REGULAR);
+            d.setSingleLine(false); d.setMaxLines(3); d.setPadding(0, dp(4), 0, 0); tx.addView(d);
+            b.addView(tx, new LinearLayout.LayoutParams(0, -2, 1));
+            TextView ok = pill(this, "OK", 0); ok.setMinHeight(dp(40)); ok.setOnClickListener(v -> { dismissedError = ShareService.lastError; shareSig = ""; renderShare(); });
+            TextView again = pill(this, "Try again", 1); again.setMinHeight(dp(40)); again.setOnClickListener(v -> { dismissedError = ShareService.lastError; openShareSheet(); });
+            b.addView(ok, new LinearLayout.LayoutParams(-2, dp(40)));
+            b.addView(again, side(-2, 40, 8));
+            npShare.addView(b, new LinearLayout.LayoutParams(-1, -2));
+            npShare.addView(new View(this), new LinearLayout.LayoutParams(1, dp(18)));
+            return;
+        }
         if (!ShareService.running && l == null) return;
         LinearLayout b = new LinearLayout(this); b.setGravity(Gravity.CENTER_VERTICAL);
         b.setBackground(box(this, 0x1F6FDC8C, 16)); b.setPadding(dp(16), dp(10), dp(10), dp(10));
@@ -836,8 +854,11 @@ public class MainActivity extends Activity implements PanelService.Listener {
         b.addView(bars, new LinearLayout.LayoutParams(dp(16), dp(14)));
         LinearLayout tx = new LinearLayout(this); tx.setOrientation(LinearLayout.VERTICAL); tx.setPadding(dp(12), 0, dp(8), 0);
         if (ShareService.running) {
-            tx.addView(Theme.text(this, "Playing in sync: " + ShareService.sharingTo, 16, TEXT, MEDIUM));
-            TextView d = Theme.text(this, ShareService.sharingWhat.isEmpty() ? "Anything you play here is heard there too" : ShareService.sharingWhat, 13, SUB, REGULAR);
+            tx.addView(Theme.text(this, (ShareService.step.isEmpty() ? "Playing in: " : "Starting: ") + ShareService.sharingTo, 16, TEXT, MEDIUM));
+            String info = !ShareService.step.isEmpty() ? ShareService.step + "…"
+                    : (ShareService.sharingWhat.isEmpty() ? "Anything you play here is heard there too" : ShareService.sharingWhat)
+                    + (ShareService.direct ? " · this panel a little ahead" : "");
+            TextView d = Theme.text(this, info, 13, SUB, REGULAR);
             d.setPadding(0, dp(4), 0, 0); tx.addView(d);
             b.addView(tx, new LinearLayout.LayoutParams(0, -2, 1));
             TextView ch = pill(this, "Change", 0); ch.setMinHeight(dp(40)); ch.setOnClickListener(v -> openShareSheet());
@@ -857,6 +878,7 @@ public class MainActivity extends Activity implements PanelService.Listener {
 
     /** pick where this panel's sound should also play: a saved group, or rooms */
     private void openShareSheet() {
+        if (android.os.Build.VERSION.SDK_INT < 29) { openShareUnsupported(); return; }
         Site st = site();
         if (st == null) return;
         sharePick.clear(); shareGroup = "";
@@ -897,6 +919,31 @@ public class MainActivity extends Activity implements PanelService.Listener {
         sheetLayer.addView(sh, new FrameLayout.LayoutParams(dp(w), -1, Gravity.END));
         sheetLayer.setVisibility(View.VISIBLE);
         renderShareList(list, go);
+    }
+
+    /** Android 8/9 panels (DSPPA): Android only lets apps pick up other apps' sound from Android 10 on */
+    private void openShareUnsupported() {
+        sheetLayer.removeAllViews();
+        LinearLayout d = new LinearLayout(this); d.setOrientation(LinearLayout.VERTICAL); d.setClickable(true);
+        d.setBackground(box(this, SURFACE, 22)); d.setPadding(dp(30), dp(26), dp(30), dp(24));
+        d.addView(Theme.text(this, "Play music in other rooms", 22, TEXT, MEDIUM));
+        TextView ex = Theme.text(this, "This panel runs Android " + android.os.Build.VERSION.RELEASE + ". Android only lets one app pick up the sound of another app "
+                + "(YouTube, Spotify …) from Android 10 on, so this panel can't send an app's sound to other rooms.\n\n"
+                + "What works on this panel, in sync in every room:\n"
+                + "•  Music – search songs, artists, radio and your streaming services (YouTube Music, Spotify, Tidal, TuneIn … once added in Music Assistant)\n"
+                + "•  Spotify app → Connect to a device → pick this room or a group (needs Spotify Connect in Music Assistant)\n"
+                + "•  Phones: AirPlay (iPhone) or \"Play my phone\" (Android) to any room or group", 15, SUB, REGULAR);
+        ex.setSingleLine(false); ex.setMaxLines(14); ex.setLineSpacing(0, 1.2f);
+        d.addView(ex, top(-1, -2, 12));
+        LinearLayout foot = new LinearLayout(this); foot.setGravity(Gravity.CENTER_VERTICAL);
+        foot.addView(new View(this), new LinearLayout.LayoutParams(0, 1, 1));
+        TextView close = pill(this, "Close", 2); close.setOnClickListener(v -> closeSheet());
+        TextView music = pill(this, "Open Music", 1); music.setOnClickListener(v -> { closeSheet(); show(MUSIC); });
+        foot.addView(close, new LinearLayout.LayoutParams(-2, dp(52)));
+        foot.addView(music, side(-2, 52, 10));
+        d.addView(foot, top(-1, -2, 20));
+        sheetLayer.addView(d, new FrameLayout.LayoutParams(dp(Math.min(720, wDp - 80)), -2, Gravity.CENTER));
+        sheetLayer.setVisibility(View.VISIBLE);
     }
 
     private void renderShareList(LinearLayout list, TextView go) {

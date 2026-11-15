@@ -69,7 +69,7 @@ public class ShareService extends Service {
         projection = m.getMediaProjection(i.getIntExtra("code", 0), i.getParcelableExtra("data"));
         if (projection == null) { fail("Android did not allow capturing the sound"); return START_NOT_STICKY; }
         projection.registerCallback(new MediaProjection.Callback() { @Override public void onStop() { stopAll(); stopSelf(); } }, null);
-        running = true; lastError = ""; sharingTo = label;
+        running = true; lastError = ""; sharingTo = label; pumpError = null; lastLoud = 0; direct = false;
         wake = ((PowerManager) getSystemService(POWER_SERVICE)).newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "ajpanel:share");
         wake.acquire(12 * 3600_000L);
         new Thread(this::stream, "aj-share").start();
@@ -92,17 +92,75 @@ public class ShareService extends Service {
             rec = new AudioRecord.Builder().setAudioFormat(fmt).setBufferSizeInBytes(Math.max(min, FRAME * 8))
                     .setAudioPlaybackCaptureConfig(cc).build();
 
+            // 1. the music server must have the AriaCast Receiver plugin – check BEFORE grouping anything
+            String inst = ariaInstance(ma);
+            step("connecting to the music server");
             audio = new AriaWs(cfg.host(), PORT, "/audio", s -> Log.i("share audio: " + s));
             meta = new AriaWs(cfg.host(), PORT, "/metadata", null);
-            String target = route(ma, cfg);
-            selectSource(ma, target);
-            sendMeta(cfg, true);
 
+            // 2. start sending sound right away (MA gives up on a source that sends nothing for 1 s)
             rec.startRecording();
+            pump = new Thread(this::pumpLoop, "aj-share-pump");
+            pump.start();
+
+            // 3. group the rooms, then point them at this panel's sound
+            step("grouping rooms");
+            String target = route(ma, cfg);
+            boolean early = false;
+            try { ma.cmd("players/cmd/select_source", new JSONObject().put("player_id", target).put("source", inst)); early = true; }
+            catch (Exception e) { Log.i("share: select before play not possible yet (" + e.getMessage() + ") – will select after start"); }
+            sendMeta(cfg, true);
+            if (!early) {
+                // first share since the server started: the plugin only offers its source once it plays
+                Exception last = null;
+                for (int t = 0; t < 4 && running; t++) {
+                    Thread.sleep(700);
+                    try { ma.cmd("players/cmd/select_source", new JSONObject().put("player_id", target).put("source", inst)); last = null; break; }
+                    catch (Exception e) { last = e; }
+                }
+                if (last != null) throw new IllegalStateException("the music server didn't start the shared sound: " + last.getMessage());
+            }
+            step("");
             Log.i("share: streaming this panel's sound to " + sharingTo + " (" + target + ")");
-            byte[] frame = new byte[FRAME];
-            long lastMeta = System.currentTimeMillis(), silentSince = 0, started = System.currentTimeMillis();
+
+            // 4. watch: metadata every 5 s; does capture still work with this panel's own speaker turned down?
+            long started = System.currentTimeMillis(), lastMeta = started;
             boolean checked = !here;
+            while (running) {
+                Thread.sleep(250);
+                if (pumpError != null) throw pumpError;
+                long now = System.currentTimeMillis();
+                if (!checked) {
+                    if (lastLoud > started) checked = true;
+                    else if (now - started > 5000 && MediaListener.playing(this) != null) {
+                        // this panel's Android only captures what it can hear: keep its speaker on, mute our synced copy instead
+                        checked = true;
+                        PanelService ps = PanelService.instance;
+                        if (ps != null) ps.shareDirect();
+                        direct = true;
+                        Log.i("share: capture silent with media volume 0 – this panel plays the app directly");
+                    } else if (now - started > 20000) checked = true;
+                }
+                if (now - lastMeta > 5000) { lastMeta = now; sendMeta(cfg, true); }
+            }
+        } catch (Exception e) {
+            Log.e("share", e);
+            if (running) fail(e.getMessage() == null ? e.toString() : e.getMessage());
+        }
+    }
+
+    private volatile Thread pump;
+    private volatile List<String> addedRooms;
+    private volatile Exception pumpError;
+    private volatile long lastLoud;
+    static volatile String step = "";
+    static volatile boolean direct;
+    private static void step(String s) { step = s; }
+
+    /** reads the captured sound and sends it, 20 ms frames */
+    private void pumpLoop() {
+        byte[] frame = new byte[FRAME];
+        try {
             while (running) {
                 int off = 0;
                 while (off < FRAME && running) {
@@ -110,22 +168,24 @@ public class ShareService extends Service {
                     if (n < 0) throw new IllegalStateException("capture error " + n);
                     off += n;
                 }
-                if (audio.isClosed()) throw new IllegalStateException("Music server closed the connection");
+                if (!running) break;
+                if (audio.isClosed()) throw new IllegalStateException("the music server closed the connection");
                 audio.sendBinary(frame);
-                if (!checked) {
-                    // some panels stop handing out the app's sound once their own media volume is 0 – detect that
-                    long now = System.currentTimeMillis();
-                    if (!silent(frame)) checked = true;
-                    else if (now - started > 6000 && MediaListener.playing(this) != null) {
-                        throw new IllegalStateException("this panel can't share while its own speaker is turned down");
-                    } else if (now - started > 20000) checked = true;
-                }
-                if (System.currentTimeMillis() - lastMeta > 5000) { lastMeta = System.currentTimeMillis(); sendMeta(cfg, true); }
+                if (!silent(frame)) lastLoud = System.currentTimeMillis();
             }
-        } catch (Exception e) {
-            Log.e("share", e);
-            if (running) fail(e.getMessage() == null ? e.toString() : e.getMessage());
+        } catch (Exception e) { if (running) pumpError = e; }
+    }
+
+    private String ariaInstance(Ma ma) throws Exception {
+        Object provs = ma.cmd("providers", new JSONObject());
+        if (provs instanceof JSONArray) {
+            JSONArray a = (JSONArray) provs;
+            for (int i = 0; i < a.length(); i++) {
+                JSONObject p = a.optJSONObject(i);
+                if (p != null && "ariacast_receiver".equals(p.optString("domain"))) return p.optString("instance_id");
+            }
         }
+        throw new IllegalStateException("the music server needs the \"AriaCast Receiver\" plugin (Music Assistant → Settings → Providers → Add → AriaCast Receiver)");
     }
 
     private static boolean silent(byte[] f) {
@@ -155,23 +215,10 @@ public class ShareService extends Service {
         JSONArray add = new JSONArray();
         for (String r : rooms) add.put(r);
         ma.setMembers(me, add, null);
+        addedRooms = rooms;
         if (ps != null) ps.shareMode(true);
         here = true;
         return me;
-    }
-
-    private void selectSource(Ma ma, String target) throws Exception {
-        Object provs = ma.cmd("providers", new JSONObject());
-        String inst = null;
-        if (provs instanceof JSONArray) {
-            JSONArray a = (JSONArray) provs;
-            for (int i = 0; i < a.length(); i++) {
-                JSONObject p = a.optJSONObject(i);
-                if (p != null && "ariacast_receiver".equals(p.optString("domain"))) inst = p.optString("instance_id");
-            }
-        }
-        if (inst == null) throw new IllegalStateException("Add the \"AriaCast Receiver\" plugin in Music Assistant first");
-        ma.cmd("players/cmd/select_source", new JSONObject().put("player_id", target).put("source", inst));
     }
 
     private String lastMetaSig = "";
@@ -190,6 +237,15 @@ public class ShareService extends Service {
 
     private void fail(String msg) {
         lastError = msg;
+        // undo the grouping we did for this share
+        List<String> added = addedRooms; addedRooms = null;
+        if (added != null && !added.isEmpty()) new Thread(() -> {
+            try {
+                Cfg cfg = new Cfg(this);
+                JSONArray r = new JSONArray(); for (String x : added) r.put(x);
+                new Ma(cfg.maBase(), cfg.token()).setMembers(cfg.maPlayerId(), null, r);
+            } catch (Exception e) { Log.e("share: ungroup after failure", e); }
+        }, "share-undo").start();
         Log.i("share stopped: " + msg);
         getSystemService(NotificationManager.class).notify(NID + 1, notification("Sharing stopped: " + msg));
         stopAll();
@@ -207,7 +263,7 @@ public class ShareService extends Service {
 
     private synchronized void stopAll() {
         boolean was = running;
-        running = false; sharingTo = ""; sharingWhat = "";
+        running = false; sharingTo = ""; sharingWhat = ""; step = ""; direct = false;
         if (was && meta != null) {
             try { meta.sendText(new JSONObject().put("type", "update").put("data", new JSONObject().put("is_playing", false)).toString()); }
             catch (Exception ignored) { }

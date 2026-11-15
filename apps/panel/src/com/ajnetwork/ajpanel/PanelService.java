@@ -291,11 +291,17 @@ public class PanelService extends Service implements SnapProcess.Listener {
     public void shareMode(boolean on) {
         if (snap.pipe == on) return;
         snap.pipe = on;
+        PcmRelay.muted = false;
         volume.shareMode(on);
         if (cfg.player()) new Thread(() -> snap.restart(), "share-mode").start();
         Log.i("share mode " + (on ? "on" : "off"));
     }
     public boolean inShareMode() { return snap.pipe; }
+    /** share fallback (capture needs this panel's speaker on): play the app directly here, mute our synced copy */
+    public void shareDirect() {
+        PcmRelay.muted = true;
+        volume.shareDirect();
+    }
 
     /** Music page: blocking library calls from the activity's worker thread */
     Ma api() { return ma; }

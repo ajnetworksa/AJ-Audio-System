@@ -24,6 +24,9 @@ public class PcmRelay {
     private AudioTrack track;
     private long written;                                 // frames handed to the track
     private volatile boolean running;
+    /** share "direct" fallback: this panel plays the app itself, our synced copy stays silent */
+    public static volatile boolean muted;
+    private boolean appliedMute;
 
     /** total output delay (queue + hardware) in ms, for snapclient --latency */
     public static int outputLatencyMs() {
@@ -75,6 +78,7 @@ public class PcmRelay {
                 }
                 if (queuedMs > TARGET_MS + 250) continue;                                           // way behind (stall): skip 10 ms
                 if (written > RATE && queuedMs < TARGET_MS - 50) fill((int) (TARGET_MS - queuedMs));   // ran dry: refill with silence
+                if (muted != appliedMute) { appliedMute = muted; track.setVolume(muted ? 0f : 1f); }
                 int w = track.write(buf, 0, len, AudioTrack.WRITE_NON_BLOCKING);
                 if (w > 0) written += w / FRAME;
             }

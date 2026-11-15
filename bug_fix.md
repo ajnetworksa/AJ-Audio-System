@@ -133,3 +133,11 @@ Each section's id matches the bug in `bug.md` (FIX-001 ↔ BUG-001). Include: wh
 - Add-on version **2.10.9-aj3** → HA shows Update.
 - CI `addon-check` now clones the MA tag from `build.yaml` + its models version and runs `tools/check_ajsnap_imports.py` – a provider import that doesn't exist in that MA version fails the build.
 - Rule: when MA is upgraded, rebase ajsnap on that version's Snapcast provider (diff `upstream_snapcast` → `ajsnap`, apply to the new copy).
+
+## FIX-028
+**BUG-028 – Share fails (Android 8 DSPPA; Judian group-then-cancel)**
+- Share order now follows the AriaCast plugin: check the plugin exists (clear message if not) → connect → **start sending sound at once** (MA drops a source that sends nothing for 1 s) → group rooms → select the source (if the plugin refuses because it never played since the server started, send "playing" first and select again, up to 4× 0.7 s). Capture runs in its own thread.
+- Errors are shown on the panel ("Sharing stopped: <reason>" with *Try again*); grouping done for a failed share is undone.
+- Panels whose capture goes silent when their own media volume is 0: instead of stopping, sharing switches to **direct** – the panel plays the app itself (a little ahead of the other rooms) and our synced copy is muted.
+- **Android 8/9 panels (DSPPA DM938T = Android 8.1)**: Android has no way for one app to pick up another app's sound before Android 10 (without root/system rights). *Share* there explains this and offers what works in sync: Music page (library + streaming services added in MA), Spotify Connect, phones (AirPlay / Play my phone).
+- Tip: in MA → AriaCast Receiver set the "connected player" to the main group/room – on the first share after a server restart that player gets the sound for ~1 s before it moves to the chosen rooms.
