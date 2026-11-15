@@ -34,6 +34,9 @@ public class VolumeSync {
     private int lastMa = -1;          // MA volume we last saw / set (0..100)
     private int lastIndex = -1;       // stream index that matches lastMa
     private Boolean lastMuted = null;
+    private volatile int stream = AudioManager.STREAM_MUSIC;  // ALARM while sharing (our PcmRelay plays there)
+    private volatile boolean maWins;
+    private int savedMusic = -1;
 
     private int pendingIdx = -1;      // local value waiting to settle
     private long pendingSince = 0;
@@ -47,12 +50,12 @@ public class VolumeSync {
         this.ma = ma; this.cfg = cfg;
     }
 
-    private int max() { return Math.max(1, am.getStreamMaxVolume(AudioManager.STREAM_MUSIC)); }
+    private int max() { return Math.max(1, am.getStreamMaxVolume(stream)); }
     private int toPercent(int idx) { return Math.round(idx * 100f / max()); }
     private int toIndex(int pct) { return Math.round(Math.max(0, Math.min(100, pct)) * max() / 100f); }
 
     private void setPanel(int target) {
-        am.setStreamVolume(AudioManager.STREAM_MUSIC, target, 0);
+        am.setStreamVolume(stream, target, 0);
         ownSetAt = SystemClock.elapsedRealtime();
     }
 
@@ -69,12 +72,24 @@ public class VolumeSync {
         if (!cfg.systemVolume() || !n.registered || n.volume < 0) return;
         try {
             long now = SystemClock.elapsedRealtime();
-            int idx = am.getStreamVolume(AudioManager.STREAM_MUSIC);
+            if (stream == AudioManager.STREAM_ALARM && now - ownSetAt > OWN_SET_MS) {
+                // share mode: someone moved the panel's own volume (keys / vendor slider) – that would make the
+                // shared app audible un-synced again. Take it as the room volume and turn the media stream back to 0.
+                int m = am.getStreamVolume(AudioManager.STREAM_MUSIC);
+                if (m > 0) {
+                    int pct = Math.round(m * 100f / Math.max(1, am.getStreamMaxVolume(AudioManager.STREAM_MUSIC)));
+                    am.setStreamVolume(AudioManager.STREAM_MUSIC, 0, 0);
+                    ownSetAt = now;
+                    ma.volume(cfg.maPlayerId(), pct);
+                    Log.i("volume: share mode, panel keys -> MA " + pct + "%");
+                }
+            }
+            int idx = am.getStreamVolume(stream);
             if (first) {
                 first = false;
                 lastMuted = null;                       // apply MA mute state below
                 int pct = toPercent(idx);
-                if (n.muted || Math.abs(pct - n.volume) <= 1) {
+                if (n.muted || maWins || Math.abs(pct - n.volume) <= 1) {
                     // MA value is the truth (or already equal)
                     lastMa = n.volume; lastIndex = toIndex(n.volume);
                     if (lastIndex != idx && !n.muted) setPanel(lastIndex);
@@ -129,7 +144,7 @@ public class VolumeSync {
 
     private void applyMute(NowPlaying n, long now) {
             if (lastMuted == null || n.muted != lastMuted) {
-                am.adjustStreamVolume(AudioManager.STREAM_MUSIC, n.muted ? AudioManager.ADJUST_MUTE : AudioManager.ADJUST_UNMUTE, 0);
+                am.adjustStreamVolume(stream, n.muted ? AudioManager.ADJUST_MUTE : AudioManager.ADJUST_UNMUTE, 0);
                 ownSetAt = now;
                 if (!n.muted && lastIndex >= 0) setPanel(lastIndex);  // come back at MA's volume
                 Log.i("volume: " + (n.muted ? "muted" : "unmuted") + " from MA");
@@ -138,5 +153,27 @@ public class VolumeSync {
     }
 
     /** settings / server changed: start over */
-    public void reset() { first = true; lastMuted = null; pendingIdx = -1; guardUntil = 0; }
+    public void reset() { first = true; lastMuted = null; pendingIdx = -1; guardUntil = 0; maWins = false; }
+
+    /**
+     * Share mode (FIX-026): the synced music plays on the ALARM stream, the media stream (the shared app, e.g.
+     * YouTube, playing directly on this panel) is turned down to 0 so this room hears only the synced copy.
+     */
+    public synchronized void shareMode(boolean on) {
+        if (on == (stream == AudioManager.STREAM_ALARM)) return;
+        if (on) {
+            savedMusic = am.getStreamVolume(AudioManager.STREAM_MUSIC);
+            stream = AudioManager.STREAM_ALARM;
+            int amax = am.getStreamMaxVolume(AudioManager.STREAM_ALARM), mmax = Math.max(1, am.getStreamMaxVolume(AudioManager.STREAM_MUSIC));
+            am.setStreamVolume(AudioManager.STREAM_ALARM, Math.max(1, Math.round(savedMusic * amax / (float) mmax)), 0);
+            am.setStreamVolume(AudioManager.STREAM_MUSIC, 0, 0);
+            Log.i("volume: share mode – media stream 0 (was " + savedMusic + "), music on alarm stream");
+        } else {
+            stream = AudioManager.STREAM_MUSIC;
+            if (savedMusic >= 0) am.setStreamVolume(AudioManager.STREAM_MUSIC, savedMusic, 0);
+            Log.i("volume: share mode off – media stream back to " + savedMusic);
+        }
+        ownSetAt = SystemClock.elapsedRealtime();
+        first = true; lastMuted = null; pendingIdx = -1; maWins = true;   // MA's volume is applied to the new stream
+    }
 }

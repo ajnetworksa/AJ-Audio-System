@@ -31,8 +31,8 @@ import java.util.List;
  * "Play this panel's sound in other rooms" (FIX-025): captures what another app plays on this panel
  * (YouTube, Spotify, browser … – Android 10 playback capture; our own sync player is excluded) and streams
  * it live to Music Assistant's AriaCast Receiver, then plays that source on the chosen rooms / saved group.
- * This panel keeps playing the app itself (no delay here); if it is part of the chosen saved group it takes
- * a break from that group while sharing, so nothing plays twice in this room.
+ * FIX-026: this panel plays in sync with the others – it is part of the target, its own copy of the app is
+ * turned down (media stream 0) and the synced music plays here via PcmRelay on the alarm stream.
  */
 @TargetApi(29)
 public class ShareService extends Service {
@@ -46,6 +46,7 @@ public class ShareService extends Service {
     private AudioRecord rec;
     private AriaWs audio, meta;
     private PowerManager.WakeLock wake;
+    private volatile boolean here;          // this panel plays the shared sound too (share mode)
 
     static SharedPreferences prefs(Context c) { return c.getSharedPreferences("ajpanel_share", MODE_PRIVATE); }
 
@@ -100,7 +101,8 @@ public class ShareService extends Service {
             rec.startRecording();
             Log.i("share: streaming this panel's sound to " + sharingTo + " (" + target + ")");
             byte[] frame = new byte[FRAME];
-            long lastMeta = System.currentTimeMillis();
+            long lastMeta = System.currentTimeMillis(), silentSince = 0, started = System.currentTimeMillis();
+            boolean checked = !here;
             while (running) {
                 int off = 0;
                 while (off < FRAME && running) {
@@ -110,6 +112,14 @@ public class ShareService extends Service {
                 }
                 if (audio.isClosed()) throw new IllegalStateException("Music server closed the connection");
                 audio.sendBinary(frame);
+                if (!checked) {
+                    // some panels stop handing out the app's sound once their own media volume is 0 – detect that
+                    long now = System.currentTimeMillis();
+                    if (!silent(frame)) checked = true;
+                    else if (now - started > 6000 && MediaListener.playing(this) != null) {
+                        throw new IllegalStateException("this panel can't share while its own speaker is turned down");
+                    } else if (now - started > 20000) checked = true;
+                }
                 if (System.currentTimeMillis() - lastMeta > 5000) { lastMeta = System.currentTimeMillis(); sendMeta(cfg, true); }
             }
         } catch (Exception e) {
@@ -118,30 +128,36 @@ public class ShareService extends Service {
         }
     }
 
+    private static boolean silent(byte[] f) {
+        for (int i = 0; i < f.length; i += 2) { int v = (short) ((f[i] & 0xFF) | (f[i + 1] << 8)); if (v > 30 || v < -30) return false; }
+        return true;
+    }
+
     /** pick the player that plays the shared sound: the saved group, or the first chosen room leading the others */
     private String route(Ma ma, Cfg cfg) throws Exception {
         String group = prefs(this).getString("group", "");
+        String me = cfg.maPlayerId();
+        PanelService ps = PanelService.instance;
         if (!group.isEmpty()) {
-            Site st = Site.fetch(ma);
-            Site.Group g = st.group(group);
-            PanelService ps = PanelService.instance;
-            if (g != null && g.members.contains(cfg.maPlayerId()) && ps != null) {
-                // this room plays the app itself – step out of the group while sharing
-                ps.breaks.start(group, Breaks.TIME, System.currentTimeMillis() + 12 * 3600_000L, true);
-                prefs(this).edit().putBoolean("on_break", true).apply();
+            Site.Group g = Site.fetch(ma).group(group);
+            boolean inIt = g != null && g.members.contains(me);
+            if (inIt && ps != null) {
+                if (ps.breaks.active() && group.equals(ps.breaks.groupId())) ps.breaks.end(null, "sharing to this group");
+                ps.shareMode(true);
             }
+            here = inIt;
             return group;
         }
+        // this room leads, the picked rooms follow – all in sync
         List<String> rooms = new ArrayList<>(Arrays.asList(prefs(this).getString("rooms", "").split(",")));
-        rooms.remove(cfg.maPlayerId()); rooms.remove("");
+        rooms.remove(me); rooms.remove("");
         if (rooms.isEmpty()) throw new IllegalStateException("Pick at least one other room");
-        String lead = rooms.get(0);
-        if (rooms.size() > 1) {
-            JSONArray add = new JSONArray();
-            for (String r : rooms.subList(1, rooms.size())) add.put(r);
-            ma.setMembers(lead, add, null);
-        }
-        return lead;
+        JSONArray add = new JSONArray();
+        for (String r : rooms) add.put(r);
+        ma.setMembers(me, add, null);
+        if (ps != null) ps.shareMode(true);
+        here = true;
+        return me;
     }
 
     private void selectSource(Ma ma, String target) throws Exception {
@@ -202,11 +218,9 @@ public class ShareService extends Service {
         if (rec != null) { try { rec.stop(); } catch (Exception ignored) { } rec.release(); rec = null; }
         if (projection != null) { try { projection.stop(); } catch (Exception ignored) { } projection = null; }
         if (wake != null && wake.isHeld()) wake.release();
-        if (prefs(this).getBoolean("on_break", false)) {
-            prefs(this).edit().putBoolean("on_break", false).apply();
-            PanelService ps = PanelService.instance;
-            if (ps != null) ps.endBreak();
-        }
+        PanelService ps = PanelService.instance;
+        if (ps != null) ps.shareMode(false);
+        here = false;
         stopForeground(true);
     }
 

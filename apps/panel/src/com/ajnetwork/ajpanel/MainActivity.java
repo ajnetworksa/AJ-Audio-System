@@ -836,7 +836,7 @@ public class MainActivity extends Activity implements PanelService.Listener {
         b.addView(bars, new LinearLayout.LayoutParams(dp(16), dp(14)));
         LinearLayout tx = new LinearLayout(this); tx.setOrientation(LinearLayout.VERTICAL); tx.setPadding(dp(12), 0, dp(8), 0);
         if (ShareService.running) {
-            tx.addView(Theme.text(this, "This panel's sound plays in " + ShareService.sharingTo, 16, TEXT, MEDIUM));
+            tx.addView(Theme.text(this, "Playing in sync: " + ShareService.sharingTo, 16, TEXT, MEDIUM));
             TextView d = Theme.text(this, ShareService.sharingWhat.isEmpty() ? "Anything you play here is heard there too" : ShareService.sharingWhat, 13, SUB, REGULAR);
             d.setPadding(0, dp(4), 0, 0); tx.addView(d);
             b.addView(tx, new LinearLayout.LayoutParams(0, -2, 1));
@@ -869,7 +869,7 @@ public class MainActivity extends Activity implements PanelService.Listener {
         FrameLayout x = iconButton(this, CLOSE, 44, 22, 2, "Close"); x.setOnClickListener(v -> closeSheet());
         head.addView(x);
         sh.addView(head);
-        TextView expl = Theme.text(this, "Whatever plays on " + myName() + " (YouTube, Spotify, a browser …) is heard in the rooms you pick. The other rooms are about a second behind this one.", 14, SUB, REGULAR);
+        TextView expl = Theme.text(this, "Whatever plays on " + myName() + " (YouTube, Spotify, a browser …) plays here and in the rooms you pick, all in sync. The sound comes about a second after the picture.", 14, SUB, REGULAR);
         expl.setSingleLine(false); expl.setMaxLines(3); expl.setLineSpacing(0, 1.15f);
         sh.addView(expl, top(-1, -2, 8));
         ScrollView sv = new ScrollView(this); sv.setVerticalScrollBarEnabled(false);
@@ -889,7 +889,7 @@ public class MainActivity extends Activity implements PanelService.Listener {
             if (shareGroup.isEmpty() && sharePick.isEmpty()) return;
             String label;
             if (!shareGroup.isEmpty()) label = st.nameOf(shareGroup);
-            else { List<String> names = new ArrayList<>(); for (String id : sharePick) names.add(st.nameOf(id)); label = android.text.TextUtils.join(", ", names); }
+            else { List<String> names = new ArrayList<>(); names.add(myName()); for (String id : sharePick) names.add(st.nameOf(id)); label = android.text.TextUtils.join(", ", names); }
             ShareService.request(this, shareGroup, new ArrayList<>(sharePick), label);
             closeSheet(); shareSig = "";
         });
@@ -906,10 +906,10 @@ public class MainActivity extends Activity implements PanelService.Listener {
         if (!st.groups.isEmpty()) list.addView(Theme.text(this, "Groups", 15, SUB, MEDIUM), top(-2, -2, 4));
         for (Site.Group g : st.groups) {
             boolean sel = g.id.equals(shareGroup);
-            String sub = g.members.size() + " rooms" + (g.members.contains(me()) ? " · this room keeps playing on its own" : "");
+            String sub = g.members.size() + " rooms" + (g.members.contains(me()) ? " · with this room" : " · not this room");
             list.addView(shareRow(GROUP, g.name, sub, sel, true, () -> { shareGroup = sel ? "" : g.id; sharePick.clear(); renderShareList(list, go); }));
         }
-        list.addView(Theme.text(this, "Rooms", 15, SUB, MEDIUM), top(-2, -2, 18));
+        list.addView(Theme.text(this, "Or rooms (" + myName() + " plays too)", 15, SUB, MEDIUM), top(-2, -2, 18));
         for (Site.Room r : st.rooms) {
             if (r.id.equals(me())) continue;
             boolean sel = sharePick.contains(r.id);
@@ -918,7 +918,7 @@ public class MainActivity extends Activity implements PanelService.Listener {
             if (!r.available) { row.setAlpha(0.4f); row.setOnClickListener(null); }
             list.addView(row);
         }
-        go.setText(!shareGroup.isEmpty() ? "Play in " + st.nameOf(shareGroup) : sharePick.isEmpty() ? "Pick rooms" : "Play in " + sharePick.size() + (sharePick.size() == 1 ? " room" : " rooms"));
+        go.setText(!shareGroup.isEmpty() ? "Play in " + st.nameOf(shareGroup) : sharePick.isEmpty() ? "Pick rooms" : "Play in " + (sharePick.size() + 1) + " rooms");
         go.setAlpha(shareGroup.isEmpty() && sharePick.isEmpty() ? 0.5f : 1f);
     }
 

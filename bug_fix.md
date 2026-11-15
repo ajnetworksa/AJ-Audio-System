@@ -117,3 +117,12 @@ Each section's id matches the bug in `bug.md` (FIX-001 ↔ BUG-001). Include: wh
 - Shown on the Playing screen: "YouTube is playing on this panel → Share", while sharing "This panel's sound plays in … · Change · Stop"; also the *Share* button.
 - `deploy_ajpanel.bat` pre-grants RECORD_AUDIO, `appops PROJECT_MEDIA allow` and the notification listener, so the panel never asks.
 - Limits: the other rooms are ~1 s behind the sharing panel (live capture + MA buffer); one sender at a time (AriaCast, also shared with "Play my phone"); apps that forbid capture stay silent; needs the AriaCast Receiver plugin in MA and Android 10+ on the panel.
+
+## FIX-026
+**BUG-026 – sharing panel must play too, in sync with the others**
+- AJ Panel v0.5.1 *share mode* while this panel shares: snapclient restarts with `--player file:filename=stdout --logsink stderr --sampleformat 48000:16:2 --latency <trim + queue + hw>`; `PcmRelay` plays that synced PCM with our own AudioTrack on the **ALARM** stream (queue held at 80 ms by dropping/repeating single frames). The panel's **media** stream is set to 0, so the shared app (YouTube …) is not heard directly – only the synced copy, exactly like every other room. Playback capture still gets the app's sound (the capture path has fixed volume).
+- The panel is now part of the target: saved group containing it → plays there (a break from it is ended); ticked rooms → this panel leads them.
+- Panel keys / vendor slider while sharing → become the room volume in MA, media stream back to 0. Volume from the app/MA → alarm stream.
+- Safety: if the capture stays silent for 6 s while an app is playing (a panel whose capture follows its media volume), sharing stops with "this panel can't share while its own speaker is turned down" and everything is restored.
+- On stop: snapclient back to oboe, media volume restored to MA's volume.
+- Note: the sound (in every room, this one included) comes ~1 s after the video picture on the sharing panel.

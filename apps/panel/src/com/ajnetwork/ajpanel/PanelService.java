@@ -284,6 +284,19 @@ public class PanelService extends Service implements SnapProcess.Listener {
         });
         lastSite = 0;
     }
+    /**
+     * Share mode on/off (FIX-026): our sync player switches to PcmRelay on the alarm stream and the panel's
+     * media volume goes to 0, so the shared app (YouTube …) is only heard as the synced copy, like every other room.
+     */
+    public void shareMode(boolean on) {
+        if (snap.pipe == on) return;
+        snap.pipe = on;
+        volume.shareMode(on);
+        if (cfg.player()) new Thread(() -> snap.restart(), "share-mode").start();
+        Log.i("share mode " + (on ? "on" : "off"));
+    }
+    public boolean inShareMode() { return snap.pipe; }
+
     /** Music page: blocking library calls from the activity's worker thread */
     Ma api() { return ma; }
     /** start a song / album / playlist / radio on a room, a room's zone or a saved group */

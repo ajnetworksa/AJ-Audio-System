@@ -29,6 +29,9 @@ public class SnapProcess {
     public volatile String lastLine = "";
     public volatile boolean connected;
     public volatile int restarts;
+    /** share mode: synced PCM comes out on stdout and PcmRelay plays it on the ALARM stream (FIX-026) */
+    public volatile boolean pipe;
+    private volatile PcmRelay relay;
 
     public SnapProcess(Context c, Cfg cfg, Listener l) { this.ctx = c; this.cfg = cfg; this.listener = l; }
 
@@ -87,16 +90,19 @@ public class SnapProcess {
                 cmd.add("-h"); cmd.add(cfg.host());
                 cmd.add("-p"); cmd.add(String.valueOf(cfg.snapPort()));
                 cmd.add("--hostID"); cmd.add(cfg.hostId());
-                cmd.add("--player"); cmd.add(cfg.engine());
+                boolean piped = pipe;
+                cmd.add("--player"); cmd.add(piped ? "file:filename=stdout" : cfg.engine());
+                if (piped) { cmd.add("--logsink"); cmd.add("stderr"); }
                 AudioManager am = (AudioManager) ctx.getSystemService(Context.AUDIO_SERVICE);
                 String rate = am.getProperty(AudioManager.PROPERTY_OUTPUT_SAMPLE_RATE);
                 String fpb = am.getProperty(AudioManager.PROPERTY_OUTPUT_FRAMES_PER_BUFFER);
-                cmd.add("--sampleformat"); cmd.add(cfg.resample() && rate != null ? rate + ":*:*" : "*:16:*");
-                if (cfg.latencyMs() != 0) { cmd.add("--latency"); cmd.add(String.valueOf(cfg.latencyMs())); }
+                cmd.add("--sampleformat"); cmd.add(piped ? PcmRelay.RATE + ":16:2" : cfg.resample() && rate != null ? rate + ":*:*" : "*:16:*");
+                int lat = cfg.latencyMs() + (piped ? PcmRelay.outputLatencyMs() : 0);
+                if (lat != 0) { cmd.add("--latency"); cmd.add(String.valueOf(lat)); }
                 // volume is applied to the panel's real media volume by VolumeSync, not inside snapclient
                 if (cfg.systemVolume()) { cmd.add("--mixer"); cmd.add("none"); }
                 cmd.add("--logfilter"); cmd.add("*:info,Stats:debug");
-                ProcessBuilder pb = new ProcessBuilder(cmd).redirectErrorStream(true);
+                ProcessBuilder pb = new ProcessBuilder(cmd).redirectErrorStream(!piped);
                 Map<String, String> env = pb.environment();
                 if (cfg.resample() && rate != null) env.put("SAMPLE_RATE", rate);
                 if (cfg.resample() && fpb != null) env.put("FRAMES_PER_BUFFER", fpb);
@@ -105,7 +111,14 @@ public class SnapProcess {
                 int pid = pidOf(proc);
                 if (pid > 0) try (FileWriter w = new FileWriter(pidFile())) { w.write(String.valueOf(pid)); }
                 listener.onSnapState(true, "started");
-                BufferedReader r = new BufferedReader(new InputStreamReader(proc.getInputStream()));
+                Thread pcm = null;
+                if (piped) {
+                    final Process pr = proc;
+                    final PcmRelay rl = new PcmRelay(); relay = rl;
+                    pcm = new Thread(() -> rl.run(pr.getInputStream()), "pcm-relay");
+                    pcm.start();
+                }
+                BufferedReader r = new BufferedReader(new InputStreamReader(piped ? proc.getErrorStream() : proc.getInputStream()));
                 String line;
                 while ((line = r.readLine()) != null) {
                     lastLine = line;
@@ -117,6 +130,8 @@ public class SnapProcess {
                 }
                 int code = proc.waitFor();
                 Log.i("snapclient exited " + code);
+                PcmRelay rl = relay; if (rl != null) rl.stop(); relay = null;
+                if (pcm != null) pcm.join(1000);
             } catch (InterruptedException ie) {
                 break;
             } catch (Exception e) {
