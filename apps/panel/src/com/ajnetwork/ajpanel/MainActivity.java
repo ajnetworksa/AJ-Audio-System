@@ -39,7 +39,7 @@ import static com.ajnetwork.ajpanel.Theme.*;
  *  BREAK        15 min / 1 h / 2 h / until 07:00 / until my music stops / until the group ends
  */
 public class MainActivity extends Activity implements PanelService.Listener {
-    private static final int NOW = 0, ROOMS = 1;
+    private static final int NOW = 0, MUSIC = 1, ROOMS = 2;
     private int page = NOW;
     private Cfg cfg;
     private final Handler h = new Handler(Looper.getMainLooper());
@@ -50,7 +50,8 @@ public class MainActivity extends Activity implements PanelService.Listener {
     private float wDp, hDp;
 
     private TextView railClock;
-    private final View[] navItems = new View[2];
+    private final View[] navItems = new View[3];
+    private final java.util.concurrent.ExecutorService worker = java.util.concurrent.Executors.newSingleThreadExecutor();
 
     private final Runnable tick = new Runnable() { public void run() { updateClock(); h.postDelayed(this, 1000); } };
 
@@ -105,8 +106,11 @@ public class MainActivity extends Activity implements PanelService.Listener {
         r.addView(railClock, new LinearLayout.LayoutParams(-1, -2));
         View gap = new View(this); r.addView(gap, new LinearLayout.LayoutParams(1, dp(30)));
         navItems[NOW] = navItem(NOTE, "Playing", () -> show(NOW));
+        navItems[MUSIC] = navItem(LIBRARY, "Music", () -> show(MUSIC));
         navItems[ROOMS] = navItem(Theme.ROOMS, "Rooms", () -> show(ROOMS));
         r.addView(navItems[NOW]);
+        LinearLayout.LayoutParams g1 = new LinearLayout.LayoutParams(dp(76), dp(76)); g1.topMargin = dp(10);
+        r.addView(navItems[MUSIC], g1);
         LinearLayout.LayoutParams g2 = new LinearLayout.LayoutParams(dp(76), dp(76)); g2.topMargin = dp(10);
         r.addView(navItems[ROOMS], g2);
         r.addView(new View(this), new LinearLayout.LayoutParams(1, 0, 1));
@@ -150,7 +154,7 @@ public class MainActivity extends Activity implements PanelService.Listener {
         page = p; roomsSig = "";
         content.removeAllViews();
         idleClock = null; idleDate = null;
-        if (p == NOW) buildNow(); else buildRooms();
+        if (p == NOW) buildNow(); else if (p == MUSIC) buildMusic(); else buildRooms();
         markNav();
         updateClock();
         if (n != null) render();
@@ -159,7 +163,7 @@ public class MainActivity extends Activity implements PanelService.Listener {
     // =================================== PLAYING ===================================
     private Cover npCover; private LinearLayout npIdleLeft; private TextView idleClock, idleDate;
     private LinearLayout npBanner, npPlayingBox, npElsewhere, npElsewhereList;
-    private TextView npZone, npTitle, npArtist, npMeta, npElapsed, npDuration, npVolLabel, npVolValue, npBreak;
+    private TextView npBrowse, npZone, npTitle, npArtist, npMeta, npElapsed, npDuration, npVolLabel, npVolValue, npBreak;
     private Slider npProgress, npVol;
     private FrameLayout npPlay, npMute;
     private String elsewhereSig = "";
@@ -244,9 +248,11 @@ public class MainActivity extends Activity implements PanelService.Listener {
         r.addView(vol, top(-1, -2, 4));
 
         LinearLayout acts = new LinearLayout(this);
-        TextView grp = pill(this, "Group rooms", 0); grp.setOnClickListener(v -> openGroupSheet());
+        TextView grp = pill(this, "Group rooms", 0); grp.setOnClickListener(v -> openGroupSheet()); grp.setTag("grp");
         npBreak = pill(this, "Take a break", 0); npBreak.setOnClickListener(v -> openBreak());
-        acts.addView(grp, new LinearLayout.LayoutParams(-2, dp(48)));
+        npBrowse = pill(this, "Browse music", 1); npBrowse.setOnClickListener(v -> show(MUSIC));
+        acts.addView(npBrowse, new LinearLayout.LayoutParams(-2, dp(48)));
+        acts.addView(grp, side(-2, 48, 12));
         acts.addView(npBreak, side(-2, 48, 12));
         r.addView(acts, top(-2, -2, 22));
 
@@ -280,7 +286,7 @@ public class MainActivity extends Activity implements PanelService.Listener {
         } else {
             npTitle.setText(n.registered && n.serverOk ? "Nothing playing" : statusText());
             npArtist.setText(n.registered && n.serverOk ? "in " + myName() : "");
-            npMeta.setText("Start music from the AJ Audio app, AirPlay or Bluetooth.");
+            npMeta.setText("Pick something in Music, or play from the AJ Audio app, AirPlay or Bluetooth.");
             npMeta.setVisibility(n.registered && n.serverOk ? View.VISIBLE : View.GONE);
             renderElsewhere();
         }
@@ -293,6 +299,7 @@ public class MainActivity extends Activity implements PanelService.Listener {
         iconOf(npMute).set(n.muted ? VOLUME_OFF : VOLUME);
         npMute.setContentDescription(n.muted ? "Unmute this room" : "Mute this room");
         npBreak.setVisibility(grouped() ? View.VISIBLE : View.GONE);
+        npBrowse.setVisibility(act ? View.GONE : View.VISIBLE);
         renderBanner();
     }
 
@@ -567,6 +574,240 @@ public class MainActivity extends Activity implements PanelService.Listener {
         return "playing".equals(s) || "paused".equals(s);
     }
 
+    // =================================== MUSIC (library) ===================================
+    private static final String[][] TABS = {{Library.RECENT, "Recent"}, {Library.PLAYLISTS, "Playlists"}, {Library.ALBUMS, "Albums"},
+            {Library.ARTISTS, "Artists"}, {Library.RADIO, "Radio"}, {Library.SONGS, "Songs"}};
+    private String tab = Library.PLAYLISTS, query = "";
+    private String playTarget = "";            // "" = where this room plays now
+    private LinearLayout tabsRow, musicBody; private TextView musicTarget, musicStatus;
+    private android.widget.EditText searchBox;
+    private int musicReq = 0;
+
+    private void buildMusic() {
+        LinearLayout col = new LinearLayout(this); col.setOrientation(LinearLayout.VERTICAL);
+        col.setPadding(dp(40), dp(30), dp(40), 0);
+        LinearLayout head = new LinearLayout(this); head.setGravity(Gravity.CENTER_VERTICAL);
+        head.addView(Theme.text(this, "Music", 30, TEXT, MEDIUM), new LinearLayout.LayoutParams(0, -2, 1));
+
+        searchBox = new android.widget.EditText(this);
+        searchBox.setSingleLine(true); searchBox.setTextSize(16); searchBox.setTextColor(TEXT); searchBox.setHintTextColor(MUTED);
+        searchBox.setHint("Search songs, artists, radio");
+        searchBox.setBackground(box(this, SURFACE2, 22)); searchBox.setPadding(dp(18), 0, dp(18), 0);
+        searchBox.setImeOptions(android.view.inputmethod.EditorInfo.IME_ACTION_SEARCH);
+        searchBox.setText(query);
+        searchBox.setOnEditorActionListener((v, id, ev) -> {
+            query = v.getText().toString().trim();
+            ((android.view.inputmethod.InputMethodManager) getSystemService(INPUT_METHOD_SERVICE)).hideSoftInputFromWindow(v.getWindowToken(), 0);
+            loadMusic();
+            return true;
+        });
+        head.addView(searchBox, side((int) Math.min(340, wDp * 0.3f), 44, 0));
+
+        LinearLayout tgt = new LinearLayout(this); tgt.setGravity(Gravity.CENTER_VERTICAL); tgt.setPadding(dp(14), 0, dp(10), 0);
+        clickable(tgt, box(this, SURFACE2, 22), 22);
+        tgt.addView(new Icon(this, SPEAKER, TEXT), new LinearLayout.LayoutParams(dp(20), dp(20)));
+        musicTarget = Theme.text(this, "", 15, TEXT, MEDIUM); musicTarget.setPadding(dp(8), 0, dp(4), 0);
+        musicTarget.setMaxWidth(dp(220));
+        tgt.addView(musicTarget);
+        tgt.addView(new Icon(this, CHEVRON, SUB), new LinearLayout.LayoutParams(dp(18), dp(18)));
+        tgt.setOnClickListener(v -> openTargetPicker());
+        tgt.setContentDescription("Where to play");
+        head.addView(tgt, side(-2, 44, 12));
+        col.addView(head);
+
+        HorizontalScrollView hs = new HorizontalScrollView(this); hs.setHorizontalScrollBarEnabled(false);
+        tabsRow = new LinearLayout(this); hs.addView(tabsRow);
+        col.addView(hs, top(-1, -2, 20));
+
+        musicStatus = Theme.text(this, "", 15, SUB, REGULAR);
+        col.addView(musicStatus, top(-2, -2, 16));
+        ScrollView sv = new ScrollView(this); sv.setVerticalScrollBarEnabled(false);
+        musicBody = new LinearLayout(this); musicBody.setOrientation(LinearLayout.VERTICAL); musicBody.setPadding(0, 0, 0, dp(30));
+        sv.addView(musicBody);
+        col.addView(sv, top(-1, 0, 10, 1));
+        content.addView(col, new FrameLayout.LayoutParams(-1, -1));
+        renderTabs();
+        renderMusic();
+        loadMusic();
+    }
+
+    private void renderTabs() {
+        tabsRow.removeAllViews();
+        for (String[] t : TABS) {
+            boolean sel = query.isEmpty() && t[0].equals(tab);
+            TextView c = pill(this, t[1], sel ? 1 : 0); c.setTextSize(15); c.setMinHeight(dp(40)); c.setPadding(dp(18), 0, dp(18), 0);
+            c.setOnClickListener(v -> { tab = t[0]; query = ""; searchBox.setText(""); renderTabs(); loadMusic(); });
+            LinearLayout.LayoutParams p = new LinearLayout.LayoutParams(-2, dp(40)); p.rightMargin = dp(8);
+            tabsRow.addView(c, p);
+        }
+    }
+
+    /** the player the Music page plays on */
+    private String target() {
+        if (!playTarget.isEmpty()) return playTarget;
+        Site st = site();
+        return st == null ? me() : myZone(st);
+    }
+    private String targetName() {
+        Site st = site();
+        String t = target();
+        if (st == null) return myName();
+        if (t.equals(me())) return myName();
+        Site.Group g = st.group(t);
+        if (g != null) return g.name;
+        List<String> m = st.zoneMembers(t);
+        return st.nameOf(t) + (m.size() > 1 ? " + " + (m.size() - 1) : "");
+    }
+
+    private void renderMusic() {
+        if (musicTarget != null) musicTarget.setText("Play on " + targetName());
+    }
+
+    private void loadMusic() {
+        final int req = ++musicReq;
+        final String q = query, t = tab;
+        musicBody.removeAllViews();
+        musicStatus.setText(q.isEmpty() ? "Loading…" : "Searching for “" + q + "”…");
+        PanelService s = svc();
+        if (s == null) return;
+        worker.execute(() -> {
+            List<List<Library.Item>> sections = new ArrayList<>();
+            String err = null;
+            try {
+                if (q.isEmpty()) sections.add(Library.load(s.api(), t));
+                else sections = Library.search(s.api(), q);
+            } catch (Exception e) { err = e.getMessage(); Log.e("library " + t + " " + q, e); }
+            final List<List<Library.Item>> res = sections; final String er = err;
+            runOnUiThread(() -> { if (req == musicReq && page == MUSIC) showMusic(res, er, q, t); });
+        });
+    }
+
+    private void showMusic(List<List<Library.Item>> sections, String err, String q, String t) {
+        musicBody.removeAllViews();
+        int total = 0; for (List<Library.Item> l : sections) total += l.size();
+        if (err != null) { musicStatus.setText("Couldn't load the library (" + err + ")"); return; }
+        if (total == 0) {
+            musicStatus.setText(!q.isEmpty() ? "Nothing found for “" + q + "”"
+                    : Library.RECENT.equals(t) ? "Nothing played yet" : "Nothing here yet – add music in Music Assistant");
+            return;
+        }
+        musicStatus.setText(q.isEmpty() ? "Tap to play on " + targetName() : "Results for “" + q + "”");
+        if (!q.isEmpty()) {
+            String[] names = {"Songs", "Artists", "Albums", "Playlists", "Radio"};
+            for (int i = 0; i < sections.size() && i < names.length; i++) {
+                List<Library.Item> l = sections.get(i);
+                if (l.isEmpty()) continue;
+                musicBody.addView(Theme.text(this, names[i], 17, TEXT, MEDIUM), top(-2, -2, musicBody.getChildCount() == 0 ? 6 : 26));
+                if (i == 0) addTrackRows(l); else addTiles(l);
+            }
+        } else if (Library.SONGS.equals(t)) addTrackRows(sections.get(0));
+        else addTiles(sections.get(0));
+    }
+
+    private void addTiles(List<Library.Item> items) {
+        float avail = wDp - 96 - 80;
+        int cols = Math.max(3, (int) ((avail + 16) / (168 + 16)));
+        int tile = (int) ((avail - 16 * (cols - 1)) / cols);
+        LinearLayout line = null; int i = 0;
+        for (Library.Item it : items) {
+            if (i % cols == 0) { line = new LinearLayout(this); musicBody.addView(line, top(-1, -2, 14)); }
+            LinearLayout c = new LinearLayout(this); c.setOrientation(LinearLayout.VERTICAL);
+            clickable(c, box(this, 0x00000000, 12), 12);
+            boolean round = "artist".equals(it.type);
+            Cover cv = new Cover(this, round ? tile / 2f : 10, 40);
+            cv.placeholder("radio".equals(it.type) ? SPEAKER : NOTE);
+            c.addView(cv, new LinearLayout.LayoutParams(dp(tile), dp(tile)));
+            Art.thumb(cfg, it.image, cv::set);
+            TextView nm = Theme.text(this, it.name, 15, TEXT, MEDIUM); nm.setPadding(dp(2), dp(10), dp(2), 0);
+            if (round) nm.setGravity(Gravity.CENTER_HORIZONTAL);
+            c.addView(nm, new LinearLayout.LayoutParams(-1, -2));
+            if (!it.sub.isEmpty()) {
+                TextView sb = Theme.text(this, it.sub, 13, SUB, REGULAR); sb.setPadding(dp(2), dp(4), dp(2), dp(4));
+                if (round) sb.setGravity(Gravity.CENTER_HORIZONTAL);
+                c.addView(sb, new LinearLayout.LayoutParams(-1, -2));
+            }
+            c.setOnClickListener(v -> play(it));
+            line.addView(c, side(tile, -2, i % cols == 0 ? 0 : 16));
+            i++;
+        }
+    }
+
+    private void addTrackRows(List<Library.Item> items) {
+        LinearLayout line = null; int i = 0;
+        for (Library.Item it : items) {
+            if (i % 2 == 0) { line = new LinearLayout(this); musicBody.addView(line, top(-1, -2, i == 0 ? 8 : 4)); }
+            LinearLayout r = new LinearLayout(this); r.setGravity(Gravity.CENTER_VERTICAL); r.setPadding(dp(8), dp(8), dp(8), dp(8));
+            clickable(r, box(this, 0x00000000, 12), 12);
+            Cover cv = new Cover(this, 6, 22);
+            r.addView(cv, new LinearLayout.LayoutParams(dp(52), dp(52)));
+            Art.thumb(cfg, it.image, cv::set);
+            LinearLayout tx = new LinearLayout(this); tx.setOrientation(LinearLayout.VERTICAL); tx.setPadding(dp(14), 0, dp(8), 0);
+            tx.addView(Theme.text(this, it.name, 16, TEXT, MEDIUM));
+            TextView sb = Theme.text(this, it.sub, 14, SUB, REGULAR); sb.setPadding(0, dp(4), 0, 0); tx.addView(sb);
+            r.addView(tx, new LinearLayout.LayoutParams(0, -2, 1));
+            r.addView(new Icon(this, PLAY, SUB), new LinearLayout.LayoutParams(dp(22), dp(22)));
+            r.setOnClickListener(v -> play(it));
+            line.addView(r, side(0, -2, i % 2 == 0 ? 0 : 16, 1));
+            i++;
+        }
+        if (line != null && i % 2 == 1) line.addView(new View(this), side(0, 1, 16, 1));
+    }
+
+    private void play(Library.Item it) {
+        String t = target();
+        Site st = site();
+        boolean here = t.equals(me()) || (st != null && st.zoneMembers(t).contains(me()))
+                || (st != null && st.group(t) != null && st.group(t).members.contains(me()));
+        act(s -> s.playMedia(t, it.uri));
+        android.widget.Toast.makeText(this, "Playing “" + it.name + "” on " + targetName(), android.widget.Toast.LENGTH_SHORT).show();
+        if (here) show(NOW);
+    }
+
+    /** choose where the Music page plays: where this room plays now, this room only, a saved group */
+    private void openTargetPicker() {
+        Site st = site();
+        sheetLayer.removeAllViews();
+        LinearLayout d = new LinearLayout(this); d.setOrientation(LinearLayout.VERTICAL); d.setClickable(true);
+        d.setBackground(box(this, SURFACE, 22)); d.setPadding(dp(24), dp(22), dp(24), dp(18));
+        d.addView(Theme.text(this, "Play on", 22, TEXT, MEDIUM));
+        TextView ex = Theme.text(this, "Pick a group to play in all its rooms. To make a new group, use Group rooms.", 14, SUB, REGULAR);
+        ex.setSingleLine(false); ex.setMaxLines(2);
+        d.addView(ex, top(-1, -2, 8));
+        LinearLayout list = new LinearLayout(this); list.setOrientation(LinearLayout.VERTICAL);
+        String zone = st == null ? me() : myZone(st);
+        if (!zone.equals(me()) && st != null && st.group(zone) == null)
+            list.addView(targetRow(GROUP, st.nameOf(zone) + " + " + (st.zoneMembers(zone).size() - 1), "Where this room plays now", ""));
+        list.addView(targetRow(SPEAKER, myName(), "Only this room", me()));
+        if (st != null) for (Site.Group g : st.groups)
+            list.addView(targetRow(GROUP, g.name, g.members.size() + " rooms" + (g.members.contains(me()) ? " · includes this room" : "")
+                    + (g.playing() ? " · playing now" : ""), g.id));
+        ScrollView sv = new ScrollView(this); sv.addView(list);
+        d.addView(sv, top(-1, -2, 12, 1));
+        TextView grp = pill(this, "Group rooms…", 2); grp.setOnClickListener(v -> { closeSheet(); openGroupSheet(); });
+        d.addView(grp, top(-2, dp(46), 14));
+        sheetLayer.addView(d, new FrameLayout.LayoutParams(dp(Math.min(560, wDp - 120)), dp(Math.min(520, hDp - 60)), Gravity.CENTER));
+        sheetLayer.setVisibility(View.VISIBLE);
+    }
+
+    private View targetRow(int icon, String name, String sub, String id) {
+        boolean sel = id.equals(playTarget) || (playTarget.isEmpty() && id.isEmpty());
+        if (playTarget.isEmpty() && id.equals(me()) && site() != null && myZone(site()).equals(me())) sel = true;
+        LinearLayout r = new LinearLayout(this); r.setGravity(Gravity.CENTER_VERTICAL); r.setPadding(dp(12), dp(12), dp(12), dp(12));
+        clickable(r, sel ? box(this, 0x1AFFFFFF, 14) : box(this, 0x00000000, 14), 14);
+        r.addView(new Icon(this, icon, sel ? TEXT : SUB), new LinearLayout.LayoutParams(dp(24), dp(24)));
+        LinearLayout tx = new LinearLayout(this); tx.setOrientation(LinearLayout.VERTICAL); tx.setPadding(dp(14), 0, dp(8), 0);
+        tx.addView(Theme.text(this, name, 17, TEXT, MEDIUM));
+        TextView s = Theme.text(this, sub, 13, SUB, REGULAR); s.setPadding(0, dp(4), 0, 0); tx.addView(s);
+        r.addView(tx, new LinearLayout.LayoutParams(0, -2, 1));
+        if (sel) r.addView(new Icon(this, CHECK, TEXT), new LinearLayout.LayoutParams(dp(22), dp(22)));
+        r.setOnClickListener(v -> {
+            playTarget = id.equals(me()) && site() != null && myZone(site()).equals(me()) ? "" : id;
+            closeSheet(); renderMusic();
+            if (musicStatus != null && musicStatus.getText().toString().startsWith("Tap to play")) musicStatus.setText("Tap to play on " + targetName());
+        });
+        return r;
+    }
+
     // =================================== GROUP sheet ===================================
     private final Set<String> picked = new LinkedHashSet<>();
     private final Map<String, Slider> sheetVols = new HashMap<>();
@@ -770,7 +1011,7 @@ public class MainActivity extends Activity implements PanelService.Listener {
     }
     private void render() {
         if (n == null) return;
-        if (page == NOW) renderNow(); else renderRooms();
+        if (page == NOW) renderNow(); else if (page == ROOMS) renderRooms(); else renderMusic();
         if (sheetList != null) renderSheetVolumes();
     }
 }

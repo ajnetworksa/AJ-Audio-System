@@ -48,6 +48,7 @@ Newest entries on top. Decisions are `D-###`.
 ## Log
 
 ### 2026-11-15
+- AJ Panel v0.4.1: Music page – browse/search the MA library and play on this room, its group or any saved group straight from the panel (no phone needed).
 - AJ Panel v0.4.0: new Sonos-style UI and group handling (scenes + tick-to-group sheet, Join/Add on room cards, group volume, per-room volume).
 
 ### 2026-11-12

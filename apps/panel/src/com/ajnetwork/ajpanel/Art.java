@@ -23,7 +23,7 @@ public final class Art {
 
     // ---- small covers for the room cards (loaded in the background, kept in a little cache) ----
     public interface Done { void got(Bitmap b); }
-    private static final android.util.LruCache<String, Bitmap> thumbs = new android.util.LruCache<>(24);
+    private static final android.util.LruCache<String, Bitmap> thumbs = new android.util.LruCache<>(80);
     private static final java.util.concurrent.ExecutorService pool = java.util.concurrent.Executors.newSingleThreadExecutor();
     private static final android.os.Handler main = new android.os.Handler(android.os.Looper.getMainLooper());
     public static Bitmap cached(String url) { return url == null || url.isEmpty() ? null : thumbs.get(url); }
@@ -32,7 +32,7 @@ public final class Art {
         Bitmap b = thumbs.get(url);
         if (b != null) { d.got(b); return; }
         pool.execute(() -> {
-            Bitmap x = download(cfg, url, 160);
+            Bitmap x = download(cfg, url, 256);
             if (x != null) thumbs.put(url, x);
             main.post(() -> d.got(x));
         });

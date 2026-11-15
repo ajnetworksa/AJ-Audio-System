@@ -96,7 +96,7 @@ public final class Theme {
 
     // =========================================================== icons
     public static final int PLAY = 1, PAUSE = 2, NEXT = 3, PREV = 4, VOLUME = 5, VOLUME_OFF = 6, ROOMS = 7, NOTE = 8,
-            GEAR = 9, CHECK = 10, CLOSE = 11, PLUS = 12, GROUP = 13, MOON = 14, CHEVRON = 15, SPEAKER = 16;
+            GEAR = 9, CHECK = 10, CLOSE = 11, PLUS = 12, GROUP = 13, MOON = 14, CHEVRON = 15, SPEAKER = 16, LIBRARY = 17;
 
     /** small vector icons drawn on a 24×24 grid */
     public static class Icon extends View {
@@ -162,6 +162,10 @@ public final class Theme {
                 case SPEAKER:
                     s.setStrokeWidth(1.8f);
                     cv.drawRoundRect(new RectF(6, 3, 18, 21), 3, 3, s); cv.drawCircle(12, 14.5f, 3.4f, s); cv.drawCircle(12, 7.5f, 1.2f, f); break;
+                case LIBRARY:
+                    s.setStrokeWidth(2f);
+                    cv.drawLine(5, 4.5f, 5, 19.5f, s); cv.drawLine(9.5f, 4.5f, 9.5f, 19.5f, s); cv.drawLine(14, 4.5f, 14, 19.5f, s);
+                    cv.drawLine(17, 5.5f, 20.5f, 19, s); break;
                 default: break;
             }
             cv.restore();

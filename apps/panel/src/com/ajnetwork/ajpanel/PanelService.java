@@ -284,6 +284,17 @@ public class PanelService extends Service implements SnapProcess.Listener {
         });
         lastSite = 0;
     }
+    /** Music page: blocking library calls from the activity's worker thread */
+    Ma api() { return ma; }
+    /** start a song / album / playlist / radio on a room, a room's zone or a saved group */
+    public void playMedia(String target, String uri) {
+        async("play " + uri + " on " + target, () -> {
+            if (breaks.active() && target.equals(breaks.groupId())) breaks.end(site, "played from panel");
+            ma.cmd("player_queues/play_media", new org.json.JSONObject().put("queue_id", target).put("media", uri).put("option", "replace"));
+        });
+        lastSite = 0; lastKey = "";
+    }
+
     /** join the music of another room / zone (its leader) or a saved group */
     public void joinZone(String leaderId) {
         Site st = site;
