@@ -15,10 +15,18 @@ from typing import TYPE_CHECKING, Any
 
 from music_assistant_models.auth import Scope
 
-from music_assistant.helpers.provider_access import resolve_playback_user
-
 if TYPE_CHECKING:
+    from music_assistant_models.auth import User
+
+    from music_assistant.mass import MusicAssistant
     from music_assistant.providers.ajsnap.provider import SnapCastProvider
+
+
+async def resolve_playback_user(mass: MusicAssistant, queue_id: str) -> User | None:
+    """Return the user that started playback on the queue (None = anonymous / not known)."""
+    if (pq_data := mass.player_queues.queue_data_or_none(queue_id)) and getattr(pq_data, "userid", None):
+        return await mass.webserver.auth.get_user(pq_data.userid)
+    return None
 
 
 def _source_label(active_source: str | None) -> str:

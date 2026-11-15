@@ -126,3 +126,10 @@ Each section's id matches the bug in `bug.md` (FIX-001 ↔ BUG-001). Include: wh
 - Safety: if the capture stays silent for 6 s while an app is playing (a panel whose capture follows its media volume), sharing stops with "this panel can't share while its own speaker is turned down" and everything is restored.
 - On stop: snapclient back to oboe, media volume restored to MA's volume.
 - Note: the sound (in every room, this one included) comes ~1 s after the video picture on the sharing panel.
+
+## FIX-027
+**BUG-027 – AJ Snap fails to load on MA 2.10.9 (provider_access missing)**
+- `server/ajsnap-provider/upstream_snapcast/` is now the Snapcast provider of **tag 2.10.9**; `ajsnap/` = that + our small changes (domain/name, buffer 600 ms, chunk 20 ms, AJ API). `aj_api.py` carries its own `resolve_playback_user` (reads the queue's user) instead of importing a dev-only helper. Requirement pins = 2.10.9's (bidict 0.23.1, websocket-client 1.9.0), so nothing is pip-installed at runtime.
+- Add-on version **2.10.9-aj3** → HA shows Update.
+- CI `addon-check` now clones the MA tag from `build.yaml` + its models version and runs `tools/check_ajsnap_imports.py` – a provider import that doesn't exist in that MA version fails the build.
+- Rule: when MA is upgraded, rebase ajsnap on that version's Snapcast provider (diff `upstream_snapcast` → `ajsnap`, apply to the new copy).

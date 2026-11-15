@@ -1,1 +1,1 @@
-efe04964c59e485ade99e81ce977d5027e40b9ba Mon Nov 9 18:38:19 2026 +0100
+2.10.9 (tag 2.10.9 of music-assistant/server) - rebased 2026-11-15; dev commit efe04964 was used before

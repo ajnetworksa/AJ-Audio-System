@@ -644,7 +644,7 @@ class SnapcastMAStream:
             found within 20 attempts (extremely rare; the range has 201 values).
         """
         for _ in range(20):
-            port = random.randint(4953, 4953 + 200)  # noqa: S311 - port pick
+            port = random.randint(4953, 4953 + 200)
             if port not in used:
                 return port
         return None
@@ -776,7 +776,7 @@ class SnapcastMAStream:
         uri = self.snap_stream._stream.get("uri", {})
         uri_host = uri.get("host", "")
         stream_path = self.snap_stream.path or f"tcp://{uri_host}"
-        return stream_path.replace("0.0.0.0", self._provider._snapcast_server_host)  # noqa: S104 - string replace, not a bind
+        return stream_path.replace("0.0.0.0", self._provider._snapcast_server_host)
 
     def _snap_on_stream_update(self, stream: SnapstreamProto | None = None) -> None:
         """Handle Snapcast stream updates and trigger group member refresh."""
@@ -828,4 +828,6 @@ class SnapcastMAStream:
 
     def _get_playback_delay(self) -> float:
         """Return the delay in seconds between streaming start and playback at the clients."""
-        return self._provider._snapcast_server_buffer_size / 1000.0
+        if self._provider._use_builtin_server:
+            return self._provider._snapcast_server_buffer_size / 1000.0
+        return 0.0

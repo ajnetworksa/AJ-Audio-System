@@ -194,7 +194,7 @@ class SnapCastPlayer(Player):
         self._attr_needs_poll = True
         self._attr_poll_interval = SNAPCLIENT_LIVENESS_POLL_INTERVAL
         if not self._update_worker:
-            self._update_worker = self.mass.create_task(self._player_update_worker())
+            self._update_worker = self.mass.create_task(self._player_update_worker)
 
     async def poll(self) -> None:
         """Poll the snapserver so abruptly powered-off clients are detected."""
@@ -379,7 +379,8 @@ class SnapCastPlayer(Player):
             self._announcement_clip_playing = True
             await player_group.set_stream(ma_stream.stream_id)
 
-            await asyncio.sleep(self.snap_provider._snapcast_server_buffer_size / 1000.0)
+            if self.snap_provider._use_builtin_server:
+                await asyncio.sleep(self.snap_provider._snapcast_server_buffer_size / 1000.0)
 
             if volume_level is not None:
                 await self.volume_set(volume_level)

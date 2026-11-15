@@ -18,3 +18,13 @@ jobs:
           test -z "$(git status --porcelain server/ha-addon)" || { echo "::error::run server/ha-addon/build_addon.sh and commit the aj/ folder"; exit 1; }
       - name: add-on config is valid YAML
         run: python3 -c "import yaml,sys; c=yaml.safe_load(open('server/ha-addon/aj_music_assistant/config.yaml')); [c[k] for k in ('name','version','slug','arch')]; yaml.safe_load(open('repository.yaml')); print('ok', c['version'])"
+      - name: ajsnap imports exist in the Music Assistant version of the add-on
+        run: |
+          TAG=$(grep -o 'server:[0-9.]*' server/ha-addon/aj_music_assistant/build.yaml | head -1 | cut -d: -f2)
+          git clone -q --depth 1 --branch "$TAG" https://github.com/music-assistant/server.git /tmp/ma
+          MODELS=$(grep -o 'music-assistant-models==[0-9.]*' /tmp/ma/pyproject.toml | cut -d= -f3)
+          git clone -q --depth 1 --branch "$MODELS" https://github.com/music-assistant/models.git /tmp/mm
+          mkdir -p /tmp/chk && cp -r /tmp/ma/music_assistant /tmp/mm/music_assistant_models /tmp/chk/
+          cp -r server/ajsnap-provider/ajsnap /tmp/chk/music_assistant/providers/ajsnap
+          echo "MA $TAG, models $MODELS"
+          python3 tools/check_ajsnap_imports.py /tmp/chk
