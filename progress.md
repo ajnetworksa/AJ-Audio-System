@@ -48,6 +48,7 @@ Newest entries on top. Decisions are `D-###`.
 ## Log
 
 ### 2026-11-15
+- Server: AJ Music Assistant HA add-on installable straight from GitHub (repository.yaml, official add-on settings incl. HA login/ingress, data move guide `server/ha-addon/README.md`).
 - AJ Panel v0.5.1: the sharing panel plays too, in sync with the other rooms (share mode, BUG-026/FIX-026).
 - AJ Panel v0.5.0: Share – YouTube/any app playing on a panel can be played in other rooms or a saved group (BUG-025/FIX-025).
 - AJ Panel v0.4.1: Music page – browse/search the MA library and play on this room, its group or any saved group straight from the panel (no phone needed).

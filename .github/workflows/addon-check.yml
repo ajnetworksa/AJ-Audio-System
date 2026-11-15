@@ -1,0 +1,20 @@
+name: addon-check
+# The HA add-on builds from the GitHub repo, so server/ha-addon/aj_music_assistant/aj/ must be a copy of the
+# current provider + patches. Fails when someone changed server/ajsnap-provider or patches without running
+# server/ha-addon/build_addon.sh (or .bat).
+on:
+  push:
+    paths: ["server/**", "repository.yaml", ".github/workflows/addon-check.yml"]
+  pull_request:
+    paths: ["server/**"]
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - run: sh server/ha-addon/build_addon.sh && find server/ha-addon/aj_music_assistant/aj -name __pycache__ -prune -exec rm -rf {} +
+      - run: |
+          git status --porcelain server/ha-addon
+          test -z "$(git status --porcelain server/ha-addon)" || { echo "::error::run server/ha-addon/build_addon.sh and commit the aj/ folder"; exit 1; }
+      - name: add-on config is valid YAML
+        run: python3 -c "import yaml,sys; c=yaml.safe_load(open('server/ha-addon/aj_music_assistant/config.yaml')); [c[k] for k in ('name','version','slug','arch')]; yaml.safe_load(open('repository.yaml')); print('ok', c['version'])"

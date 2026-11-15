@@ -29,7 +29,6 @@ apps/phone-flutter/*.ipa
 __pycache__/
 *.pyc
 server/docker/data/
-server/ha-addon/aj_music_assistant/aj/
 # secrets / logs
 *.keystore
 *.jks

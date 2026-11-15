@@ -22,4 +22,4 @@ Licence: Apache-2.0 (LICENSE-music-assistant) — keep the licence and note our 
 ## Deployment requirement
 Custom providers need **standalone Music Assistant (Docker)** — mount `ajsnap/` into
 `/app/venv/lib/python3.x/site-packages/music_assistant/providers/ajsnap` or build an image
-`FROM ghcr.io/music-assistant/server:<version>` + `COPY ajsnap …`. The HA add-on can't load it.
+`FROM ghcr.io/music-assistant/server:<version>` + `COPY ajsnap …`. The official HA add-on can't load it – use our add-on **AJ Music Assistant** (`server/ha-addon/README.md`, installable from this GitHub repo) or `server/docker/`.
