@@ -34,7 +34,7 @@ In AJ Music Assistant → **Settings → Providers**:
 1. Open the built-in **Snapcast** provider → **Disable** (both use port 1704).
 2. **Add provider → AJ Snap (panels)** → Save.
 3. The panels reconnect by themselves within ~30 s (Settings → Players shows them).
-Also add **AriaCast Receiver** (Add provider → Plugins) for "Play my phone" and panel **Share**.
+Also add **AriaCast Receiver** (Settings → Plugins → Add a plugin) for "Play my phone" and panel **Share**.
 
 ## 5. Check
 - `http://192.168.8.5:8095` opens, or the sidebar entry.

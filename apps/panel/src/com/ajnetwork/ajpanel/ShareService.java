@@ -186,7 +186,7 @@ public class ShareService extends Service {
                 if (p != null && "ariacast_receiver".equals(p.optString("domain"))) return p.optString("instance_id");
             }
         }
-        throw new IllegalStateException("the music server needs the \"AriaCast Receiver\" plugin (Music Assistant → Settings → Providers → Add → AriaCast Receiver)");
+        throw new IllegalStateException("the music server needs the \"AriaCast Receiver\" plugin (Music Assistant → Settings → Plugins → Add a plugin → AriaCast Receiver)");
     }
 
     private static boolean silent(byte[] f) {

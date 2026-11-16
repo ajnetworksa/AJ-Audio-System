@@ -255,7 +255,7 @@ class _OverviewState extends State<Overview> {
               SizedBox(width: 10),
               Expanded(
                 child: Text(
-                  'Phone & panel sharing is off. In Music Assistant: Settings → Providers → Add → "AriaCast Receiver", '
+                  'Phone & panel sharing is off. In Music Assistant: Settings → Plugins → Add a plugin → "AriaCast Receiver", '
                   'pick your main room or group as its player, Save. Needed for "Play my phone" and the panels\' Share.',
                   style: TextStyle(height: 1.35),
                 ),

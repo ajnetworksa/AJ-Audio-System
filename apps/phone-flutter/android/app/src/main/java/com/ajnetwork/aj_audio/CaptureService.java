@@ -139,7 +139,7 @@ public class CaptureService extends Service {
             } catch (java.io.IOException e) {
                 String m = String.valueOf(e.getMessage());
                 if (m.contains("ECONNREFUSED") || m.contains("refused") || m.contains("timed out") || m.contains("failed to connect"))
-                    throw new IllegalStateException("The music server's AriaCast Receiver isn't running (port 12889). In Music Assistant: Settings → Providers → AriaCast Receiver – add it or check its error.");
+                    throw new IllegalStateException("The music server's AriaCast Receiver isn't running (port 12889). In Music Assistant: Settings → Plugins → AriaCast Receiver – add it or check its error.");
                 throw e;
             }
             // send sound right away (MA drops a source that sends nothing for 1 s), then point the room/group at it
@@ -220,7 +220,7 @@ public class CaptureService extends Service {
                 if (p != null && "ariacast_receiver".equals(p.optString("domain"))) return p.optString("instance_id");
             }
         }
-        throw new IllegalStateException("The music server needs the \"AriaCast Receiver\" plugin: Music Assistant → Settings → Providers → Add → AriaCast Receiver");
+        throw new IllegalStateException("The music server needs the \"AriaCast Receiver\" plugin: Music Assistant → Settings → Plugins → Add a plugin → AriaCast Receiver");
     }
 
     /** Music Assistant API: find the AriaCast plugin instance and select it as source on the target */

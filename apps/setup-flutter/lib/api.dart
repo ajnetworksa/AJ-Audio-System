@@ -96,8 +96,8 @@ class Api {
       throw ApiException(
           404,
           domain == 'spotify_connect'
-              ? 'Add "Spotify Connect" first: Music Assistant → Settings → Providers → Add'
-              : 'Add "AirPlay Receiver" first: Music Assistant → Settings → Providers → Add');
+              ? 'Add "Spotify Connect" first: Music Assistant → Settings → Plugins → Add a plugin'
+              : 'Add "AirPlay Receiver" first: Music Assistant → Settings → Plugins → Add a plugin');
     }
     await saveConfig(playerId, {'$inst||plugin||enabled': on});
   }
