@@ -2,7 +2,9 @@
 # CHANGES the panels: installs AJ Panel, grants overlay permission, stops the old Snapcast app player,
 # tells ControlX Bridge to stop joining a group. Logs -> logs26\<ip>.txt
 #
-#   deploy_ajpanel.bat                                   (all 3 panels, prompts for token)
+#   deploy_ajpanel.bat                                   (all 3 panels; downloads the newest AJ Panel from GitHub Releases first)
+#   deploy_ajpanel.bat -local                            (no download: newest apk already in apps\panel\releases)
+#   deploy_ajpanel.bat -apk "C:\path\AJ_Panel_v0.6.0.apk" (exactly this file)
 #   deploy_ajpanel.bat -panels "192.168.8.46=Living"     (one panel, custom name)
 #   deploy_ajpanel.bat -disableOld                       (also disable the Snapcast app so it can't start again)
 #   deploy_ajpanel.bat -uninstall                        (remove AJ Panel, re-enable Snapcast app)
@@ -11,7 +13,9 @@
 param(
   [string]$ma = "192.168.8.5",
   [string]$panels = "192.168.8.194=P8_EN,192.168.8.73=M20_EN,192.168.8.46=dsppa938t",
-  [string]$apk = "",
+  [string]$apk = "",              # a specific apk file; empty = newest GitHub release (downloaded) or newest in apps\panel\releases
+  [string]$repo = "ajnetworksa/AJ-Audio-System",
+  [switch]$local,                 # don't look at GitHub, use the newest apk in apps\panel\releases
   [string]$token = "",
   [string]$user = "",
   [switch]$disableOld,
@@ -23,7 +27,32 @@ $ErrorActionPreference = "Continue"
 $ADB = Join-Path $env:LOCALAPPDATA "Android\Sdk\platform-tools\adb.exe"
 if (-not (Test-Path $ADB)) { $ADB = "adb" }
 $here = Split-Path -Parent $MyInvocation.MyCommand.Path
-if ($apk -eq "") { $apk = Get-ChildItem (Join-Path $here "..\apps\panel\releases\AJ_Panel_v*.apk") | Sort-Object { [version](($_.BaseName -replace '^AJ_Panel_v','') + '.0' * (3 - ($_.BaseName -replace '^AJ_Panel_v','').Split('.').Count)) } | Select-Object -Last 1 -ExpandProperty FullName }
+function Ver([string]$v) { $p = $v.Split('.'); while ($p.Count -lt 3) { $p += '0' }; return [version]($p[0..2] -join '.') }
+$relDir = Join-Path $here "..\apps\panel\releases"
+New-Item -ItemType Directory -Force $relDir | Out-Null
+function NewestLocal { Get-ChildItem (Join-Path $relDir "AJ_Panel_v*.apk") -ErrorAction SilentlyContinue | Sort-Object { Ver ($_.BaseName -replace '^AJ_Panel_v','') } | Select-Object -Last 1 }
+if ($apk -eq "" -and -not $local -and -not $uninstall) {
+  # newest release from GitHub -> apps\panel\releases (skipped when that version is already there)
+  try {
+    [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
+    $rel = Invoke-RestMethod -Uri "https://api.github.com/repos/$repo/releases/latest" -Headers @{ "User-Agent" = "aj-deploy" } -TimeoutSec 20
+    $asset = $rel.assets | Where-Object { $_.name -match '^AJ_Panel_v([0-9.]+)\.apk$' } | Select-Object -First 1
+    if ($asset) {
+      $remoteVer = $asset.name -replace '^AJ_Panel_v','' -replace '\.apk$',''
+      $have = NewestLocal
+      $haveVer = if ($have) { $have.BaseName -replace '^AJ_Panel_v','' } else { "0" }
+      if ((Ver $remoteVer) -gt (Ver $haveVer)) {
+        Write-Host "downloading $($asset.name) from GitHub release $($rel.tag_name) ..."
+        $dest = Join-Path $relDir $asset.name
+        Invoke-WebRequest -Uri $asset.browser_download_url -OutFile "$dest.part" -UseBasicParsing -TimeoutSec 300
+        Move-Item -Force "$dest.part" $dest
+      } else { Write-Host "newest GitHub release is v$remoteVer - already in apps\panel\releases" }
+    } else { Write-Host "GitHub release $($rel.tag_name) has no AJ_Panel apk - using the local one" }
+  } catch { Write-Host "could not reach GitHub ($($_.Exception.Message)) - using the newest local apk" }
+}
+if ($apk -eq "") { $n = NewestLocal; if ($n) { $apk = $n.FullName } }
+if (-not $uninstall -and ($apk -eq "" -or -not (Test-Path $apk))) { Write-Host "No AJ Panel apk found (GitHub not reachable and apps\panel\releases is empty)."; exit 1 }
+if (-not $uninstall) { Write-Host "AJ Panel apk: $(Split-Path -Leaf $apk)" }
 $logs = Join-Path (Get-Location) "logs26"; New-Item -ItemType Directory -Force $logs | Out-Null
 $PKG = "com.ajnetwork.ajpanel"
 
@@ -55,7 +84,11 @@ foreach ($entry in $panels.Split(",")) {
   }
   Write-Host "installing $(Split-Path -Leaf $apk) (watch the panel screen for Play Protect: More details -> Install anyway)"
   & $ADB -s $dev push $apk /data/local/tmp/ajpanel.apk | Tee-Object -Append $log
-  & $ADB -s $dev shell pm install -r -g /data/local/tmp/ajpanel.apk | Tee-Object -Append $log
+  $inst = & $ADB -s $dev shell pm install -r -g /data/local/tmp/ajpanel.apk
+  $inst | Tee-Object -Append $log
+  if ("$inst" -match "UPDATE_INCOMPATIBLE|signatures do not match") {
+    Write-Host "!! $ip has AJ Panel signed with a different key. Run once: deploy_ajpanel.bat -panels `"$ip=$name`" -uninstall  (then deploy again; the panel keeps its player id via its MAC)" -ForegroundColor Yellow
+  }
   & $ADB -s $dev shell rm /data/local/tmp/ajpanel.apk
 
   # permissions: floating card + keep running
