@@ -52,17 +52,23 @@ class Ma {
     return (r as List? ?? []).cast<Map<String, dynamic>>();
   }
 
-  /// who is playing per panel (only on AJ server with the ajsnap provider)
-  /// official Music Assistant doesn't have it and logs an ERROR per call -> ask again only every 30 min
-  DateTime _ajRetry = DateTime(2000);
+  /// who is playing per panel – only the AJ server (AJ Snap provider) has this. On the official Music Assistant
+  /// asking would log an ERROR every time, so first check (every 30 min) whether the provider is there at all.
+  bool _ajServer = false;
+  DateTime _ajChecked = DateTime(2000);
   Future<Map<String, Map<String, dynamic>>> ajPanels() async {
-    if (DateTime.now().isBefore(_ajRetry)) return {};
+    if (DateTime.now().difference(_ajChecked).inMinutes >= 30) {
+      _ajChecked = DateTime.now();
+      try {
+        _ajServer = (await providers()).any((p) => p['domain'] == 'ajsnap');
+      } catch (_) {
+        _ajServer = false;
+      }
+    }
+    if (!_ajServer) return {};
     try {
       final r = await cmd('ajsnap/panels');
       return {for (final p in (r as List).cast<Map<String, dynamic>>()) p['player_id'] as String: p};
-    } on MaException catch (e) {
-      if (e.code == 400 || e.code == 404) _ajRetry = DateTime.now().add(const Duration(minutes: 30));
-      return {};
     } catch (_) {
       return {};
     }

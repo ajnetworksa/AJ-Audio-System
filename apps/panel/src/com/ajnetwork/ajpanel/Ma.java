@@ -109,15 +109,25 @@ public class Ma {
     }
     /** AJ server extension (ajsnap provider). Returns null if the server doesn't have it. */
     public JSONObject ajNowPlaying(String id) {
-        // official Music Assistant doesn't have this command and logs an ERROR for every call –
-        // after the first "invalid command" answer, don't ask again for 30 min
-        if (System.currentTimeMillis() < ajOffUntil) return null;
-        try { Object r = cmd("ajsnap/now_playing", new JSONObject().put("player_id", id)); return r instanceof JSONObject ? (JSONObject) r : null; }
-        catch (ApiException e) {
-            if (e.code == 400 || e.code == 404) ajOffUntil = System.currentTimeMillis() + 30 * 60_000L;
-            return null;
+        // only the AJ server (AJ Snap provider) has this command; asking the official Music Assistant would log an
+        // ERROR every second – so first look (every 30 min) whether the provider is there at all
+        long now = System.currentTimeMillis();
+        if (now - ajChecked > 30 * 60_000L) {
+            ajChecked = now;
+            boolean has = false;
+            try {
+                Object r = cmd("providers", new JSONObject());
+                if (r instanceof JSONArray) for (int i = 0; i < ((JSONArray) r).length(); i++) {
+                    JSONObject p = ((JSONArray) r).optJSONObject(i);
+                    if (p != null && "ajsnap".equals(p.optString("domain"))) has = true;
+                }
+            } catch (Exception e) { has = false; }
+            ajServer = has;
         }
+        if (!ajServer) return null;
+        try { Object r = cmd("ajsnap/now_playing", new JSONObject().put("player_id", id)); return r instanceof JSONObject ? (JSONObject) r : null; }
         catch (Exception e) { return null; }
     }
-    private volatile long ajOffUntil;
+    private volatile boolean ajServer;
+    private volatile long ajChecked;
 }
