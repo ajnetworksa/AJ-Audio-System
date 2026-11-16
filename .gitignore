@@ -18,7 +18,15 @@ apps/phone-flutter/android/app/src/*
 apps/phone-flutter/android/app/src/main/*
 !apps/phone-flutter/android/app/src/main/java/
 !apps/phone-flutter/android/app/src/main/kotlin/
-apps/setup-flutter/android/
+apps/setup-flutter/android/*
+!apps/setup-flutter/android/app/
+apps/setup-flutter/android/app/*
+!apps/setup-flutter/android/app/src/
+apps/setup-flutter/android/app/src/*
+!apps/setup-flutter/android/app/src/main/
+apps/setup-flutter/android/app/src/main/*
+!apps/setup-flutter/android/app/src/main/java/
+!apps/setup-flutter/android/app/src/main/kotlin/
 apps/setup-flutter/ios/
 apps/setup-flutter/.dart_tool/
 apps/setup-flutter/pubspec.lock

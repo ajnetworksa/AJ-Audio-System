@@ -49,6 +49,7 @@ Newest entries on top. Decisions are `D-###`.
 ## Log
 
 ### 2026-11-16
+- In-app updates from GitHub Releases in Panel 0.6.1, Client 0.6.0, Installer 0.3.1; deploy_ajpanel downloads the newest release (FIX-032).
 - Panel 0.6.0 / Installer 0.3.0: volume rule D-020, network scan + one-tap panel set-up, bulk update (GitHub or APK file), richer panel logs, Spotify switches (FIX-031).
 
 ### 2026-11-15

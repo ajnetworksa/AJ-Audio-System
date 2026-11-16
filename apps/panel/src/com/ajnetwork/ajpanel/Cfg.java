@@ -30,6 +30,8 @@ public class Cfg {
     public boolean overlay()   { return p.getBoolean("overlay", !DlnaMetaBridge.available(c)); }
     /** push now-playing into the panel's own music player (Judian) */
     public boolean vendorBridge() { return p.getBoolean("vendor_bridge", DlnaMetaBridge.available(c)); }
+    /** GitHub repo with the releases (app updates) */
+    public String repo()       { return p.getString("repo", "ajnetworksa/AJ-Audio-System"); }
     public String playerIdOverride() { return p.getString("ma_player_id", ""); }
 
     public String maBase() { return "http://" + host() + ":" + maPort(); }

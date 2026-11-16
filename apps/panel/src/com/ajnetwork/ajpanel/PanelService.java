@@ -56,6 +56,7 @@ public class PanelService extends Service implements SnapProcess.Listener {
     private final ExecutorService io = Executors.newSingleThreadExecutor();
     private final ExecutorService actions = Executors.newSingleThreadExecutor();
     private volatile boolean running;
+    private final long created = System.currentTimeMillis();
     private Thread poller;
     volatile NowPlaying now;
     volatile Bitmap art;
@@ -141,6 +142,7 @@ public class PanelService extends Service implements SnapProcess.Listener {
             if (cfg.vendorBridge()) bridge.update(n);
             volume.update(n);
             checkOrigin(n);
+            if (n.serverOk && System.currentTimeMillis() - created > 60_000) Updater.maybeCheck(this, cfg, false);
             if (n.serverOk && System.currentTimeMillis() - lastSite > 3000) {
                 lastSite = System.currentTimeMillis();
                 try { site = Site.fetch(ma); } catch (Exception e) { Log.e("players/all", e); }
@@ -322,6 +324,15 @@ public class PanelService extends Service implements SnapProcess.Listener {
         PcmRelay.muted = true;
         volume.shareDirect();
     }
+
+    /** "Update to vX" on the panel screen */
+    public void installUpdate() {
+        String url = Updater.availableUrl;
+        if (url.isEmpty()) return;
+        io.execute(() -> Updater.download(this, url));
+    }
+    /** "Check for updates" in settings */
+    public void checkUpdate(Runnable done) { io.execute(() -> { Updater.maybeCheck(this, cfg, true); if (done != null) main.post(done); }); }
 
     /** Music page: blocking library calls from the activity's worker thread */
     Ma api() { return ma; }

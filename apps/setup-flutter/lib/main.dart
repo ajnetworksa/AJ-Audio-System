@@ -8,6 +8,7 @@ import 'users.dart';
 import 'logs.dart';
 import 'scan.dart';
 import 'update.dart';
+import 'updater.dart';
 
 void main() => runApp(const AjSetupApp());
 
@@ -227,6 +228,7 @@ class _OverviewState extends State<Overview> {
       ),
       subtitle: 'Music server $host · signed in as ${widget.s.userName}',
       children: [
+        const UpdateBanner(appName: 'AJ Audio Installer'),
         if (loading) const LinearProgressIndicator(),
         Row(children: [
           Expanded(child: _stat(ms == null ? 'Down' : 'OK', ms == null ? 'Server' : 'Server · $ms ms', ms == null ? C.bad : C.ok)),

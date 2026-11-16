@@ -4,7 +4,7 @@ import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodChannel
 
-/** Flutter host + the "aj/capture" channel for "Play my phone" (Android only). */
+/** Flutter host + "aj/capture" (Play my phone) + "aj/update" (in-app updates). */
 class MainActivity : FlutterActivity() {
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
@@ -28,6 +28,14 @@ class MainActivity : FlutterActivity() {
                 }
                 "stop" -> { Capture.stop(this); result.success(true) }
                 "status" -> result.success(Capture.status(this))
+                else -> result.notImplemented()
+            }
+        }
+        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "aj/update").setMethodCallHandler { call, result ->
+            when (call.method) {
+                "version" -> result.success(AppUpdater.version(this))
+                "install" -> { AppUpdater.start(this, call.argument<String>("url") ?: ""); result.success(true) }
+                "state" -> result.success(AppUpdater.state)
                 else -> result.notImplemented()
             }
         }

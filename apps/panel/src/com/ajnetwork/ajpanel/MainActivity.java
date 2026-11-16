@@ -155,7 +155,7 @@ public class MainActivity extends Activity implements PanelService.Listener {
     }
 
     private void show(int p) {
-        page = p; roomsSig = ""; shareSig = "";
+        page = p; roomsSig = ""; shareSig = ""; updateSig = "";
         content.removeAllViews();
         idleClock = null; idleDate = null;
         if (p == NOW) buildNow(); else if (p == MUSIC) buildMusic(); else buildRooms();
@@ -166,7 +166,7 @@ public class MainActivity extends Activity implements PanelService.Listener {
 
     // =================================== PLAYING ===================================
     private Cover npCover; private LinearLayout npIdleLeft; private TextView idleClock, idleDate;
-    private LinearLayout npShare, npBanner, npPlayingBox, npElsewhere, npElsewhereList;
+    private LinearLayout npUpdate, npShare, npBanner, npPlayingBox, npElsewhere, npElsewhereList;
     private TextView npBrowse, npZone, npTitle, npArtist, npMeta, npElapsed, npDuration, npVolLabel, npVolValue, npBreak;
     private Slider npProgress, npVol, npAllVol;
     private LinearLayout npAllRow; private TextView npAllValue;
@@ -198,6 +198,8 @@ public class MainActivity extends Activity implements PanelService.Listener {
         r.addView(npBanner);
         npShare = new LinearLayout(this); npShare.setOrientation(LinearLayout.VERTICAL);
         r.addView(npShare);
+        npUpdate = new LinearLayout(this); npUpdate.setOrientation(LinearLayout.VERTICAL);
+        r.addView(npUpdate);
 
         // where this music plays: tap to group
         LinearLayout zone = new LinearLayout(this); zone.setGravity(Gravity.CENTER_VERTICAL);
@@ -326,6 +328,7 @@ public class MainActivity extends Activity implements PanelService.Listener {
         npBrowse.setVisibility(act ? View.GONE : View.VISIBLE);
         renderBanner();
         renderShare();
+        renderUpdate();
     }
 
     private String zoneLabel() {
@@ -380,6 +383,33 @@ public class MainActivity extends Activity implements PanelService.Listener {
             row.addView(join, new LinearLayout.LayoutParams(-2, dp(40)));
             npElsewhereList.addView(row, top(-1, -2, npElsewhereList.getChildCount() == 0 ? 0 : 8));
         }
+    }
+
+    private String updateSig = "";
+    /** "AJ Panel vX is available" – one tap downloads it, Android asks "Install?" */
+    private void renderUpdate() {
+        String sig = Updater.availableVersion + "|" + Updater.state;
+        if (sig.equals(updateSig)) return;
+        updateSig = sig;
+        npUpdate.removeAllViews();
+        if (Updater.availableVersion.isEmpty() && Updater.state.isEmpty()) return;
+        LinearLayout b = new LinearLayout(this); b.setGravity(Gravity.CENTER_VERTICAL);
+        b.setBackground(box(this, 0x1F6FB6FF, 16)); b.setPadding(dp(16), dp(10), dp(10), dp(10));
+        LinearLayout tx = new LinearLayout(this); tx.setOrientation(LinearLayout.VERTICAL); tx.setPadding(0, 0, dp(8), 0);
+        boolean busy = Updater.state.equals("downloading") || Updater.state.equals("waiting for Install");
+        tx.addView(Theme.text(this, Updater.availableVersion.isEmpty() ? "App update" : "AJ Panel " + Updater.availableVersion + " is available", 16, TEXT, MEDIUM));
+        String sub = Updater.state.isEmpty() ? "You have " + Updater.currentVersion(this) + ". Music keeps playing; it restarts for a moment."
+                : Updater.state.equals("downloading") ? "Downloading…" : Updater.state.equals("waiting for Install") ? "Tap Install in the Android window" : Updater.state;
+        TextView d = Theme.text(this, sub, 13, SUB, REGULAR); d.setSingleLine(false); d.setMaxLines(2); d.setPadding(0, dp(4), 0, 0);
+        tx.addView(d);
+        b.addView(tx, new LinearLayout.LayoutParams(0, -2, 1));
+        if (!busy && !Updater.availableVersion.isEmpty()) {
+            TextView go = pill(this, "Update", 1); go.setMinHeight(dp(40));
+            go.setOnClickListener(v -> { Updater.state = "downloading"; updateSig = ""; renderUpdate(); act(PanelService::installUpdate); });
+            b.addView(go, new LinearLayout.LayoutParams(-2, dp(40)));
+        }
+        npUpdate.addView(b, new LinearLayout.LayoutParams(-1, -2));
+        npUpdate.addView(new View(this), new LinearLayout.LayoutParams(1, dp(18)));
     }
 
     private void renderBanner() {

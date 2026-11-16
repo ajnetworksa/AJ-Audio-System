@@ -15,8 +15,12 @@ public class UpdateReceiver extends BroadcastReceiver {
             Log.i("update: waiting for confirm on the panel");
         } else if (status == PackageInstaller.STATUS_SUCCESS) {
             Log.i("update: installed");
+            Updater.state = ""; Updater.availableVersion = "";
         } else {
-            Log.i("update: failed " + status + " " + i.getStringExtra(PackageInstaller.EXTRA_STATUS_MESSAGE));
+            String msg = i.getStringExtra(PackageInstaller.EXTRA_STATUS_MESSAGE);
+            Log.i("update: failed " + status + " " + msg);
+            Updater.state = status == PackageInstaller.STATUS_FAILURE_ABORTED ? "" : "update failed: " + (msg == null ? status : msg)
+                    + (msg != null && msg.contains("INCOMPATIBLE") ? " (app signed with another key – reinstall once with deploy_ajpanel.bat -uninstall)" : "");
         }
     }
 }

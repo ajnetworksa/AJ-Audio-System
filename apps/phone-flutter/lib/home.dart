@@ -3,6 +3,7 @@ import 'dart:io' show Platform;
 import 'package:flutter/material.dart';
 import 'ma.dart';
 import 'capture.dart';
+import 'updater.dart';
 
 const _accent = Color(0xFF40A0FF);
 
@@ -460,6 +461,7 @@ class _HomePageState extends State<HomePage> {
         onRefresh: refresh,
         child: ListView(padding: const EdgeInsets.all(8), children: [
           if (error.isNotEmpty) Padding(padding: const EdgeInsets.all(8), child: Text(error, style: const TextStyle(color: Colors.redAccent))),
+          const UpdateBanner(appName: 'AJ Audio Client'),
           if (PhoneCapture.supported) captureCard(),
           header('GROUPS'),
           if (saved.isEmpty && temp.isEmpty)

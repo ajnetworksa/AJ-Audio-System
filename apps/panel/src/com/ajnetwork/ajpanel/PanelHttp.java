@@ -177,6 +177,7 @@ public class PanelHttp {
         if (args.containsKey("latency")) ed.putInt("latency", Integer.parseInt(args.get("latency")));
         if (args.containsKey("overlay")) ed.putBoolean("overlay", Boolean.parseBoolean(args.get("overlay")));
         if (args.containsKey("system_volume")) ed.putBoolean("system_volume", Boolean.parseBoolean(args.get("system_volume")));
+        if (args.containsKey("repo") && args.get("repo").matches("[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+")) ed.putString("repo", args.get("repo"));
         ed.commit();
         java.util.Set<String> keys = new java.util.TreeSet<>(args.keySet());
         Log.i("setup: settings " + keys);          // names only – never values (token)
@@ -197,6 +198,7 @@ public class PanelHttp {
                 .put("status", n == null ? "starting" : svc.statusLine(n))
                 .put("volume", n == null ? -1 : n.volume).put("sdk", Build.VERSION.SDK_INT)
                 .put("crashed", !Log.lastCrash().isEmpty())
+                .put("update_available", Updater.availableVersion)
                 .put("uptime_s", (System.currentTimeMillis() - started) / 1000);
     }
 
@@ -238,46 +240,10 @@ public class PanelHttp {
     private static void writeInt(ByteArrayOutputStream b, int v) { b.write(v); b.write(v >> 8); b.write(v >> 16); b.write(v >> 24); }
     private static void writeShort(ByteArrayOutputStream b, int v) { b.write(v); b.write(v >> 8); }
 
-    /** download the APK and hand it to Android's installer (shows one confirm dialog on the panel) */
     private void update(String url) {
-        try {
-            Log.i("update: downloading " + url);
-            HttpURLConnection c = (HttpURLConnection) new URL(url).openConnection();
-            c.setInstanceFollowRedirects(true); c.setConnectTimeout(10000); c.setReadTimeout(60000);
-            int code = c.getResponseCode();
-            if (code >= 300 && code < 400) { c = (HttpURLConnection) new URL(c.getHeaderField("Location")).openConnection(); }
-            try (InputStream in = c.getInputStream()) {
-                String err = install(in, -1, "download");
-                if (err != null) Log.i("update failed: " + err);
-            }
-        } catch (Exception e) { Log.e("update", e); }
+        String err = Updater.download(svc, url);
+        if (err != null) Log.i("update failed: " + err);
     }
 
-    /** write an APK stream into an install session and ask Android to install it; returns null or the error */
-    private String install(InputStream in, long len, String what) {
-        try {
-            PackageInstaller pi = svc.getPackageManager().getPackageInstaller();
-            PackageInstaller.SessionParams p = new PackageInstaller.SessionParams(PackageInstaller.SessionParams.MODE_FULL_INSTALL);
-            int id = pi.createSession(p);
-            PackageInstaller.Session ses = pi.openSession(id);
-            long total = 0;
-            try (OutputStream out = ses.openWrite("ajpanel.apk", 0, len)) {
-                byte[] buf = new byte[65536];
-                while (len < 0 || total < len) {
-                    int n = in.read(buf, 0, len < 0 ? buf.length : (int) Math.min(buf.length, len - total));
-                    if (n < 0) break;
-                    out.write(buf, 0, n); total += n;
-                }
-                ses.fsync(out);
-            }
-            if (len >= 0 && total != len) { ses.abandon(); return "only " + total + " of " + len + " bytes arrived"; }
-            if (total < 100_000) { ses.abandon(); return "file too small to be an app (" + total + " bytes)"; }
-            Log.i("update (" + what + "): " + total + " bytes, asking Android to install");
-            Intent i = new Intent(svc, UpdateReceiver.class);
-            PendingIntent pend = PendingIntent.getBroadcast(svc, id, i, PendingIntent.FLAG_UPDATE_CURRENT | (Build.VERSION.SDK_INT >= 31 ? PendingIntent.FLAG_MUTABLE : 0));
-            ses.commit(pend.getIntentSender());
-            ses.close();
-            return null;
-        } catch (Exception e) { Log.e("install", e); return String.valueOf(e.getMessage()); }
-    }
+    private String install(InputStream in, long len, String what) { return Updater.install(svc, in, len, what); }
 }

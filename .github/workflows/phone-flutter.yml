@@ -35,6 +35,8 @@ jobs:
           sed -i 's#android:label="${{ matrix.project }}"#android:label="${{ matrix.label }}"#' $M
           # AJ Audio Client: "Play my phone" (capture service, quick settings tile, permissions)
           if [ "${{ matrix.project }}" = "aj_audio" ]; then python3 "$GITHUB_WORKSPACE/tools/patch_client_manifest.py" $M; fi
+          # both apps: in-app update from GitHub Releases
+          python3 "$GITHUB_WORKSPACE/tools/patch_update_manifest.py" $M
       - run: flutter pub get
       - run: flutter build apk --release
       - name: Sign with our release key (if secrets set) - same key every build, so updates install over the old app

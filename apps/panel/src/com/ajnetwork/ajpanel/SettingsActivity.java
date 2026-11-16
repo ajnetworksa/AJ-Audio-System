@@ -92,6 +92,18 @@ public class SettingsActivity extends Activity implements PanelService.Listener 
         side.addView(status);
         Button set = Ui.button(this, "⚙ Settings"); set.setOnClickListener(v -> settings.setVisibility(settings.getVisibility() == View.VISIBLE ? View.GONE : View.VISIBLE));
         side.addView(set, topGap());
+        Button upd = Ui.button(this, "Check for app update");
+        upd.setOnClickListener(v -> {
+            PanelService sv = PanelService.instance;
+            if (sv == null) return;
+            upd.setText("Checking…");
+            sv.checkUpdate(() -> {
+                if (Updater.availableVersion.isEmpty()) { upd.setText("Up to date (" + version() + ")"); return; }
+                upd.setText("Install AJ Panel " + Updater.availableVersion);
+                upd.setOnClickListener(x -> { upd.setText("Downloading… then tap Install"); sv.installUpdate(); });
+            });
+        });
+        side.addView(upd, topGap());
         settings = buildSettings();
         settings.setVisibility(cfg.token().isEmpty() ? View.VISIBLE : View.GONE);
         side.addView(settings);
