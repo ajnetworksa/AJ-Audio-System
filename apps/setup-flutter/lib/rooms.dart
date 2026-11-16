@@ -87,6 +87,7 @@ class _RoomDetailState extends State<RoomDetail> {
   Map<String, dynamic>? info; // panel /api/info
   int? pingMs;
   bool airplay = false;
+  bool spotify = false;
   double maxVol = 100;
   double delay = 0;
   bool showCard = true;
@@ -104,6 +105,7 @@ class _RoomDetailState extends State<RoomDetail> {
 
   Future<void> load() async {
     final a = await api.airplayPlayers();
+    final sp = await api.spotifyPlayers();
     try {
       final v = await api.cmd('config/players/get_value', {'player_id': r.id, 'key': 'max_volume'});
       if (v is num) maxVol = v.toDouble();
@@ -118,6 +120,7 @@ class _RoomDetailState extends State<RoomDetail> {
     if (!mounted) return;
     setState(() {
       airplay = a.contains(r.id);
+      spotify = sp.contains(r.id);
       info = i;
       pingMs = ms;
       latest = rel;
@@ -163,17 +166,7 @@ class _RoomDetailState extends State<RoomDetail> {
 
   bool get updateReady {
     if (latest == null || info == null) return false;
-    return _newer(latest!.$1, '${info!['version']}');
-  }
-
-  static bool _newer(String a, String b) {
-    final x = a.split('.').map((e) => int.tryParse(e) ?? 0).toList();
-    final y = b.split('.').map((e) => int.tryParse(e) ?? 0).toList();
-    for (var i = 0; i < 3; i++) {
-      final p = i < x.length ? x[i] : 0, q = i < y.length ? y[i] : 0;
-      if (p != q) return p > q;
-    }
-    return false;
+    return newerVersion(latest!.$1, '${info!['version']}');
   }
 
   @override
@@ -207,6 +200,17 @@ class _RoomDetailState extends State<RoomDetail> {
                 onChanged: (v) => run(v ? 'AirPlay on' : 'AirPlay off', () async {
                   await api.setAirplay(r.id, v);
                   setState(() => airplay = v);
+                }),
+              ),
+            ),
+            SettingRow(
+              label: 'Show in Spotify',
+              hint: 'Listed in the Spotify app under "Connect to a device"',
+              trailing: Switch(
+                value: spotify,
+                onChanged: (v) => run(v ? 'Shown in Spotify' : 'Hidden from Spotify', () async {
+                  await api.setSpotify(r.id, v);
+                  setState(() => spotify = v);
                 }),
               ),
             ),

@@ -1,4 +1,7 @@
 import 'dart:convert';
+import 'dart:io';
+import 'dart:math';
+import 'dart:typed_data';
 import 'package:http/http.dart' as http;
 
 class ApiException implements Exception {
@@ -74,9 +77,11 @@ class Api {
   Future<void> saveConfig(String playerId, Map<String, dynamic> values) =>
       cmd('config/players/save', {'player_id': playerId, 'values': values});
 
-  Future<Set<String>> airplayPlayers() async {
+  /// rooms/groups that a per-player plugin is switched on for
+  /// (domain: 'airplay_receiver' = shows in iPhone AirPlay, 'spotify_connect' = shows in the Spotify app)
+  Future<Set<String>> pluginPlayers(String domain) async {
     try {
-      final inst = await providerInstance('airplay_receiver');
+      final inst = await providerInstance(domain);
       if (inst == null) return {};
       final v = await cmd('config/providers/get_value', {'instance_id': inst, 'key': 'connected_players'});
       return {for (final x in (v as List? ?? [])) '$x'};
@@ -85,10 +90,45 @@ class Api {
     }
   }
 
-  Future<void> setAirplay(String playerId, bool on) async {
-    final inst = await providerInstance('airplay_receiver');
-    if (inst == null) throw ApiException(404, 'The AirPlay Receiver plugin is not installed in Music Assistant');
+  Future<void> setPlugin(String domain, String playerId, bool on) async {
+    final inst = await providerInstance(domain);
+    if (inst == null) {
+      throw ApiException(
+          404,
+          domain == 'spotify_connect'
+              ? 'Add "Spotify Connect" first: Music Assistant → Settings → Providers → Add'
+              : 'Add "AirPlay Receiver" first: Music Assistant → Settings → Providers → Add');
+    }
     await saveConfig(playerId, {'$inst||plugin||enabled': on});
+  }
+
+  Future<Set<String>> airplayPlayers() => pluginPlayers('airplay_receiver');
+  Future<void> setAirplay(String playerId, bool on) => setPlugin('airplay_receiver', playerId, on);
+  Future<Set<String>> spotifyPlayers() => pluginPlayers('spotify_connect');
+  Future<void> setSpotify(String playerId, bool on) => setPlugin('spotify_connect', playerId, on);
+
+  /// A login token for a wall panel: made for the shared "panels" user (created when missing),
+  /// so no password has to be typed on any panel.
+  Future<String> panelToken(String panelName) async {
+    var list = await users();
+    Map<String, dynamic>? u;
+    for (final x in list) {
+      if (x['username'] == 'panels') u = x;
+    }
+    if (u == null) {
+      final r = Random.secure();
+      const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789';
+      final pw = List.generate(20, (_) => chars[r.nextInt(chars.length)]).join();
+      await createUser('panels', pw, 'user', 'Wall panels', []);
+      list = await users();
+      for (final x in list) {
+        if (x['username'] == 'panels') u = x;
+      }
+    }
+    if (u == null) throw ApiException(500, 'Could not create the "panels" user in Music Assistant');
+    final t = await cmd('auth/token/create', {'name': 'AJ Panel $panelName', 'user_id': '${u['user_id']}'});
+    if (t is! String || t.isEmpty) throw ApiException(500, 'Music Assistant gave no token for the panel');
+    return t;
   }
 
   Future<String?> createGroup(String name, List<String> members) async {
@@ -204,6 +244,105 @@ class PanelApi {
   }
 
   static String chimeUrl(String ip) => 'http://$ip:$port/chime.wav';
+
+  /// send an APK file to the panel; Android then asks "Install?" on the panel screen
+  static Future<void> upload(String ip, String token, Uint8List apk) async {
+    final r = await http
+        .post(_u(ip, '/api/install'), headers: {'Authorization': 'Bearer $token', 'Content-Type': 'application/octet-stream'}, body: apk)
+        .timeout(const Duration(seconds: 120));
+    if (r.statusCode != 200) throw ApiException(r.statusCode, 'Panel said ${r.statusCode}: ${r.body}');
+  }
+}
+
+/// one device found on the network
+class Found {
+  final String ip;
+  final Map<String, dynamic>? info; // AJ Panel /api/info, null = no AJ Panel app
+  final bool adb; // Android network-debug port open (panel ready for a first install from a PC)
+  Found(this.ip, this.info, this.adb);
+  bool get hasApp => info != null;
+  String get name => '${info?['name'] ?? ip}';
+  String get version => '${info?['version'] ?? ''}';
+  String get server => '${info?['server'] ?? ''}';
+  String get playerId => '${info?['player_id'] ?? ''}';
+  bool get connected => info?['sync_connected'] == true;
+  bool get loggedIn => info?['logged_in'] == true;
+  bool get serverOk => info?['server_ok'] != false; // older panel apps don't report it
+}
+
+/// finds panels on the phone's own network (every address of the /24 it is in)
+class Net {
+  static Future<List<String>> prefixes() async {
+    final out = <String>{};
+    try {
+      for (final ni in await NetworkInterface.list(type: InternetAddressType.IPv4)) {
+        for (final a in ni.addresses) {
+          final p = a.address.split('.');
+          if (p.length != 4 || a.isLoopback) continue;
+          final first = int.tryParse(p[0]) ?? 0, second = int.tryParse(p[1]) ?? 0;
+          final private = first == 10 || (first == 192 && second == 168) || (first == 172 && second >= 16 && second <= 31);
+          if (private) out.add('${p[0]}.${p[1]}.${p[2]}');
+        }
+      }
+    } catch (_) {}
+    return out.toList();
+  }
+
+  static Future<bool> _open(String ip, int port) async {
+    try {
+      final s = await Socket.connect(ip, port, timeout: const Duration(milliseconds: 500));
+      s.destroy();
+      return true;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  static Future<Found?> probe(String ip) async {
+    if (await _open(ip, PanelApi.port)) {
+      final i = await PanelApi.info(ip);
+      if (i != null && i['app'] == 'AJ Panel') return Found(ip, i, false);
+    }
+    if (await _open(ip, 5555)) return Found(ip, null, true);
+    return null;
+  }
+
+  /// [extra] = addresses to try as well (panels Music Assistant already knows)
+  static Future<List<Found>> scan({List<String> extra = const [], void Function(int done, int total)? progress}) async {
+    final ips = <String>{...extra};
+    for (final p in await prefixes()) {
+      for (var i = 1; i < 255; i++) {
+        ips.add('$p.$i');
+      }
+    }
+    final all = ips.toList();
+    final found = <Found>[];
+    var done = 0;
+    const batch = 48;
+    for (var i = 0; i < all.length; i += batch) {
+      final part = all.sublist(i, i + batch > all.length ? all.length : i + batch);
+      final r = await Future.wait(part.map(probe));
+      for (final f in r) {
+        if (f != null) found.add(f);
+      }
+      done += part.length;
+      progress?.call(done, all.length);
+    }
+    int key(String ip) => ip.split('.').map((e) => int.tryParse(e) ?? 0).fold(0, (a, b) => a * 256 + b);
+    found.sort((a, b) => key(a.ip).compareTo(key(b.ip)));
+    return found;
+  }
+}
+
+/// compare "0.5.3" style versions
+bool newerVersion(String a, String b) {
+  final x = a.split('.').map((e) => int.tryParse(e) ?? 0).toList();
+  final y = b.split('.').map((e) => int.tryParse(e) ?? 0).toList();
+  for (var i = 0; i < 3; i++) {
+    final p = i < x.length ? x[i] : 0, q = i < y.length ? y[i] : 0;
+    if (p != q) return p > q;
+  }
+  return false;
 }
 
 /// newest AJ Panel APK on GitHub Releases

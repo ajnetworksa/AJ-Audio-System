@@ -6,6 +6,8 @@ import 'rooms.dart';
 import 'groups.dart';
 import 'users.dart';
 import 'logs.dart';
+import 'scan.dart';
+import 'update.dart';
 
 void main() => runApp(const AjSetupApp());
 
@@ -258,10 +260,15 @@ class _OverviewState extends State<Overview> {
               ),
             ]),
           ),
+        const Label('Set up'),
+        _nav(Icons.radar, 'Find & set up panels', 'Scan the network · addresses · connect panels to this server',
+            () => open(ScanPage(s: widget.s))),
+        _nav(Icons.system_update_alt, 'Update panels', 'All at once · newest release or an APK file',
+            () => open(BulkUpdatePage(s: widget.s))),
         const Label('Manage'),
-        _nav(Icons.speaker_outlined, 'Rooms & panels', '${rooms.length} rooms · names, AirPlay, volume, updates',
+        _nav(Icons.speaker_outlined, 'Rooms & panels', '${rooms.length} rooms · names, AirPlay, Spotify, volume',
             () => open(RoomsPage(s: widget.s))),
-        _nav(Icons.speaker_group_outlined, 'Groups', '${groups.length} groups · what clients AirPlay to',
+        _nav(Icons.speaker_group_outlined, 'Groups', '${groups.length} groups · shown in AirPlay and Spotify',
             () => open(GroupsPage(s: widget.s))),
         _nav(Icons.people_alt_outlined, 'Users & access', '$users users · who may use which room',
             () => open(UsersPage(s: widget.s))),

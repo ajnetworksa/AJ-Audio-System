@@ -29,6 +29,8 @@ import java.util.Map;
  *  POST /api/restart           admin: restart the sync player
  *  POST /api/settings?name=&latency=&overlay=&system_volume=   admin
  *  POST /api/update?url=       admin: download an APK and ask to install it (one tap on the panel)
+ *  POST /api/install           admin: body = APK file (picked in the Installer app), same confirm on the panel
+ *  POST /api/settings?host=&token=…  also from an admin of the NEW server while the panel is not connected anywhere (first set-up)
  * "admin" = header "Authorization: Bearer <Music Assistant token>" of an MA user with role admin;
  * the panel checks the token with MA (auth/me) – no extra passwords.
  */
@@ -66,12 +68,34 @@ public class PanelHttp {
             Long t = okTokens.get(tok);
             if (t != null && System.currentTimeMillis() - t < 10 * 60_000L) return true;
         }
+        boolean ok = adminOn(cfg.maBase(), tok);
+        if (ok) synchronized (okTokens) { okTokens.put(tok, System.currentTimeMillis()); }
+        return ok;
+    }
+
+    private static boolean adminOn(String base, String tok) {
         try {
-            Object me = new Ma(cfg.maBase(), tok).cmd("auth/me", null);
-            boolean ok = me instanceof JSONObject && "admin".equals(((JSONObject) me).optString("role"));
-            if (ok) synchronized (okTokens) { okTokens.put(tok, System.currentTimeMillis()); }
-            return ok;
+            Object me = new Ma(base, tok).cmd("auth/me", null);
+            return me instanceof JSONObject && "admin".equals(((JSONObject) me).optString("role"));
         } catch (Exception e) { return false; }
+    }
+
+    /** panel has no working connection to its music server (new panel, wrong address, login lost) */
+    private boolean unclaimed() {
+        NowPlaying n = svc.now;
+        return cfg.token().isEmpty() || n == null || !n.serverOk || "login needed".equals(n.error);
+    }
+
+    /**
+     * First set-up from the Installer app: a panel that is not connected to any music server accepts a new server
+     * address when the caller is admin on THAT server. A panel that works only obeys admins of its own server.
+     */
+    private boolean mayAdopt(String auth, Map<String, String> args) {
+        String host = args.get("host");
+        if (host == null || host.isEmpty() || auth == null || !auth.startsWith("Bearer ") || !unclaimed()) return false;
+        if (!host.matches("[A-Za-z0-9._-]{1,80}")) return false;
+        String port = args.containsKey("ma_port") ? args.get("ma_port") : String.valueOf(cfg.maPort());
+        return adminOn("http://" + host + ":" + port, auth.substring(7).trim());
     }
 
     private void handle(Socket c) {
@@ -100,25 +124,37 @@ public class PanelHttp {
                 case "/api/info": reply(o, 200, "application/json", info().toString().getBytes(StandardCharsets.UTF_8)); return;
                 case "/chime.wav": reply(o, 200, "audio/wav", chime()); return;
             }
+            if (path.equals("/api/settings") && args.containsKey("host") && !admin(auth) && mayAdopt(auth, args)) {
+                Log.i("setup: adopted by the installer -> server " + args.get("host"));
+                applySettings(args);
+                ok(o); return;
+            }
             if (!admin(auth)) { reply(o, 401, "application/json", "{\"error\":\"Music Assistant admin token needed\"}".getBytes(StandardCharsets.UTF_8)); return; }
             switch (path) {
                 case "/api/log":
-                    reply(o, 200, "text/plain; charset=utf-8", ("AJ Panel " + version() + " · " + cfg.name() + " · " + cfg.maPlayerId() + "\n\n" + Log.dump()).getBytes(StandardCharsets.UTF_8));
+                    String crash = Log.lastCrash();
+                    reply(o, 200, "text/plain; charset=utf-8", ("AJ Panel " + version() + " · " + cfg.name() + " · " + cfg.maPlayerId()
+                            + " · Android " + Build.VERSION.RELEASE + " · " + Build.MANUFACTURER + " " + Build.MODEL + "\n"
+                            + info().toString(1) + "\n\n=== APP LOG (newest first) ===\n" + Log.dump()
+                            + (crash.isEmpty() ? "" : "\n=== LAST CRASH ===\n" + crash)
+                            + "\n=== ANDROID LOG (warnings + AJ Panel) ===\n" + Log.logcat(400)).getBytes(StandardCharsets.UTF_8));
                     return;
                 case "/api/restart":
                     Log.i("setup: restart sync player");
                     svc.snap.restart();
                     ok(o); return;
-                case "/api/settings": {
-                    android.content.SharedPreferences.Editor ed = cfg.edit();
-                    if (args.containsKey("name")) ed.putString("name", args.get("name"));
-                    if (args.containsKey("latency")) ed.putInt("latency", Integer.parseInt(args.get("latency")));
-                    if (args.containsKey("overlay")) ed.putBoolean("overlay", Boolean.parseBoolean(args.get("overlay")));
-                    if (args.containsKey("system_volume")) ed.putBoolean("system_volume", Boolean.parseBoolean(args.get("system_volume")));
-                    ed.commit();
-                    Log.i("setup: settings " + args.keySet());
-                    svc.reloadFromAnyThread();
+                case "/api/settings":
+                    applySettings(args);
                     ok(o); return;
+                case "/api/install": {
+                    // the Installer app uploads an APK file (body) – same confirm dialog on the panel as /api/update
+                    long len = -1;
+                    for (String l : lines) if (l.toLowerCase().startsWith("content-length:")) len = Long.parseLong(l.substring(15).trim());
+                    if (len < 100_000 || len > 300_000_000L) { reply(o, 400, "text/plain", "APK body missing".getBytes()); return; }
+                    s.setSoTimeout(60000);
+                    String err = install(in, len, "upload");
+                    if (err == null) ok(o); else reply(o, 500, "text/plain", err.getBytes(StandardCharsets.UTF_8));
+                    return;
                 }
                 case "/api/update": {
                     String url = args.get("url");
@@ -132,6 +168,22 @@ public class PanelHttp {
         } catch (Exception e) { Log.e("setup api request", e); }
     }
 
+    private void applySettings(Map<String, String> args) {
+        android.content.SharedPreferences.Editor ed = cfg.edit();
+        if (args.containsKey("name")) ed.putString("name", args.get("name"));
+        if (args.containsKey("host") && args.get("host").matches("[A-Za-z0-9._-]{1,80}")) ed.putString("host", args.get("host"));
+        if (args.containsKey("ma_port")) ed.putInt("ma_port", Integer.parseInt(args.get("ma_port")));
+        if (args.containsKey("token") && !args.get("token").isEmpty()) ed.putString("token", args.get("token"));
+        if (args.containsKey("latency")) ed.putInt("latency", Integer.parseInt(args.get("latency")));
+        if (args.containsKey("overlay")) ed.putBoolean("overlay", Boolean.parseBoolean(args.get("overlay")));
+        if (args.containsKey("system_volume")) ed.putBoolean("system_volume", Boolean.parseBoolean(args.get("system_volume")));
+        ed.commit();
+        java.util.Set<String> keys = new java.util.TreeSet<>(args.keySet());
+        Log.i("setup: settings " + keys);          // names only – never values (token)
+        synchronized (okTokens) { okTokens.clear(); }
+        svc.reloadFromAnyThread();
+    }
+
     private JSONObject info() throws Exception {
         NowPlaying n = svc.now;
         return new JSONObject().put("app", "AJ Panel").put("version", version()).put("name", cfg.name())
@@ -141,6 +193,10 @@ public class PanelHttp {
                 .put("server", cfg.host()).put("logged_in", !cfg.token().isEmpty())
                 .put("latency", cfg.latencyMs()).put("overlay", cfg.overlay()).put("system_volume", cfg.systemVolume())
                 .put("playing", n != null && n.active() ? n.title : "")
+                .put("server_ok", n != null && n.serverOk).put("registered", n != null && n.registered)
+                .put("status", n == null ? "starting" : svc.statusLine(n))
+                .put("volume", n == null ? -1 : n.volume).put("sdk", Build.VERSION.SDK_INT)
+                .put("crashed", !Log.lastCrash().isEmpty())
                 .put("uptime_s", (System.currentTimeMillis() - started) / 1000);
     }
 
@@ -190,21 +246,38 @@ public class PanelHttp {
             c.setInstanceFollowRedirects(true); c.setConnectTimeout(10000); c.setReadTimeout(60000);
             int code = c.getResponseCode();
             if (code >= 300 && code < 400) { c = (HttpURLConnection) new URL(c.getHeaderField("Location")).openConnection(); }
+            try (InputStream in = c.getInputStream()) {
+                String err = install(in, -1, "download");
+                if (err != null) Log.i("update failed: " + err);
+            }
+        } catch (Exception e) { Log.e("update", e); }
+    }
+
+    /** write an APK stream into an install session and ask Android to install it; returns null or the error */
+    private String install(InputStream in, long len, String what) {
+        try {
             PackageInstaller pi = svc.getPackageManager().getPackageInstaller();
             PackageInstaller.SessionParams p = new PackageInstaller.SessionParams(PackageInstaller.SessionParams.MODE_FULL_INSTALL);
             int id = pi.createSession(p);
-            try (PackageInstaller.Session ses = pi.openSession(id);
-                 InputStream in = c.getInputStream();
-                 OutputStream out = ses.openWrite("ajpanel.apk", 0, -1)) {
-                byte[] buf = new byte[65536]; int n; long total = 0;
-                while ((n = in.read(buf)) > 0) { out.write(buf, 0, n); total += n; }
+            PackageInstaller.Session ses = pi.openSession(id);
+            long total = 0;
+            try (OutputStream out = ses.openWrite("ajpanel.apk", 0, len)) {
+                byte[] buf = new byte[65536];
+                while (len < 0 || total < len) {
+                    int n = in.read(buf, 0, len < 0 ? buf.length : (int) Math.min(buf.length, len - total));
+                    if (n < 0) break;
+                    out.write(buf, 0, n); total += n;
+                }
                 ses.fsync(out);
-                Log.i("update: " + total + " bytes, asking to install");
-                Intent i = new Intent(svc, UpdateReceiver.class);
-                PendingIntent pend = PendingIntent.getBroadcast(svc, id, i, PendingIntent.FLAG_UPDATE_CURRENT | (Build.VERSION.SDK_INT >= 31 ? PendingIntent.FLAG_MUTABLE : 0));
-                out.close();
-                ses.commit(pend.getIntentSender());
             }
-        } catch (Exception e) { Log.e("update", e); }
+            if (len >= 0 && total != len) { ses.abandon(); return "only " + total + " of " + len + " bytes arrived"; }
+            if (total < 100_000) { ses.abandon(); return "file too small to be an app (" + total + " bytes)"; }
+            Log.i("update (" + what + "): " + total + " bytes, asking Android to install");
+            Intent i = new Intent(svc, UpdateReceiver.class);
+            PendingIntent pend = PendingIntent.getBroadcast(svc, id, i, PendingIntent.FLAG_UPDATE_CURRENT | (Build.VERSION.SDK_INT >= 31 ? PendingIntent.FLAG_MUTABLE : 0));
+            ses.commit(pend.getIntentSender());
+            ses.close();
+            return null;
+        } catch (Exception e) { Log.e("install", e); return String.valueOf(e.getMessage()); }
     }
 }

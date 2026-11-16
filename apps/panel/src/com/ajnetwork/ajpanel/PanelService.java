@@ -106,6 +106,7 @@ public class PanelService extends Service implements SnapProcess.Listener {
             else if (n.muted) pauseHere();                      // play on the panel's screen = resume here
             else if (!"playing".equals(n.state)) playPause();   // group was paused -> play the group
         });
+        Log.installCrashHandler(this);
         Log.i("service created, hostID " + cfg.hostId() + " -> MA player " + cfg.maPlayerId());
     }
 
@@ -139,6 +140,7 @@ public class PanelService extends Service implements SnapProcess.Listener {
             Bitmap a = n.active() ? Art.get(cfg, n.imageUrl) : null;
             if (cfg.vendorBridge()) bridge.update(n);
             volume.update(n);
+            checkOrigin(n);
             if (n.serverOk && System.currentTimeMillis() - lastSite > 3000) {
                 lastSite = System.currentTimeMillis();
                 try { site = Site.fetch(ma); } catch (Exception e) { Log.e("players/all", e); }
@@ -264,6 +266,24 @@ public class PanelService extends Service implements SnapProcess.Listener {
         });
         lastSite = 0;
     }
+    // ---- who started the music (D-020): that panel may change the whole group's volume, the others only their own ----
+    private volatile String originZone = "";
+    private volatile long originIdleSince;
+    /** call when THIS panel starts music on a zone (Music page, Share) */
+    public void markOrigin(String zone) { originZone = zone; originIdleSince = 0; Log.i("origin: this panel started the music on " + zone); }
+    public boolean isOrigin() {
+        NowPlaying n = now;
+        return n != null && !originZone.isEmpty() && (originZone.equals(n.groupId) || originZone.equals(cfg.maPlayerId()) && n.isLeader);
+    }
+    private void checkOrigin(NowPlaying n) {
+        if (originZone.isEmpty()) return;
+        boolean mine = originZone.equals(n.groupId) || originZone.equals(cfg.maPlayerId());
+        if (mine && n.active()) { originIdleSince = 0; return; }
+        long t = System.currentTimeMillis();
+        if (originIdleSince == 0) originIdleSince = t;
+        if (t - originIdleSince > 20_000) { originZone = ""; Log.i("origin: cleared (music ended / room left the group)"); }
+    }
+
     public void setRoomVolume(String id, int v) { async("volume " + id + " " + v, () -> ma.volume(id, v)); lastSite = 0; }
     /** volume of the whole zone this room plays in */
     public void setGroupVolume(int v) {
@@ -307,6 +327,7 @@ public class PanelService extends Service implements SnapProcess.Listener {
     Ma api() { return ma; }
     /** start a song / album / playlist / radio on a room, a room's zone or a saved group */
     public void playMedia(String target, String uri) {
+        markOrigin(target);
         async("play " + uri + " on " + target, () -> {
             if (breaks.active() && target.equals(breaks.groupId())) breaks.end(site, "played from panel");
             ma.cmd("player_queues/play_media", new org.json.JSONObject().put("queue_id", target).put("media", uri).put("option", "replace"));

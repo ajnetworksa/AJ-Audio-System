@@ -61,6 +61,8 @@ public class MainActivity extends Activity implements PanelService.Listener {
     private String me() { return cfg.maPlayerId(); }
     private String myName() { return n != null && !n.playerName.isEmpty() ? n.playerName : cfg.name(); }
     private boolean grouped() { return n != null && !n.groupName.isEmpty(); }
+    /** this panel started the music that plays now → it may set the whole group's volume */
+    private boolean origin() { PanelService s = svc(); return s != null && s.isOrigin(); }
 
     @Override protected void onCreate(Bundle b) {
         super.onCreate(b);
@@ -166,7 +168,8 @@ public class MainActivity extends Activity implements PanelService.Listener {
     private Cover npCover; private LinearLayout npIdleLeft; private TextView idleClock, idleDate;
     private LinearLayout npShare, npBanner, npPlayingBox, npElsewhere, npElsewhereList;
     private TextView npBrowse, npZone, npTitle, npArtist, npMeta, npElapsed, npDuration, npVolLabel, npVolValue, npBreak;
-    private Slider npProgress, npVol;
+    private Slider npProgress, npVol, npAllVol;
+    private LinearLayout npAllRow; private TextView npAllValue;
     private FrameLayout npPlay, npMute;
     private String elsewhereSig = "";
 
@@ -245,11 +248,22 @@ public class MainActivity extends Activity implements PanelService.Listener {
         LinearLayout vol = new LinearLayout(this); vol.setGravity(Gravity.CENTER_VERTICAL);
         npMute = iconButton(this, VOLUME, 44, 24, 0, "Mute this room"); npMute.setOnClickListener(v -> act(PanelService::pauseHere));
         vol.addView(npMute);
-        npVol = new Slider(this).listener((v, done) -> { if (done) act(s -> { if (grouped()) s.setGroupVolume(v); else s.setVolume(v); }); });
+        npVol = new Slider(this).listener((v, done) -> { if (done) act(s -> s.setVolume(v)); });
         vol.addView(npVol, side(0, 40, 6, 1));
         npVolValue = Theme.text(this, "", 15, SUB, MEDIUM); npVolValue.setGravity(Gravity.END);
         vol.addView(npVolValue, side(40, -2, 8));
         r.addView(vol, top(-1, -2, 4));
+        // whole-group volume: only on the panel that started this music (D-020)
+        npAllRow = new LinearLayout(this); npAllRow.setGravity(Gravity.CENTER_VERTICAL);
+        FrameLayout gi = new FrameLayout(this);
+        gi.addView(new Icon(this, GROUP, SUB), new FrameLayout.LayoutParams(dp(22), dp(22), Gravity.CENTER));
+        npAllRow.addView(gi, new LinearLayout.LayoutParams(dp(44), dp(40)));
+        npAllVol = new Slider(this).listener((v, done) -> { if (done) act(s -> s.setGroupVolume(v)); });
+        npAllRow.addView(npAllVol, side(0, 40, 6, 1));
+        npAllValue = Theme.text(this, "", 15, SUB, MEDIUM); npAllValue.setGravity(Gravity.END);
+        npAllRow.addView(npAllValue, side(40, -2, 8));
+        npAllRow.setVisibility(View.GONE);
+        r.addView(npAllRow, top(-1, -2, 0));
 
         LinearLayout acts = new LinearLayout(this);
         TextView grp = pill(this, "Group", 0); grp.setOnClickListener(v -> openGroupSheet());
@@ -301,9 +315,11 @@ public class MainActivity extends Activity implements PanelService.Listener {
         // volume: whole group when grouped
         Site st = site();
         int v = n.volume;
-        if (grouped() && st != null) v = zoneVolume(st);
-        npVolLabel.setText(grouped() ? "Group volume" : "Volume · " + myName());
+        npVolLabel.setText("Volume · " + myName());
         if (!npVol.dragging() && v >= 0) { npVol.setValue(v); npVolValue.setText(String.valueOf(v)); }
+        boolean all = grouped() && st != null && origin();
+        npAllRow.setVisibility(all ? View.VISIBLE : View.GONE);
+        if (all && !npAllVol.dragging()) { int gv = zoneVolume(st); if (gv >= 0) { npAllVol.setValue(gv); npAllValue.setText("All " + gv); } }
         iconOf(npMute).set(n.muted ? VOLUME_OFF : VOLUME);
         npMute.setContentDescription(n.muted ? "Unmute this room" : "Mute this room");
         npBreak.setVisibility(grouped() ? View.VISIBLE : View.GONE);
@@ -1076,7 +1092,7 @@ public class MainActivity extends Activity implements PanelService.Listener {
             if (!status.isEmpty()) { TextView s = Theme.text(this, status, 13, SUB, REGULAR); s.setPadding(0, dp(4), 0, 0); tx.addView(s); }
             top.addView(tx, new LinearLayout.LayoutParams(0, -2, 1));
             row.addView(top);
-            if (member && sel && r.available && sheetStart.size() > 1) {
+            if (member && sel && r.available && sheetStart.size() > 1 && (isMe || origin())) {
                 LinearLayout vr = new LinearLayout(this); vr.setGravity(Gravity.CENTER_VERTICAL); vr.setPadding(dp(44), dp(6), 0, 0);
                 vr.addView(new Icon(this, VOLUME, MUTED), new LinearLayout.LayoutParams(dp(20), dp(20)));
                 String id = r.id;

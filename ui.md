@@ -88,6 +88,11 @@ Sonos-like music player, calm near-black, no gradients/emoji; vector icons drawn
 - **Share** (v0.5.0): when another app (YouTube …) plays on the panel the Playing screen offers *Share*; sheet "Play this panel in…" = one saved group or ticked rooms; status banner with *Change* / *Stop*.
 - **Music** (v0.4.1, rail): search box + tabs Recent · Playlists · Albums · Artists · Radio · Songs (favourite songs, else newest) from the MA library; tap = play now. **Play on** picker: where this room plays now (default), only this room, or any saved group – so a group can be started from the wall without a phone. Idle Playing screen has *Browse music*.
 
+## G. Installer additions (0.3.0)
+- **Find & set up panels**: scan list (dot = state, name, IP · version · Android · model, server line), tap = room name + Connect, bottom button "Connect all N to this server", log icon per panel; section for Android devices without AJ Panel.
+- **Update panels**: "What to install" (Newest release / APK file on this phone), panel tick list with versions and per-panel result, "Update N panels".
+- Rooms/Groups: "Show in Spotify" switch next to AirPlay.
+
 ## D. Installer app (new: "AJ Setup")
 For installers only; clients use AirPlay/Bluetooth to named groups (no app).
 - Sign in once with an MA **admin**; site overview: server OK, panels online, "needs attention" list.

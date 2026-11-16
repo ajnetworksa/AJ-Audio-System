@@ -39,6 +39,7 @@ Newest entries on top. Decisions are `D-###`.
 - **D-015** (2026-11-11) Phone side splits in two: **AJ Setup** (installer/admin app: rooms, groups, users, logs) and **AJ Audio** (optional client rooms remote). Same Flutter repo, two app targets. Clients mainly use AirPlay/Bluetooth to named groups.
 - **D-016** (2026-11-11) "Take a break": saved groups are MA **dynamic sync groups** (members = preset pulled in on play, removable per session, dissolve on stop – checked in sync_group/player.py). Break = `set_members(remove=[me])` + panel stores {group, until/mode}; at expiry `set_members(add=[me])` if the session still runs; while on a break the panel removes itself again if a new session pulls it in. Works on stock MA; moves server-side into ajsnap later so it survives panel reboots/offline.
 - **D-018** (2026-11-12) Android "any app → group" = AJ Audio Client capture → MA AriaCast Receiver (WebSocket PCM) + `select_source`; Media output stays Cast/Bluetooth-only (BUG-017). Apps renamed **AJ Audio Client** / **AJ Audio Installer**.
+- **D-020** (2026-11-16) Volume: a panel changes only its own room; the whole-group slider exists only on the panel that started the music. Music started from a phone → panels only have their own volume.
 - **D-019** (2026-11-15) Panel UI v2: Sonos-style player (rail, Playing, Rooms with Scenes + zone cards, Group sheet); owner found v1 looked like a web page. Supersedes D-017's layout.
 - **D-017** (2026-11-11) Panel UI follows the DSPPA home look (clock, landscape, right rail, bottom now-playing bar); one APK, Judian keeps vendor UI + bridge.
 - **D-014** (2026-11-10) One release signing key for all Android apps (CI secrets); iOS stays unsigned in CI (signed at install by Sideloadly/AltStore).
@@ -46,6 +47,9 @@ Newest entries on top. Decisions are `D-###`.
 - **D-012** (2026-11-09) Git repo local in `AJ-Audio-System`, owner pushes manually to GitHub.
 
 ## Log
+
+### 2026-11-16
+- Panel 0.6.0 / Installer 0.3.0: volume rule D-020, network scan + one-tap panel set-up, bulk update (GitHub or APK file), richer panel logs, Spotify switches (FIX-031).
 
 ### 2026-11-15
 - Code review for the official-MA setup: log spam, unstable DSPPA player id, Judian share false positive, share grouping redirect fixed (Panel 0.5.3, Client 0.5.2; BUG-030…033).

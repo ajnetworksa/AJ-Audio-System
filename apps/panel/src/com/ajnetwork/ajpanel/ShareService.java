@@ -120,6 +120,7 @@ public class ShareService extends Service {
                 }
                 if (last != null) throw new IllegalStateException("the music server didn't start the shared sound: " + last.getMessage());
             }
+            { PanelService ps0 = PanelService.instance; if (ps0 != null && here) ps0.markOrigin(target); }
             step("");
             Log.i("share: streaming this panel's sound to " + sharingTo + " (" + target + ")");
 

@@ -13,6 +13,7 @@ class GroupsPage extends StatefulWidget {
 class _GroupsPageState extends State<GroupsPage> {
   List<Room> all = [];
   Set<String> airplay = {};
+  Set<String> spotify = {};
   bool loading = true;
 
   @override
@@ -25,7 +26,8 @@ class _GroupsPageState extends State<GroupsPage> {
     try {
       final p = await widget.s.api.players();
       final a = await widget.s.api.airplayPlayers();
-      setState(() { all = p.map(Room.new).toList(); airplay = a; loading = false; });
+      final sp = await widget.s.api.spotifyPlayers();
+      setState(() { all = p.map(Room.new).toList(); airplay = a; spotify = sp; loading = false; });
     } catch (e) {
       setState(() => loading = false);
       if (mounted) toast(context, '$e');
@@ -35,7 +37,7 @@ class _GroupsPageState extends State<GroupsPage> {
   String nameOf(String id) => all.firstWhere((r) => r.id == id, orElse: () => Room({'player_id': id, 'name': id})).name;
 
   Future<void> edit([Room? g]) async {
-    await Navigator.push(context, MaterialPageRoute(builder: (_) => GroupEdit(s: widget.s, group: g, all: all, airplayOn: g == null || airplay.contains(g.id))));
+    await Navigator.push(context, MaterialPageRoute(builder: (_) => GroupEdit(s: widget.s, group: g, all: all, airplayOn: g == null || airplay.contains(g.id), spotifyOn: g != null && spotify.contains(g.id))));
     load();
   }
 
@@ -62,7 +64,7 @@ class _GroupsPageState extends State<GroupsPage> {
                 child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                   Text(g.name, style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w600)),
                   Text(
-                    '${g.members.map(nameOf).join(', ')}${airplay.contains(g.id) ? ' · AirPlay on' : ''}',
+                    '${g.members.map(nameOf).join(', ')}${airplay.contains(g.id) ? ' · AirPlay' : ''}${spotify.contains(g.id) ? ' · Spotify' : ''}',
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
                     style: const TextStyle(color: C.sub, fontSize: 13),
@@ -84,7 +86,8 @@ class GroupEdit extends StatefulWidget {
   final Room? group;
   final List<Room> all;
   final bool airplayOn;
-  const GroupEdit({super.key, required this.s, this.group, required this.all, required this.airplayOn});
+  final bool spotifyOn;
+  const GroupEdit({super.key, required this.s, this.group, required this.all, required this.airplayOn, this.spotifyOn = false});
   @override
   State<GroupEdit> createState() => _GroupEditState();
 }
@@ -93,6 +96,7 @@ class _GroupEditState extends State<GroupEdit> {
   late final name = TextEditingController(text: widget.group?.name ?? '');
   late final Set<String> picked = {...?widget.group?.members};
   late bool airplay = widget.airplayOn;
+  late bool spotify = widget.spotifyOn;
   bool busy = false;
 
   Api get api => widget.s.api;
@@ -105,14 +109,21 @@ class _GroupEditState extends State<GroupEdit> {
     }
     setState(() => busy = true);
     try {
+      // only rooms that still exist (a replaced panel leaves a dead id behind in old groups)
+      final existing = {for (final r in widget.all) if (!r.isGroup) r.id};
+      final members = picked.where(existing.contains).toList();
+      if (members.isEmpty) throw ApiException(400, 'Pick at least one room');
       String? id = widget.group?.id;
       if (id == null) {
-        id = await api.createGroup(n, picked.toList());
+        id = await api.createGroup(n, members);
       } else {
-        await api.saveConfig(id, {'name': n, 'group_members': picked.toList()});
+        await api.saveConfig(id, {'name': n, 'group_members': members});
       }
       if (id != null) {
         try { await api.setAirplay(id, airplay); } catch (e) { if (mounted) toast(context, 'Saved, but AirPlay: $e'); }
+        if (spotify != widget.spotifyOn) {
+          try { await api.setSpotify(id, spotify); } catch (e) { if (mounted) toast(context, 'Saved, but Spotify: $e'); }
+        }
       }
       if (mounted) Navigator.pop(context);
     } catch (e) {
@@ -155,6 +166,18 @@ class _GroupEditState extends State<GroupEdit> {
             trailing: Switch(value: airplay, onChanged: (v) => setState(() => airplay = v)),
           ),
         ),
+        Glass(
+          child: SettingRow(
+            label: 'Show in Spotify',
+            hint: 'The Spotify app lists this group under "Connect to a device"',
+            trailing: Switch(value: spotify, onChanged: (v) => setState(() => spotify = v)),
+          ),
+        ),
+        if (picked.any((id) => !widget.all.any((r) => r.id == id)))
+          const Padding(
+            padding: EdgeInsets.all(4),
+            child: Text('This group still lists a panel that no longer exists. Tap Save to clean it up.', style: TextStyle(color: C.warn, fontSize: 13)),
+          ),
         const Padding(
           padding: EdgeInsets.all(4),
           child: Text(

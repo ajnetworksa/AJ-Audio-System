@@ -157,3 +157,12 @@ Each section's id matches the bug in `bug.md` (FIX-001 ↔ BUG-001). Include: wh
 - Share to rooms: the panel first leaves any group it is in, then leads the picked rooms.
 - Client: "Nothing to play yet" text updated (Play my phone exists now).
 - Checked against MA 2.10.9 source: every command/field the apps use exists (players/all, players/get, set_members, group_volume, volume_mute, play_announcement, create_group_player, config/players/save + `||plugin||enabled`, auth/*, music/*, player_queues/play_media, select_source legacy plugin path).
+
+## FIX-031
+**BUG-034 + installer tooling (Panel 0.6.0, Installer 0.3.0)**
+- **Volume rule (D-020):** the Playing slider and the panel's keys change only this room. A second slider "All" (whole group) appears only on the panel that started the current music (Music page or Share on that panel); music started from a phone → every panel only has its own volume. The origin mark ends 20 s after the music stops or the room leaves the group. In the Group sheet other rooms' sliders are shown only on that panel too.
+- **Installer → Find & set up panels:** scans every address of the phone's Wi-Fi network (and the panel addresses MA knows): AJ panels answer on port 8766 with name, IP, model, Android, app version, server, state; devices with only the debug port (5555) are listed as "no AJ Panel" (first install from a PC with `deploy_ajpanel.bat`). *Connect* / *Connect all*: the Installer makes a token for the shared MA user `panels` (created if missing, no password typed anywhere) and sends server address + token + room name to the panel.
+  - Panel rule: `/api/settings` with a new `host` is accepted from an admin of that new server only while the panel has no working server connection; otherwise only from an admin of its own server.
+- **Installer → Update panels:** tick panels (out-of-date ones are pre-ticked), source = newest GitHub release or an APK file picked on the phone (uploaded to `/api/install`), per-panel result. Android still asks "Install?" once on each panel screen.
+- **Logs:** panel log now = state JSON + app log (600 lines) + last crash (stack trace kept on disk) + the app's Android log (warnings); reachable from the scan list even before the panel is in MA.
+- **Spotify:** rooms and groups get a "Show in Spotify" switch (MA Spotify Connect plugin, same mechanism as the AirPlay switch); group edit also drops dead panel ids on save.
