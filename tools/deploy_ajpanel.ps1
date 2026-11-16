@@ -12,7 +12,7 @@
 #   deploy_ajpanel.bat -panels "192.168.8.46=dsppa938t" -restoreHome (vendor home screen again)
 param(
   [string]$ma = "192.168.8.5",
-  [string]$panels = "192.168.8.194=P8_EN,192.168.8.73=M20_EN,192.168.8.46=dsppa938t",
+  [string]$panels = "192.168.8.194=P8_EN,192.168.8.165=X8,192.168.8.46=dsppa938t",
   [string]$apk = "",              # a specific apk file; empty = newest GitHub release (downloaded) or newest in apps\panel\releases
   [string]$repo = "ajnetworksa/AJ-Audio-System",
   [switch]$local,                 # don't look at GitHub, use the newest apk in apps\panel\releases
