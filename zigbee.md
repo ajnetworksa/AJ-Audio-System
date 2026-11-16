@@ -1,6 +1,6 @@
 # zigbee.md — using the panels' built-in Zigbee radio with Home Assistant (instead of Smart Life)
 
-Status: research + read-only probe (2026-11-16). Nothing changed on the panels yet.
+Status: probe 1 done (logs30, 2026-11-16). Nothing changed on the panels yet.
 
 ## What we know about our panels
 - **Judian P8** (and likely X8/M20): Tuya Zigbee gateway inside, module on **/dev/ttyS3** (`tuya-kdql3oqd1xupvuxq`), Android 10, no root via adb, SELinux permissive, a root `sshd` on :22 (key-only, key unknown).
@@ -19,6 +19,17 @@ Precedent for C: the Tuya **Moes T6E** Android panel (Rockchip PX30, Tuya TYZS13
 
 ## Probe (read-only)
 `tools\zigbee_probe.bat` (optional `-panels "ip1,ip2"`) → `tools\logs30\<ip>.txt`: serial ports with owner/rights/SELinux label, which process holds them (and its user id), the sysfs/USB path of the radio, Tuya/gateway apps and processes, listening ports (6668 = Tuya LAN), Zigbee lines in the Android log.
+
+## Probe 1 results (logs30)
+| | Judian X8 (.165) | Judian P8 (.194) | DSPPA DM938T (.46) |
+|---|---|---|---|
+| Zigbee radio | yes, `/dev/ttyS3` (`persist.sys.jd.zbg.tty`), module `tuya-kdql3oqd1xupvuxq` | same | **none found** – Tuya app `com.yjy.tuyaiot` is only the panel itself as a Wi-Fi Tuya device |
+| Port rights | `crw-rw-rw-` **world read/write** → any app can open it, **no root needed** | same | – |
+| Gateway app | `com.judian.gateway.c6` (JdZigbee, /vendor/app) with Tuya's **`tuya_z3.c`** host stack = Zigbee 3.0 stack runs on Android, module is a network co-processor (Silicon Labs EZSP style) | same, but `GatewayActive=false` (not added to Smart Life) | – |
+| Tuya LAN port **6668** | **open** (LAN protocol 3.4) – has Zigbee sub-devices (e.g. cid `60b763fffe140c8f`) | closed (gateway not activated) | closed |
+| Note | | the Judian app also reports our song title to Tuya as a data point | |
+
+**Meaning:** for the Judian panels both B (LocalTuya through port 6668, keep Smart Life) and C (own coordinator, no root because ttyS3 is world-writable) look possible. DSPPA has no Zigbee radio. Next: `tools\zigbee_probe2.bat` reads the serial settings and copies the JdZigbee app (to identify radio firmware / protocol / speed); `-restart` reboots the panel once to capture the gateway's start-up log.
 
 ## Decision after the probe
 - Port 6668 open → try **B** first (keeps Smart Life, local).
