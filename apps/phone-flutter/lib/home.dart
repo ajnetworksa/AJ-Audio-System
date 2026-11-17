@@ -265,7 +265,7 @@ class _HomePageState extends State<HomePage> {
           const Padding(
             padding: EdgeInsets.only(top: 4),
             child: Text(
-                'Android asks "Start recording or casting?" each time – choose "Entire screen" (needed so every app is heard). '
+                'Android asks once each time you start – tap "Start" (the whole phone\'s sound is sent). '
                 'Your installer can switch this question off once for this phone (tools\\phone_allow_capture.bat).',
                 style: TextStyle(color: Colors.white60, fontSize: 12, height: 1.35)),
           ),

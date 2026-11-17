@@ -54,7 +54,13 @@ public class CaptureActivity extends Activity {
 
     private void askProjection() {
         MediaProjectionManager m = (MediaProjectionManager) getSystemService(MEDIA_PROJECTION_SERVICE);
-        startActivityForResult(m.createScreenCaptureIntent(), REQ_PROJECTION);
+        // Android 14+: ask only for the entire screen (no "Share one app" choice) – a single-app share
+        // would only hear that one app. Still Android's own consent dialog; skipped when the installer
+        // allowed PROJECT_MEDIA for this phone (tools\\phone_allow_capture.bat).
+        Intent i = Build.VERSION.SDK_INT >= 34
+                ? m.createScreenCaptureIntent(android.media.projection.MediaProjectionConfig.createConfigForDefaultDisplay())
+                : m.createScreenCaptureIntent();
+        startActivityForResult(i, REQ_PROJECTION);
     }
 
     @Override protected void onActivityResult(int req, int code, Intent data) {
