@@ -1,5 +1,5 @@
 name: android-java
-# Builds the Java apps (AJ Panel, AJ Audio v0.1, ControlX Bridge) with tools/build_java_apk.sh (no Gradle).
+# Builds the Java apps (AJ Panel, AJ Audio v0.1, ControlX Bridge, AJ Zigbee Survey) with tools/build_java_apk.sh (no Gradle).
 # Signing: if the repo secrets ANDROID_KEYSTORE_B64 + ANDROID_KEYSTORE_PASS exist -> release key, else debug key.
 on:
   pull_request:         # check PRs; pushes to main are built by release.yml
@@ -26,6 +26,11 @@ jobs:
           KS_B64: ${{ secrets.ANDROID_KEYSTORE_B64 }}
         run: |
           if [ -n "$KS_B64" ]; then echo "$KS_B64" | base64 -d > "$RUNNER_TEMP/release.jks"; echo "KEYSTORE=$RUNNER_TEMP/release.jks" >> "$GITHUB_ENV"; echo "release key: yes"; else echo "release key: no (debug key)"; fi
+      - name: Zigbee survey – radio protocol tests (simulated EZSP v7/v13 + ZNP sticks)
+        run: |
+          mkdir -p "$RUNNER_TEMP/zt"
+          javac -encoding UTF-8 -d "$RUNNER_TEMP/zt" apps/zigbee-survey/src/com/ajnetwork/ajzigbee/radio/*.java apps/zigbee-survey/test/RadioTest.java
+          java -cp "$RUNNER_TEMP/zt" RadioTest
       - name: Build
         env:
           KEYSTORE_PASS: ${{ secrets.ANDROID_KEYSTORE_PASS }}
@@ -34,6 +39,7 @@ jobs:
           bash tools/build_java_apk.sh apps/panel
           bash tools/build_java_apk.sh apps/phone-android
           bash tools/build_java_apk.sh legacy/controlx-bridge
+          bash tools/build_java_apk.sh apps/zigbee-survey
       - uses: actions/upload-artifact@v4
         with:
           name: java-apks
@@ -42,3 +48,4 @@ jobs:
             apps/panel/build/*_v*.apk
             apps/phone-android/build/*_v*.apk
             legacy/controlx-bridge/build/*_v*.apk
+            apps/zigbee-survey/build/*_v*.apk

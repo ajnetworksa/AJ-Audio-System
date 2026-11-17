@@ -91,6 +91,7 @@ jobs:
             echo 'Every release contains all apps; a file name only changes when that app got a new version.'
             echo '- **Installer:** `AJ_Audio_Installer_v*.apk` / `.ipa` – admin app for rooms, groups, users, logs, panel updates'
             echo '- **Control X:** `ControlX_Bridge_*.apk`'
+            echo '- **Zigbee survey:** `AJ_Zigbee_Survey_v*.apk` – phone + USB Zigbee coordinator: coverage survey, coordinator info, PDF report'
             echo
             echo "Built from commit ${{ github.sha }}."
           } > "$RUNNER_TEMP/notes.md"
