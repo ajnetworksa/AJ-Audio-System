@@ -17,6 +17,7 @@ EZSP: only `version`, `getEui64`, `getMfgToken`, `getValue(VERSION_INFO)`, `star
 ZNP: only `SYS_PING`, `SYS_VERSION`, `UTIL_GET_DEVICE_INFO`, `ZDO_NWK_DISCOVERY_REQ`.
 Never `networkInit/formNetwork/leave`, never NV/token writes → Home Assistant's network on the stick is untouched.
 While the stick is in the phone, that HA network is offline – plug it back afterwards.
+**With two coordinators:** survey network A with network B's stick in the phone (A's coordinator stays in HA, so it is on air and HA can also read the test device), then swap.
 
 ## Grades
 RSSI ≥ −70 dBm good · −70…−85 fair · < −85 poor. LQI (TI sticks report LQI only) ≥ 150 good · 80…149 fair · < 80 poor.

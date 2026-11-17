@@ -313,6 +313,7 @@ public class MainActivity extends Activity {
         w.addView(Ui.text(this, "Good to know", 14, Ui.AMBER, true));
         w.addView(Ui.text(this, "• The app only reads the stick (version, scans). It never forms, joins or changes a network, so Home Assistant's network stored on it stays as it is.\n"
                 + "• While the stick is in the phone, the Home Assistant network that uses it is offline. Plug it back into the server when you are done (ZHA / Zigbee2MQTT reconnect by themselves).\n"
+                + "• Survey a network with the OTHER stick: keep network A's coordinator in Home Assistant and put network B's stick in the phone. A network whose coordinator is in the phone has no coordinator on air (its routers still answer).\n"
                 + "• Survey with the phone held where devices will be (wall height); a device in a metal box is 5–10 dB worse.", 13, Ui.SUB, false));
         add(l, w);
 
