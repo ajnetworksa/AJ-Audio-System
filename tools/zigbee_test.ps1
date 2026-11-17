@@ -140,6 +140,12 @@ $dir = Backup
 if (-not $on) { Write-Host "`nBackup done - nothing was changed on the panel. Next: zigbee_test.bat -on"; exit 0 }
 
 if ($v -notmatch "versionName=0\.(7\.[1-9]|[89]\.)|versionName=[1-9]\.") { Write-Host "AJ Panel 0.7.1 or newer is needed (update the panel first)." -ForegroundColor Red; exit 1 }
+$pre = Info
+if ($pre -and "$($pre.zigbee_bridge)" -like "connected to*") {
+  Write-Host "`nThis panel's radio is already in use by Home Assistant ($($pre.zigbee_bridge)) - nothing to do." -ForegroundColor Yellow
+  Write-Host "Running -on again would push Home Assistant off the radio. To undo: zigbee_test.bat -off" -ForegroundColor Yellow
+  exit 0
+}
 Write-Host "`nSwitching the radio over to AJ Panel ..."
 A "am force-stop $GW" | Out-Null
 A "pm disable-user --user 0 $GW" | Write-Host
@@ -152,7 +158,7 @@ Start-Sleep 2
 $i = Info; Write-Host "bridge: $($i.zigbee_bridge)"
 if (-not (Test-Path (Join-Path $dir "zigbee_network.json"))) {
   Write-Host "`nThe radio is switched over, but its network is NOT backed up yet - do not add ZHA in Home Assistant yet." -ForegroundColor Red
-  Write-Host "Fix Python (see above), then run: zigbee_test.bat -netbackup     (or undo everything: zigbee_test.bat -off)" -ForegroundColor Red
+  Write-Host "Check the error above (Python missing, or the radio did not answer: is Home Assistant/ZHA using this panel already?), then run: zigbee_test.bat -netbackup     (or undo everything: zigbee_test.bat -off)" -ForegroundColor Red
   exit 1
 }
 Write-Host @"
