@@ -41,6 +41,12 @@ public class Site {
         for (int i = 0; i < all.length(); i++) {
             JSONObject p = all.optJSONObject(i);
             if (p == null || p.optBoolean("hide_in_ui", false) || !p.optBoolean("enabled", true)) continue;
+            String pid = s(p, "player_id"), pname = s(p, "name");
+            // Music Assistant's own AirPlay receivers ("Demo | Music Assistant") are found again by its AirPlay player
+            // provider – a loop, never a real room
+            if (pname.endsWith("| Music Assistant")) continue;
+            // switched-off TVs, old Bluetooth speakers …: only our own panels are listed while offline
+            if (!p.optBoolean("available", true) && !pid.startsWith("ma_ajpanel_") && !"group".equals(s(p, "type"))) continue;
             JSONObject m = p.optJSONObject("current_media");
             if ("group".equals(s(p, "type"))) {
                 Group g = new Group();

@@ -271,11 +271,9 @@ public class MainActivity extends Activity implements PanelService.Listener {
         TextView grp = pill(this, "Group", 0); grp.setOnClickListener(v -> openGroupSheet());
         npBreak = pill(this, "Break", 0); npBreak.setOnClickListener(v -> openBreak());
         npBrowse = pill(this, "Browse", 1); npBrowse.setOnClickListener(v -> show(MUSIC));
-        TextView shr = pill(this, "Share", 0); shr.setOnClickListener(v -> openShareSheet());
         acts.addView(npBrowse, new LinearLayout.LayoutParams(-2, dp(48)));
         acts.addView(grp, side(-2, 48, 12));
         acts.addView(npBreak, side(-2, 48, 12));
-        acts.addView(shr, side(-2, 48, 12));
         HorizontalScrollView ahs = new HorizontalScrollView(this); ahs.setHorizontalScrollBarEnabled(false);
         ahs.addView(acts);
         r.addView(ahs, top(-1, -2, 22));

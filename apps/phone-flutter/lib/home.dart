@@ -53,7 +53,8 @@ class _HomePageState extends State<HomePage> {
       final a = await widget.ma.ajPanels();
       if (tick++ % 10 == 0) airplay = await widget.ma.airplayReceiverPlayers();
       if (PhoneCapture.supported) cap = await PhoneCapture.status();
-      all.removeWhere((p) => p['hide_in_ui'] == true || p['enabled'] == false);
+      // hidden/disabled players and Music Assistant's own AirPlay receivers found again by its AirPlay provider
+      all.removeWhere((p) => p['hide_in_ui'] == true || p['enabled'] == false || '${p['name']}'.endsWith('| Music Assistant'));
       all.sort((x, y) => '${x['name']}'.toLowerCase().compareTo('${y['name']}'.toLowerCase()));
       if (mounted) setState(() { players = all; aj = a; error = ''; });
     } on MaException catch (e) {
