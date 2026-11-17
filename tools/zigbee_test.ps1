@@ -3,6 +3,7 @@
 #   zigbee_test.bat                 BACKUP only (changes nothing on the panel)
 #   zigbee_test.bat -on             backup (if not done yet) -> stop + disable the Judian gateway app ->
 #                                   AJ Panel bridge on (port 6638) -> backup of the radio's Zigbee network (zigpy)
+#   zigbee_test.bat -netbackup      (after -on) only the radio-network backup again, into the newest backup folder
 #   zigbee_test.bat -status         bridge state
 #   zigbee_test.bat -off            undo: [put the Tuya network back into the radio] -> bridge off ->
 #                                   re-enable the Judian gateway app -> reboot the panel
@@ -12,7 +13,7 @@
 # zigbee_network.json holds the Zigbee network key - keep it private, do not send it to anyone).
 # The radio-network backup/restore uses the open-source zigpy-cli (installed once into tools\.zigpy-venv from PyPI)
 # and needs Python 3 on this PC; without Python that step is skipped (the file backup still runs).
-param([string]$panel = "192.168.8.165", [switch]$on, [switch]$off, [switch]$status)
+param([string]$panel = "192.168.8.165", [switch]$on, [switch]$off, [switch]$status, [switch]$netbackup)
 $ErrorActionPreference = "Continue"
 $GW = "com.judian.gateway.c6"
 $ADB = Join-Path $env:LOCALAPPDATA "Android\Sdk\platform-tools\adb.exe"
@@ -30,14 +31,30 @@ function Zigpy {
   $venv = Join-Path $PSScriptRoot ".zigpy-venv"
   $exe = Join-Path $venv "Scripts\zigpy.exe"
   if (Test-Path $exe) { return $exe }
+  # find a REAL Python 3 (Windows has a fake "python" that only opens the Microsoft Store)
   $py = $null
-  foreach ($c in @("py", "python")) { if (Get-Command $c -ErrorAction SilentlyContinue) { $py = $c; break } }
-  if (-not $py) { Write-Host "  Python 3 not found on this PC - radio-network backup skipped (install Python from python.org and run again)." -ForegroundColor Yellow; return $null }
-  Write-Host "  installing zigpy-cli (once, from PyPI) ..."
-  if ($py -eq "py") { & py -3 -m venv $venv 2>&1 | Out-Null } else { & python -m venv $venv 2>&1 | Out-Null }
-  & (Join-Path $venv "Scripts\python.exe") -m pip install -q --upgrade pip zigpy-cli bellows 2>&1 | Out-Null
+  foreach ($cs in @("py -3", "python", "python3")) {
+    $c = $cs.Split(" ")
+    $cmd = Get-Command $c[0] -ErrorAction SilentlyContinue
+    if (-not $cmd -or $cmd.Source -like "*\WindowsApps\*") { continue }
+    $a = @($c | Select-Object -Skip 1)
+    $v = (& $c[0] @a -c "import sys; print(sys.version_info[0])" 2>$null | Out-String).Trim()
+    if ($v -eq "3") { $py = $c; break }
+  }
+  if (-not $py) {
+    Write-Host "  Python 3 is not installed on this PC." -ForegroundColor Yellow
+    Write-Host "  Install it from https://www.python.org/downloads/ (tick 'Add python.exe to PATH'), then run: zigbee_test.bat -netbackup" -ForegroundColor Yellow
+    return $null
+  }
+  Write-Host "  installing zigpy-cli (once, from PyPI) with $($py -join ' ') ..."
+  if (Test-Path $venv) { Remove-Item $venv -Recurse -Force -ErrorAction SilentlyContinue }
+  $a = @($py | Select-Object -Skip 1)
+  & $py[0] @a -m venv $venv 2>&1 | Out-String | Write-Host
+  $vpy = Join-Path $venv "Scripts\python.exe"
+  if (-not (Test-Path $vpy)) { Write-Host "  could not create $venv (see above)." -ForegroundColor Yellow; return $null }
+  & $vpy -m pip install -q --upgrade pip zigpy-cli bellows 2>&1 | Out-String | Write-Host
   if (Test-Path $exe) { return $exe }
-  Write-Host "  zigpy-cli install failed - radio-network backup skipped." -ForegroundColor Yellow
+  Write-Host "  zigpy-cli install failed (see above) - radio-network backup skipped." -ForegroundColor Yellow
   return $null
 }
 
@@ -105,6 +122,16 @@ if ($off) {
   exit 0
 }
 
+if ($netbackup) {
+  $b = LastBackup
+  if (-not $b) { Write-Host "No backup folder yet - run zigbee_test.bat first." -ForegroundColor Red; exit 1 }
+  Cfg "--ez zigbee_bridge true --es zigbee_allow any"; Start-Sleep 4
+  NetBackup $b.FullName
+  Cfg "--es zigbee_allow ha"
+  if (Test-Path (Join-Path $b.FullName "zigbee_network.json")) { Write-Host "OK - now you can add ZHA in Home Assistant (steps in zigbee.md)." -ForegroundColor Green }
+  exit 0
+}
+
 # default and -on: backup first
 $v = A "dumpsys package com.ajnetwork.ajpanel | grep versionName"
 Write-Host "Panel $panel  AJ Panel $v"
@@ -123,6 +150,11 @@ NetBackup $dir
 Cfg "--es zigbee_allow ha"                              # back to: only Home Assistant may connect
 Start-Sleep 2
 $i = Info; Write-Host "bridge: $($i.zigbee_bridge)"
+if (-not (Test-Path (Join-Path $dir "zigbee_network.json"))) {
+  Write-Host "`nThe radio is switched over, but its network is NOT backed up yet - do not add ZHA in Home Assistant yet." -ForegroundColor Red
+  Write-Host "Fix Python (see above), then run: zigbee_test.bat -netbackup     (or undo everything: zigbee_test.bat -off)" -ForegroundColor Red
+  exit 1
+}
 Write-Host @"
 
 Next in Home Assistant: Settings -> Devices & services -> Add integration -> Zigbee Home Automation
