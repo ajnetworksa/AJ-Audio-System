@@ -127,6 +127,7 @@ public class PanelService extends Service implements SnapProcess.Listener {
             snap.stop();
             if (cfg.player()) snap.start();
         }
+        applyZigbee();
         if (!running) {
             running = true;
             poller = new Thread(this::pollLoop, "ma-poll");
@@ -376,8 +377,20 @@ public class PanelService extends Service implements SnapProcess.Listener {
         });
     }
 
+    ZigbeeBridge zigbee;
+
+    /** TEST: Zigbee radio -> TCP for Home Assistant ZHA (off unless zigbee_bridge is set) */
+    private void applyZigbee() {
+        String want = cfg.zigbeeBridge() ? cfg.zigbeeTty() + cfg.zigbeePort() + cfg.zigbeeAllow() : "";
+        String have = zigbee == null ? "" : zigbee.sig();
+        if (want.equals(have)) return;
+        if (zigbee != null) { zigbee.stop(); zigbee = null; Log.i("zigbee bridge stopped"); }
+        if (!want.isEmpty()) { zigbee = new ZigbeeBridge(cfg.zigbeeTty(), cfg.zigbeePort(), cfg.zigbeeAllow()); zigbee.start(); }
+    }
+
     @Override public void onDestroy() {
         running = false;
+        if (zigbee != null) zigbee.stop();
         if (poller != null) poller.interrupt();
         snap.stop();
         overlay.remove();

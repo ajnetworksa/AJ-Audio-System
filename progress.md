@@ -114,3 +114,5 @@ Newest entries on top. Decisions are `D-###`.
 
 ### 2026-11-01 → 11-02
 - Panel inventory (Judian P8, DSPPA DM938T, DM858 backup); AirPlay Server patched (FIX-001); Snapcast app installed; DM858 app ported (FIX-004).
+
+- **D-022 (2026-11-17)** Zigbee: test Home Assistant ZHA on the X8 through an AJ Panel serial→TCP bridge (EZSP v7 radio, no root, no reflash). Off by default; `tools\zigbee_test.bat` backs up the Tuya files and the radio network first and can undo everything (`-off`). Zigbee2MQTT not possible without reflashing (needs EZSP v8/v13+).

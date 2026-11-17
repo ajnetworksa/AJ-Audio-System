@@ -199,6 +199,7 @@ public class PanelHttp {
                 .put("volume", n == null ? -1 : n.volume).put("sdk", Build.VERSION.SDK_INT)
                 .put("crashed", !Log.lastCrash().isEmpty())
                 .put("update_available", Updater.availableVersion)
+                .put("zigbee_bridge", ZigbeeBridge.status).put("zigbee_rx", ZigbeeBridge.rx).put("zigbee_tx", ZigbeeBridge.tx)
                 .put("uptime_s", (System.currentTimeMillis() - started) / 1000);
     }
 

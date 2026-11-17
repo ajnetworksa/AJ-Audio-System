@@ -44,3 +44,15 @@ Precedent for C: the Tuya **Moes T6E** Android panel (Rockchip PX30, Tuya TYZS13
 - Port 6668 open → try **B** first (keeps Smart Life, local).
 - ttyS3 world-accessible or group our app can use + EFR32 found → **C** possible without root (one panel first, after a backup).
 - Otherwise **A** works today; C would need root or opening the panel – owner's decision.
+
+## Test build (AJ Panel 0.7.1, X8 only)
+AJ Panel has a **Zigbee bridge** (off by default): `/dev/ttyS3` (115200 8N1, RTS/CTS) ↔ TCP port **6638**, one client, only from the music server's address (= HA) unless set to `any`. State in `/api/info` (`zigbee_bridge`, `zigbee_rx`, `zigbee_tx`).
+
+`tools\zigbee_test.bat` (panel `-panel 192.168.8.165` by default):
+1. **No switch = backup only, changes nothing.** → `tools\zigbee_backup\<ip>_<date>\`: `.jd-tuya` folder (Tuya Zigbee host files: device list, flags, radio-firmware backups), gateway package info, disabled-app list, getprop, settings, ttyS3 settings, and (if the panel allows it – tap "Back up my data" on the panel) the gateway app's data.
+2. **`-on`**: backup again → force-stop + `pm disable-user` the Judian gateway → bridge on → **radio network backup** with zigpy-cli (`zigbee_network.json`: PAN, channel, network key, frame counter – lets us put the Tuya network back) → bridge locked to HA again. Needs Python 3 on the PC (zigpy-cli is installed once into `tools\.zigpy-venv`). If that backup fails, don't set up ZHA.
+3. In HA: Add integration → **Zigbee Home Automation** → enter manually → **EZSP** → `socket://192.168.8.165:6638`, 115200.
+4. **`-off`** (undo): optionally restores `zigbee_network.json` into the radio (needed if ZHA formed its own network), bridge off, `pm enable` the gateway, reboot. Remove/disable ZHA in HA first.
+5. **`-status`**: bridge state and byte counters.
+
+`zigbee_backup\` and `.zigpy-venv\` are git-ignored – `zigbee_network.json` contains the Zigbee network key.

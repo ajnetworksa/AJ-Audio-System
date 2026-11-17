@@ -32,6 +32,12 @@ public class Cfg {
     public boolean vendorBridge() { return p.getBoolean("vendor_bridge", DlnaMetaBridge.available(c)); }
     /** GitHub repo with the releases (app updates) */
     public String repo()       { return p.getString("repo", "ajnetworksa/AJ-Audio-System"); }
+    /** TEST: pass the built-in Zigbee radio to Home Assistant ZHA over TCP (see zigbee.md) */
+    public boolean zigbeeBridge() { return p.getBoolean("zigbee_bridge", false); }
+    public int zigbeePort()     { return p.getInt("zigbee_port", 6638); }
+    public String zigbeeTty()   { return p.getString("zigbee_tty", "/dev/ttyS3"); }
+    /** only this address may connect (default: the music server = Home Assistant); "any" = everyone on the network, "ha"/empty = default */
+    public String zigbeeAllow() { String a = p.getString("zigbee_allow", ""); return a.equals("any") ? "" : a.isEmpty() || a.equals("ha") ? host() : a; }
     public String playerIdOverride() { return p.getString("ma_player_id", ""); }
 
     public String maBase() { return "http://" + host() + ":" + maPort(); }
