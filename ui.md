@@ -111,3 +111,10 @@ For installers only; clients use AirPlay/Bluetooth to named groups (no app).
 
 ## E. Client app (AJ Audio, optional)
 Rooms tab: active group card with transport, room tiles (who plays, on a break), hint how to play from any app via AirPlay/Bluetooth; tabs Rooms · Groups · Settings.
+
+## I. AJ Zigbee Survey (phone, D-022)
+Tabs at the bottom: **Coordinator · Survey · Network · Report**; AJ navy/green.
+- **Coordinator**: *Connect stick* → info rows (protocol, firmware, IEEE, board, USB chip, speed, ZHA/Z2M suitability); *Quick scan here* → networks heard (name from HA, channel, PAN, dBm/LQI, nodes) with *Survey this*, channel-noise bars; "good to know" box (read-only, HA network offline while unplugged); log.
+- **Survey**: site button (new / rename + customer + notes / delete / open) and floor button (add / plan image or PDF / width-area-walls / rename / delete); chips Wi-Fi scan · Noise · Heat map · Targets; plan with pinch-zoom; tap = measure here → spot dialog (coverage per target, networks heard, test device, quietest channel, Wi-Fi; Measure again / Note / Delete); long-press = mark coordinator / existing router; summary line with ★ suggestions.
+- **Network**: ZHA (HA address + long-lived token), Zigbee2MQTT (frontend address + optional token, up to 3), network cards (channel, PAN, coordinator, channel use, health lines, *Survey this network*, *Network map* for Z2M, device list weakest first → tap = test device).
+- **Report**: summary + advice preview, *Save PDF report…*, *Share*, *Export survey data (JSON)*.

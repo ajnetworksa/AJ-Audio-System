@@ -17,7 +17,8 @@ AJ-Audio-System/
 ├── apps/
 │   ├── phone-android/   AJ Audio (Android) — com.ajnetwork.ajaudio
 │   ├── phone-ios/       AJ Audio (iOS) — needs macOS + Xcode to build
-│   └── panel/           AJ Panel — runs on every panel (Android 8.1+, armv7 + arm64)
+│   ├── panel/           AJ Panel — runs on every panel (Android 8.1+, armv7 + arm64)
+│   └── zigbee-survey/   AJ Zigbee Survey — phone app: USB Zigbee coordinator survey + PDF report
 ├── server/
 │   └── ajsnap-provider/ our fork of Music Assistant's snapcast provider
 ├── legacy/              ControlX Bridge (com.ajnetwork.cxbridge) v1.0–v2.0 sources

@@ -56,3 +56,12 @@ AJ Panel has a **Zigbee bridge** (off by default): `/dev/ttyS3` (115200 8N1, RTS
 5. **`-status`**: bridge state and byte counters.
 
 `zigbee_backup\` and `.zigpy-venv\` are git-ignored – `zigbee_network.json` contains the Zigbee network key.
+
+## Site survey app – AJ Zigbee Survey (D-022, 2026-11-17)
+Phone app `apps/zigbee-survey` (com.ajnetwork.ajzigbee, Android 7+): answers "how many coordinators / routers do I need, and does this coordinator cover the area?" and makes a PDF report.
+- **Coordinator on the phone (USB-OTG):** one of the owner's HA sticks is plugged into the phone. Auto-detect Silicon Labs **EZSP** (ASH; EZSP v4–v13+; 115200 / 460800 / 230400) or TI **Z-Stack ZNP** (115200, zigpy-znp style RTS reset + 0xEF bootloader skip). USB-serial drivers in the app: CP210x, CH34x, CDC-ACM (CH9102F), FTDI. Shows protocol, firmware, IEEE, board string, USB chip, ZHA / Z2M suitability.
+- **Read-only:** EZSP version / getEui64 / getMfgToken / getValue / startScan; ZNP SYS_PING / SYS_VERSION / UTIL_GET_DEVICE_INFO / ZDO_NWK_DISCOVERY_REQ. No network form/init/leave, no NV writes → HA's network on the stick is untouched (that HA network is offline while the stick is in the phone).
+- **Measure a spot:** 3 beacon scans on the target network's channel (coordinator + every router in range answer; EZSP gives RSSI, TI gives LQI + sender address), EZSP energy scan of all 16 channels, phone Wi-Fi scan, optional **test device** (mains plug carried around) read from HA.
+- **HA side:** ZHA through the HA websocket (long-lived token: `zha/network/settings`, `zha/devices` incl. neighbours, `zha/device`, channel use from the ZHA config-entry diagnostics); Zigbee2MQTT through its frontend websocket `ws://host:8080/api` (bridge/info, bridge/devices, linkquality, `bridge/request/networkmap`), several instances.
+- **Advice:** grades (RSSI ≥ −70 good / −85 fair; LQI ≥ 150 / 80), heat map, ★ suggested router spots (clusters of poor spots, 40 % towards good coverage), planning estimate from floor area + wall type, quietest channel from noise + Wi-Fi (Wi-Fi ch 6 here → Zigbee 15/20/25), coordinator sizing (one coordinator per network; second network only > ~150 devices or separate building).
+- Protocol code tested on a JVM against simulated sticks (`apps/zigbee-survey/test/RadioTest.java`, also in CI). **Not yet tested with the real sticks.**

@@ -12,6 +12,7 @@ Newest entries on top. Decisions are `D-###`.
 - 🆕 Local git repo created; owner pushes to GitHub.
 - ⚠️ Android "any app": AJ Audio v0.1 (Java) untested (BUG-018); AriaCast receiver to try.
 
+- 🆕 **AJ Zigbee Survey v0.1.0** (`apps/zigbee-survey`, phone + USB Zigbee coordinator): auto-detects EZSP/TI sticks, coverage survey on floor plans, ZHA + Zigbee2MQTT health, PDF report (D-022). **Not yet tested with the real sticks.**
 - 🆕 **AJ Panel v0.2**: Judian panels keep their smart-home UI – the song is pushed into the Judian music player (DLNA metadata bridge, FIX-020). DSPPA uses AJ Panel's own screen/card.
 
 ## Next (in order)
@@ -39,6 +40,7 @@ Newest entries on top. Decisions are `D-###`.
 - **D-015** (2026-11-11) Phone side splits in two: **AJ Setup** (installer/admin app: rooms, groups, users, logs) and **AJ Audio** (optional client rooms remote). Same Flutter repo, two app targets. Clients mainly use AirPlay/Bluetooth to named groups.
 - **D-016** (2026-11-11) "Take a break": saved groups are MA **dynamic sync groups** (members = preset pulled in on play, removable per session, dissolve on stop – checked in sync_group/player.py). Break = `set_members(remove=[me])` + panel stores {group, until/mode}; at expiry `set_members(add=[me])` if the session still runs; while on a break the panel removes itself again if a new session pulls it in. Works on stock MA; moves server-side into ajsnap later so it survives panel reboots/offline.
 - **D-018** (2026-11-12) Android "any app → group" = AJ Audio Client capture → MA AriaCast Receiver (WebSocket PCM) + `select_source`; Media output stays Cast/Bluetooth-only (BUG-017). Apps renamed **AJ Audio Client** / **AJ Audio Installer**.
+- **D-022** (2026-11-17) Zigbee site survey = separate plain-Java phone app **AJ Zigbee Survey** (USB-OTG coordinator + HA), not part of the Flutter Installer: needs USB-serial drivers + EZSP/ZNP in native code, testable on a JVM and buildable without Flutter. Stick is used read-only.
 - **D-021** (2026-11-17) Branding: AJ Network Solutions logo (green building + Wi-Fi mark) as app icon of all apps and in the UI; colours navy #0A0F1A / #0B1220 + logo green #6BBC46 / #418331 replace the old blue/violet.
 - **D-020** (2026-11-16) Volume: a panel changes only its own room; the whole-group slider exists only on the panel that started the music. Music started from a phone → panels only have their own volume.
 - **D-019** (2026-11-15) Panel UI v2: Sonos-style player (rail, Playing, Rooms with Scenes + zone cards, Group sheet); owner found v1 looked like a web page. Supersedes D-017's layout.
@@ -50,6 +52,7 @@ Newest entries on top. Decisions are `D-###`.
 ## Log
 
 ### 2026-11-17
+- AJ Zigbee Survey v0.1.0 (D-022): USB-serial (CP210x/CH34x/CDC/FTDI), EZSP (ASH, legacy + extended frames) and ZNP clients with auto-detect + coordinator info, beacon/energy scans, floor plans (image/PDF) with heat map and router suggestions, Wi-Fi scan, ZHA + Zigbee2MQTT network health and test-device readings, PDF + JSON export. Protocol tests against simulated EZSP v7/v13 + ZNP sticks pass; CI builds the APK.
 - Branding (D-021): logo icons for Panel 0.7.0, Client 0.7.0, Installer 0.4.0; brand colours; logo on login/overview screens, panel rail and idle screen. Assets in apps/branding (tools/make_branding.py).
 
 ### 2026-11-16
