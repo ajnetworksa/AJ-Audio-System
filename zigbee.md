@@ -31,6 +31,14 @@ Precedent for C: the Tuya **Moes T6E** Android panel (Rockchip PX30, Tuya TYZS13
 
 **Meaning:** for the Judian panels both B (LocalTuya through port 6668, keep Smart Life) and C (own coordinator, no root because ttyS3 is world-writable) look possible. DSPPA has no Zigbee radio. Next: `tools\zigbee_probe2.bat` reads the serial settings and copies the JdZigbee app (to identify radio firmware / protocol / speed); `-restart` reboots the panel once to capture the gateway's start-up log.
 
+## Probe 2 results (logs31, X8 .165)
+- **Serial line:** `/dev/ttyS3` 115200 baud, 8N1, **RTS/CTS hardware flow control** (`crtscts`), raw.
+- **Protocol (from `libtuya_android.so` strings):** Silicon Labs **EmberZNet `Z3GatewayHost`** built into Tuya's SDK (`zigbee_host/slabs/v2.2`) → talks **EZSP over ASH** to the module ("ASH connected", "ERROR: NCP EZSP protocol version of 0x%x does not match Host version", options `-f r` = RTS/CTS, `-r` NCP reset by RST frame). So the module is a standard **Silicon Labs EZSP NCP** (EFR32 family) – the same kind of radio ZHA (`bellows`, radio type EZSP) and Zigbee2MQTT (`adapter: ember`) use.
+- **Module firmware:** Tuya updates it over the cloud (`/tmp/ota-files/NcpUpgrade.ota`, `/tuya/NcpUpgrade_backup.ota`); the APK carries no firmware file. The **EZSP version is still unknown** – it decides ZHA (works with old EZSP) vs Zigbee2MQTT `ember` (needs EZSP v13+ / EmberZNet 7.4+).
+- No start-up log yet (probe ran without `-restart`).
+
+**Meaning:** option **C** is technically realistic without root and without reflashing: an AJ "Zigbee bridge" in the panel app opens ttyS3 (115200, RTS/CTS) and forwards the bytes to TCP (e.g. port 6638); HA ZHA connects to `socket://192.168.8.165:6638`, radio type EZSP. Costs: the Judian/Tuya gateway app must be switched off (`pm disable-user com.judian.gateway.c6`, undo with `pm enable`), and **every Zigbee device must be re-paired** to the new HA network (they leave Smart Life). Open checks: EZSP version (`zigbee_probe2.bat -restart` or a small read-only EZSP "version" probe), and whether the TCP bridge keeps ASH timing reliable.
+
 ## Decision after the probe
 - Port 6668 open → try **B** first (keeps Smart Life, local).
 - ttyS3 world-accessible or group our app can use + EFR32 found → **C** possible without root (one panel first, after a backup).
