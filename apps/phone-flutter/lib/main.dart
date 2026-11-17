@@ -4,7 +4,25 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'ma.dart';
 import 'home.dart';
 
-const accent = Color(0xFF40A0FF);
+/// AJ Network Solutions brand (D-021)
+const accent = Color(0xFF6BBC46); // logo green
+const navy = Color(0xFF0A0F1A);
+const card = Color(0xFF141B29);
+
+/// logo mark + AJ NETWORK SOLUTIONS
+class BrandLine extends StatelessWidget {
+  final double height;
+  const BrandLine({super.key, this.height = 28});
+  @override
+  Widget build(BuildContext context) => Row(mainAxisSize: MainAxisSize.min, children: [
+        Image.asset('assets/logo_mark.png', height: height),
+        SizedBox(width: height * 0.35),
+        Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisSize: MainAxisSize.min, children: [
+          Text('AJ NETWORK', style: TextStyle(fontWeight: FontWeight.w800, letterSpacing: 1.6, fontSize: height * 0.42, height: 1.05)),
+          Text('SOLUTIONS', style: TextStyle(color: Colors.white70, fontWeight: FontWeight.w600, letterSpacing: 2.2, fontSize: height * 0.32, height: 1.1)),
+        ]),
+      ]);
+}
 
 void main() => runApp(const AjAudioApp());
 
@@ -16,7 +34,10 @@ class AjAudioApp extends StatelessWidget {
         debugShowCheckedModeBanner: false,
         theme: ThemeData(
           brightness: Brightness.dark,
-          colorScheme: ColorScheme.fromSeed(seedColor: accent, brightness: Brightness.dark),
+          colorScheme: ColorScheme.fromSeed(seedColor: accent, brightness: Brightness.dark, primary: accent, surface: navy),
+          scaffoldBackgroundColor: navy,
+          cardColor: card,
+          appBarTheme: const AppBarTheme(backgroundColor: navy, surfaceTintColor: Colors.transparent),
           useMaterial3: true,
         ),
         home: const Start(),
@@ -95,8 +116,13 @@ class _LoginPageState extends State<LoginPage> {
 
   @override
   Widget build(BuildContext context) => Scaffold(
-        appBar: AppBar(title: const Text('AJ Audio Client – sign in')),
-        body: ListView(padding: const EdgeInsets.all(20), children: [
+        body: ListView(padding: const EdgeInsets.fromLTRB(24, 64, 24, 24), children: [
+          const Align(alignment: Alignment.centerLeft, child: BrandLine(height: 44)),
+          const SizedBox(height: 28),
+          const Text('AJ AUDIO', style: TextStyle(color: accent, fontWeight: FontWeight.w700, letterSpacing: 1.4, fontSize: 13)),
+          const SizedBox(height: 6),
+          const Text('Sign in to your music system', style: TextStyle(fontSize: 26, fontWeight: FontWeight.w800)),
+          const SizedBox(height: 20),
           TextField(controller: server, decoration: const InputDecoration(labelText: 'Server (Music Assistant)')),
           TextField(controller: user, decoration: const InputDecoration(labelText: 'Username')),
           TextField(controller: pass, obscureText: true, decoration: const InputDecoration(labelText: 'Password')),

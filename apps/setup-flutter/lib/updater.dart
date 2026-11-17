@@ -112,7 +112,7 @@ class _UpdateBannerState extends State<UpdateBanner> {
     if (avail == null) return const SizedBox.shrink();
     final busy = state.startsWith('downloading');
     return Card(
-      color: const Color(0xFF1E3A66),
+      color: const Color(0xFF1C3524),
       margin: const EdgeInsets.fromLTRB(4, 8, 4, 4),
       child: Padding(
         padding: const EdgeInsets.fromLTRB(16, 12, 12, 12),

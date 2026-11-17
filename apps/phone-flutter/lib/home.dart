@@ -5,7 +5,7 @@ import 'ma.dart';
 import 'capture.dart';
 import 'updater.dart';
 
-const _accent = Color(0xFF40A0FF);
+const _accent = Color(0xFF6BBC46); // brand green
 
 /// Home: groups on top (saved + temporary), rooms (single panels/speakers) below.
 class HomePage extends StatefulWidget {
@@ -231,7 +231,7 @@ class _HomePageState extends State<HomePage> {
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(18),
-        gradient: LinearGradient(colors: running ? const [Color(0xFF1E5A3A), Color(0xFF1E3A66)] : const [Color(0xFF1E3A66), Color(0xFF2B2156)]),
+        gradient: LinearGradient(colors: running ? const [Color(0xFF2E6B2A), Color(0xFF13233A)] : const [Color(0xFF1C3524), Color(0xFF13213D)]),
       ),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         Row(children: [
@@ -334,7 +334,7 @@ class _HomePageState extends State<HomePage> {
     final user = aj[id]?['user_display_name'] ?? (members(g).isEmpty ? null : aj[members(g).first]?['user_display_name']);
     final memberNames = members(g).where((m) => m != id || !saved).map(nameOf).join(', ');
     return Card(
-      color: const Color(0xFF1B2533),
+      color: const Color(0xFF141B29),
       child: Padding(
         padding: const EdgeInsets.fromLTRB(16, 12, 8, 4),
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
@@ -437,7 +437,12 @@ class _HomePageState extends State<HomePage> {
     final temp = tempGroups;
     return Scaffold(
       appBar: AppBar(
-        title: const Text('AJ Audio Client'),
+        titleSpacing: 12,
+        title: Row(children: [
+          Image.asset('assets/logo_mark.png', height: 30),
+          const SizedBox(width: 10),
+          const Text('AJ Audio', style: TextStyle(fontWeight: FontWeight.w700)),
+        ]),
         actions: [
           IconButton(
             tooltip: 'AirPlay receiver on for all saved groups',

@@ -88,6 +88,14 @@ Sonos-like music player, calm near-black, no gradients/emoji; vector icons drawn
 - **Share** (v0.5.0; v0.6.3: no permanent button any more – only offered when another app plays, to avoid confusion with Group): when another app (YouTube …) plays on the panel the Playing screen offers *Share*; sheet "Play this panel in…" = one saved group or ticked rooms; status banner with *Change* / *Stop*.
 - **Music** (v0.4.1, rail): search box + tabs Recent · Playlists · Albums · Artists · Radio · Songs (favourite songs, else newest) from the MA library; tap = play now. **Play on** picker: where this room plays now (default), only this room, or any saved group – so a group can be started from the wall without a phone. Idle Playing screen has *Browse music*.
 
+## H. Branding (D-021, 2026-11-17)
+- **Logo**: AJ Network Solutions mark (green buildings + Wi-Fi arcs). App icon = mark on a navy rounded tile (Android adaptive icon: navy background + mark foreground; iOS: same, no transparency).
+- **Colours**: background navy #0A0F1A, cards #141B29 / #1F2738, primary = logo green #6BBC46 (gradient to #418331), text on green = navy #0B1220, live/playing = #7FD45A.
+- **Panel**: logo above the clock in the rail, selected rail item green, play button / primary buttons / slider fill green, idle screen shows "AJ NETWORK SOLUTIONS" with the mark.
+- **Installer**: logo + "AJ NETWORK SOLUTIONS" on sign-in (large) and overview (small), green buttons/switches, navy→green backdrop, logo while loading.
+- **Client**: sign-in page with logo, app bar = mark + "AJ Audio", green accents.
+- Source logo stays in `/branding/` (not in git); `python3 tools/make_branding.py branding/company_logo.png` rebuilds `apps/branding/` (mark, icons, Android res); CI copies the icons into the Flutter apps.
+
 ## G. Installer additions (0.3.0)
 - **Find & set up panels**: scan list (dot = state, name, IP · version · Android · model, server line), tap = room name + Connect, bottom button "Connect all N to this server", log icon per panel; section for Android devices without AJ Panel.
 - **Update panels**: "What to install" (Newest release / APK file on this phone), panel tick list with versions and per-panel result, "Update N panels".

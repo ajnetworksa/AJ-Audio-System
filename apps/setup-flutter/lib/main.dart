@@ -67,7 +67,7 @@ class _StartState extends State<Start> {
 
   @override
   Widget build(BuildContext context) {
-    if (s == null) return const Backdrop(child: Scaffold(body: Center(child: CircularProgressIndicator())));
+    if (s == null) return const Backdrop(child: Scaffold(body: Center(child: Logo(height: 96))));
     if (!signedIn) return LoginPage(s: s!, onDone: () => setState(() => signedIn = true));
     return Overview(s: s!, onLogout: logout);
   }
@@ -120,7 +120,9 @@ class _LoginPageState extends State<LoginPage> {
         child: Scaffold(
           body: SafeArea(
             child: ListView(padding: const EdgeInsets.fromLTRB(24, 48, 24, 24), children: [
-              const Text('AJ AUDIO · INSTALLER', style: TextStyle(color: C.sub, fontWeight: FontWeight.w700, letterSpacing: 1.2, fontSize: 13)),
+              const BrandLine(height: 44, color: C.text),
+              const SizedBox(height: 26),
+              const Text('AJ AUDIO · INSTALLER', style: TextStyle(color: C.accent, fontWeight: FontWeight.w700, letterSpacing: 1.2, fontSize: 13)),
               const SizedBox(height: 6),
               const Text('Connect to the music server', style: TextStyle(fontSize: 28, fontWeight: FontWeight.w800)),
               const SizedBox(height: 8),
@@ -228,6 +230,7 @@ class _OverviewState extends State<Overview> {
       ),
       subtitle: 'Music server $host · signed in as ${widget.s.userName}',
       children: [
+        const Padding(padding: EdgeInsets.only(bottom: 14), child: BrandLine(height: 30)),
         const UpdateBanner(appName: 'AJ Audio Installer'),
         if (loading) const LinearProgressIndicator(),
         Row(children: [

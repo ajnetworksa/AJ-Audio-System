@@ -47,3 +47,6 @@ logs*/
 Thumbs.db
 *.p12
 ANDROID_KEYSTORE_B64.txt
+
+# owner's original logo files (processed copies live in apps/branding, made by tools/make_branding.py)
+/branding/

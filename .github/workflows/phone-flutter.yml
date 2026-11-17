@@ -37,6 +37,8 @@ jobs:
           if [ "${{ matrix.project }}" = "aj_audio" ]; then python3 "$GITHUB_WORKSPACE/tools/patch_client_manifest.py" $M; fi
           # both apps: in-app update from GitHub Releases
           python3 "$GITHUB_WORKSPACE/tools/patch_update_manifest.py" $M
+      - name: AJ Network Solutions app icon (Android)
+        run: cp -r "$GITHUB_WORKSPACE/apps/branding/android-res/." android/app/src/main/res/
       - run: flutter pub get
       - run: flutter build apk --release
       - name: Sign with our release key (if secrets set) - same key every build, so updates install over the old app
@@ -76,6 +78,15 @@ jobs:
         with: { channel: stable, cache: true }
       - name: Generate platform folder
         run: flutter create --org com.ajnetwork --project-name ${{ matrix.project }} --platforms ios .
+      - name: AJ Network Solutions app icon (iOS)
+        run: |
+          D=ios/Runner/Assets.xcassets/AppIcon.appiconset
+          for f in "$D"/*.png; do
+            w=$(sips -g pixelWidth "$f" | awk '/pixelWidth/ {print $2}')
+            cp "$GITHUB_WORKSPACE/apps/branding/icon_1024.png" "$f"
+            sips -z "$w" "$w" "$f" >/dev/null
+          done
+          ls -la "$D"
       - name: Info.plist (LAN http, local network, name)
         run: |
           P=ios/Runner/Info.plist

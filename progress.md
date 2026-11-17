@@ -39,6 +39,7 @@ Newest entries on top. Decisions are `D-###`.
 - **D-015** (2026-11-11) Phone side splits in two: **AJ Setup** (installer/admin app: rooms, groups, users, logs) and **AJ Audio** (optional client rooms remote). Same Flutter repo, two app targets. Clients mainly use AirPlay/Bluetooth to named groups.
 - **D-016** (2026-11-11) "Take a break": saved groups are MA **dynamic sync groups** (members = preset pulled in on play, removable per session, dissolve on stop – checked in sync_group/player.py). Break = `set_members(remove=[me])` + panel stores {group, until/mode}; at expiry `set_members(add=[me])` if the session still runs; while on a break the panel removes itself again if a new session pulls it in. Works on stock MA; moves server-side into ajsnap later so it survives panel reboots/offline.
 - **D-018** (2026-11-12) Android "any app → group" = AJ Audio Client capture → MA AriaCast Receiver (WebSocket PCM) + `select_source`; Media output stays Cast/Bluetooth-only (BUG-017). Apps renamed **AJ Audio Client** / **AJ Audio Installer**.
+- **D-021** (2026-11-17) Branding: AJ Network Solutions logo (green building + Wi-Fi mark) as app icon of all apps and in the UI; colours navy #0A0F1A / #0B1220 + logo green #6BBC46 / #418331 replace the old blue/violet.
 - **D-020** (2026-11-16) Volume: a panel changes only its own room; the whole-group slider exists only on the panel that started the music. Music started from a phone → panels only have their own volume.
 - **D-019** (2026-11-15) Panel UI v2: Sonos-style player (rail, Playing, Rooms with Scenes + zone cards, Group sheet); owner found v1 looked like a web page. Supersedes D-017's layout.
 - **D-017** (2026-11-11) Panel UI follows the DSPPA home look (clock, landscape, right rail, bottom now-playing bar); one APK, Judian keeps vendor UI + bridge.
@@ -47,6 +48,9 @@ Newest entries on top. Decisions are `D-###`.
 - **D-012** (2026-11-09) Git repo local in `AJ-Audio-System`, owner pushes manually to GitHub.
 
 ## Log
+
+### 2026-11-17
+- Branding (D-021): logo icons for Panel 0.7.0, Client 0.7.0, Installer 0.4.0; brand colours; logo on login/overview screens, panel rail and idle screen. Assets in apps/branding (tools/make_branding.py).
 
 ### 2026-11-16
 - In-app updates from GitHub Releases in Panel 0.6.1, Client 0.6.0, Installer 0.3.1; deploy_ajpanel downloads the newest release (FIX-032).

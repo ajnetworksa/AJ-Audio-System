@@ -106,9 +106,11 @@ public class MainActivity extends Activity implements PanelService.Listener {
         LinearLayout r = new LinearLayout(this); r.setOrientation(LinearLayout.VERTICAL);
         r.setGravity(Gravity.CENTER_HORIZONTAL); r.setPadding(0, dp(26), 0, dp(22));
         r.setBackgroundColor(0x66000000);
+        r.addView(logoView(this), new LinearLayout.LayoutParams(dp(30), dp(42)));
         railClock = Theme.text(this, "", 21, TEXT, MEDIUM); railClock.setGravity(Gravity.CENTER);
-        r.addView(railClock, new LinearLayout.LayoutParams(-1, -2));
-        View gap = new View(this); r.addView(gap, new LinearLayout.LayoutParams(1, dp(30)));
+        LinearLayout.LayoutParams cl = new LinearLayout.LayoutParams(-1, -2); cl.topMargin = dp(12);
+        r.addView(railClock, cl);
+        View gap = new View(this); r.addView(gap, new LinearLayout.LayoutParams(1, dp(22)));
         navItems[NOW] = navItem(NOTE, "Playing", () -> show(NOW));
         navItems[MUSIC] = navItem(LIBRARY, "Music", () -> show(MUSIC));
         navItems[ROOMS] = navItem(Theme.ROOMS, "Rooms", () -> show(ROOMS));
@@ -138,7 +140,7 @@ public class MainActivity extends Activity implements PanelService.Listener {
         for (int i = 0; i < navItems.length; i++) {
             LinearLayout v = (LinearLayout) navItems[i];
             boolean sel = i == page;
-            ((Icon) v.getChildAt(0)).color(sel ? TEXT : MUTED);
+            ((Icon) v.getChildAt(0)).color(sel ? BRAND : MUTED);
             ((TextView) v.getChildAt(1)).setTextColor(sel ? TEXT : MUTED);
             v.setBackground(press(this, box(this, sel ? 0x1AFFFFFF : 0x00000000, 18), 18, false));
         }
@@ -187,6 +189,9 @@ public class MainActivity extends Activity implements PanelService.Listener {
         idleClock = Theme.text(this, "", artDp > 380 ? 112 : 92, TEXT, LIGHT);
         idleDate = Theme.text(this, "", 20, SUB, REGULAR); idleDate.setPadding(dp(6), dp(10), 0, 0);
         npIdleLeft.addView(idleClock); npIdleLeft.addView(idleDate);
+        LinearLayout brand = brandLine(this, 26, 12, SUB);
+        LinearLayout.LayoutParams bl = new LinearLayout.LayoutParams(-2, -2); bl.topMargin = dp(40); bl.leftMargin = dp(6);
+        npIdleLeft.addView(brand, bl);
         left.addView(npIdleLeft, new FrameLayout.LayoutParams(-1, -1));
         row.addView(left, new LinearLayout.LayoutParams(dp(artDp), dp(artDp)));
 
@@ -392,7 +397,7 @@ public class MainActivity extends Activity implements PanelService.Listener {
         npUpdate.removeAllViews();
         if (Updater.availableVersion.isEmpty() && Updater.state.isEmpty()) return;
         LinearLayout b = new LinearLayout(this); b.setGravity(Gravity.CENTER_VERTICAL);
-        b.setBackground(box(this, 0x1F6FB6FF, 16)); b.setPadding(dp(16), dp(10), dp(10), dp(10));
+        b.setBackground(box(this, 0x2A6BBC46, 16)); b.setPadding(dp(16), dp(10), dp(10), dp(10));
         LinearLayout tx = new LinearLayout(this); tx.setOrientation(LinearLayout.VERTICAL); tx.setPadding(0, 0, dp(8), 0);
         boolean busy = Updater.state.equals("downloading") || Updater.state.equals("waiting for Install");
         tx.addView(Theme.text(this, Updater.availableVersion.isEmpty() ? "App update" : "AJ Panel " + Updater.availableVersion + " is available", 16, TEXT, MEDIUM));

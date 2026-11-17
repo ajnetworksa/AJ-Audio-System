@@ -1,14 +1,15 @@
 import 'package:flutter/material.dart';
 
-/// AJ look (mockups "AJ Audio UI Revamp"): deep blue → purple gradient, glass cards, blue→violet accent.
+/// AJ Network Solutions brand (D-021): navy background, logo green for actions, glass cards.
 class C {
   static const text = Color(0xFFF2F4F8);
-  static const sub = Color(0xFFB9C2D0);
-  static const accent = Color(0xFF40A0FF);
-  static const accent2 = Color(0xFF9A86FF);
-  static const card = Color(0xE61A2333);
-  static const card2 = Color(0xFF232D40);
-  static const line = Color(0xFF3A4760);
+  static const sub = Color(0xFFB4BECC);
+  static const accent = Color(0xFF6BBC46); // logo green (light)
+  static const accent2 = Color(0xFF418331); // logo green (dark)
+  static const navy = Color(0xFF0B1220);
+  static const card = Color(0xE6141B29);
+  static const card2 = Color(0xFF1F2738);
+  static const line = Color(0xFF33405A);
   static const ok = Color(0xFF8FE0AE);
   static const warn = Color(0xFFF5B547);
   static const bad = Color(0xFFFF8A80);
@@ -26,7 +27,7 @@ ThemeData ajTheme() {
     appBarTheme: const AppBarTheme(backgroundColor: Colors.transparent, elevation: 0, foregroundColor: C.text),
     inputDecorationTheme: InputDecorationTheme(
       filled: true,
-      fillColor: const Color(0xFF0F1622),
+      fillColor: const Color(0xFF0A0F1A),
       border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: C.line)),
       enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: C.line)),
       focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: C.accent, width: 2)),
@@ -50,7 +51,7 @@ class Backdrop extends StatelessWidget {
           gradient: LinearGradient(
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
-            colors: [Color(0xFF1C2C52), Color(0xFF0F1622), Color(0xFF2A1640)],
+            colors: [Color(0xFF13213D), Color(0xFF0A0F1A), Color(0xFF0E2416)],
             stops: [0, 0.5, 1],
           ),
         ),
@@ -107,7 +108,7 @@ class Glass extends StatelessWidget {
               decoration: BoxDecoration(
                 borderRadius: BorderRadius.circular(16),
                 color: selected ? null : C.card,
-                gradient: selected ? const LinearGradient(colors: [Color(0xFF1E3A66), Color(0xFF2B2156)]) : null,
+                gradient: selected ? const LinearGradient(colors: [Color(0xFF1C3524), Color(0xFF13233A)]) : null,
                 border: Border.all(color: selected ? C.accent : const Color(0x00000000), width: selected ? 2 : 0),
               ),
               child: Padding(padding: padding, child: child),
@@ -201,9 +202,9 @@ class IconBadge extends StatelessWidget {
         height: 44,
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(12),
-          gradient: const LinearGradient(colors: [Color(0xFF1E3A66), Color(0xFF2B2156)]),
+          gradient: const LinearGradient(colors: [Color(0xFF1C3524), Color(0xFF13233A)]),
         ),
-        child: Icon(icon, color: const Color(0xFF9CCBFF), size: 22),
+        child: Icon(icon, color: const Color(0xFFA6DD8A), size: 22),
       );
 }
 
@@ -261,11 +262,35 @@ class RoomChips extends StatelessWidget {
             label: Text(r.$2 + (r.$3 ? '' : ' · offline')),
             selected: selected.contains(r.$1),
             onSelected: (_) => onToggle(r.$1),
-            selectedColor: const Color(0xFF1E3A66),
-            checkmarkColor: const Color(0xFF9CCBFF),
+            selectedColor: const Color(0xFF1C3524),
+            checkmarkColor: const Color(0xFFA6DD8A),
             side: BorderSide(color: selected.contains(r.$1) ? C.accent : C.line),
-            backgroundColor: const Color(0xFF0F1622),
+            backgroundColor: const Color(0xFF0A0F1A),
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
           ),
+      ]);
+}
+
+/// company logo mark
+class Logo extends StatelessWidget {
+  final double height;
+  const Logo({super.key, this.height = 40});
+  @override
+  Widget build(BuildContext context) => Image.asset('assets/logo_mark.png', height: height, filterQuality: FilterQuality.medium);
+}
+
+/// logo + "AJ NETWORK SOLUTIONS"
+class BrandLine extends StatelessWidget {
+  final double height;
+  final Color color;
+  const BrandLine({super.key, this.height = 28, this.color = C.sub});
+  @override
+  Widget build(BuildContext context) => Row(mainAxisSize: MainAxisSize.min, children: [
+        Logo(height: height),
+        SizedBox(width: height * 0.35),
+        Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisSize: MainAxisSize.min, children: [
+          Text('AJ NETWORK', style: TextStyle(color: color, fontWeight: FontWeight.w800, letterSpacing: 1.6, fontSize: height * 0.42, height: 1.05)),
+          Text('SOLUTIONS', style: TextStyle(color: color, fontWeight: FontWeight.w600, letterSpacing: 2.2, fontSize: height * 0.32, height: 1.1)),
+        ]),
       ]);
 }

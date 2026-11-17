@@ -21,7 +21,13 @@ rm -rf "$B"; mkdir -p "$B/classes" "$B/dex" "$B/apk"
 javac -nowarn -source 8 -target 8 -encoding UTF-8 -bootclasspath "$AJAR:$STUBS" -d "$B/classes" $(find "$APP/src" -name '*.java') 2>&1 | grep -v "^warning\|^Note\|bootstrap class path\|JAVA_TOOL" || true
 [ -n "$(find "$B/classes" -name '*.class' | head -1)" ] || { echo "javac failed"; exit 1; }
 java -cp "$D8" com.android.tools.r8.D8 --release --min-api "$MIN" --lib "$AJAR" --output "$B/dex" $(find "$B/classes" -name '*.class') 2>&1 | grep -v JAVA_TOOL || true
-"$AAPT2" link -o "$B/base.apk" -I "$AJAR" --manifest "$M" --min-sdk-version "$MIN" --target-sdk-version "$TGT"
+LINK_EXTRA=()
+if [ -d "$APP/res" ]; then   # launcher icons etc. (no R.java needed – Java code doesn't reference resources)
+  "$AAPT2" compile --dir "$APP/res" -o "$B/res.zip"
+  LINK_EXTRA+=(-R "$B/res.zip" --auto-add-overlay)
+fi
+[ -d "$APP/assets" ] && LINK_EXTRA+=(-A "$APP/assets")
+"$AAPT2" link -o "$B/base.apk" -I "$AJAR" --manifest "$M" --min-sdk-version "$MIN" --target-sdk-version "$TGT" "${LINK_EXTRA[@]}"
 cd "$B/apk"; unzip -q ../base.apk; cp ../dex/classes.dex .
 [ -d "$APP/lib" ] && cp -r "$APP/lib" .
 zip -q -0 ../unsigned.apk resources.arsc; zip -q -r -9 ../unsigned.apk . -x resources.arsc

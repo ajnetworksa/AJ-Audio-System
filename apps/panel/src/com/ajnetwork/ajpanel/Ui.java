@@ -11,7 +11,7 @@ import android.widget.TextView;
 
 /** Tiny helpers so the UI can be built in code (no resources needed). */
 public final class Ui {
-    public static final int BG = 0xF0141820, CARD = 0xFF1E2430, ACCENT = 0xFF40A0FF, TEXT = Color.WHITE, SUB = 0xFFAAB4C3;
+    public static final int BG = 0xF00A0F1A, CARD = 0xFF141B29, ACCENT = 0xFF6BBC46, TEXT = Color.WHITE, SUB = 0xFFAAB4C3;
     private Ui() { }
     public static int dp(Context c, float v) { return Math.round(v * c.getResources().getDisplayMetrics().density); }
     public static GradientDrawable round(Context c, int color, float r) {

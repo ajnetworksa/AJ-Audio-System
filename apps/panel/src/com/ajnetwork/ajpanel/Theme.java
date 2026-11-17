@@ -23,24 +23,28 @@ import android.widget.LinearLayout;
 import android.widget.TextView;
 
 /**
- * AJ Panel v2 look (D-019, ui.md §F): calm, near-black, Sonos-like.
- * No gradients, no emoji glyphs – every icon is drawn as a vector, one white accent, album art carries the colour.
+ * AJ Panel look (D-019, ui.md §F) in the AJ Network Solutions brand (D-021): calm navy-black, Sonos-like,
+ * logo green for primary actions / live state, album art carries the rest of the colour. Icons are drawn vectors.
  */
 public final class Theme {
     private Theme() { }
 
     // ---- colours ----
-    public static final int BG = 0xFF0B0B0D;          // page
-    public static final int SURFACE = 0xFF17171A;     // cards, sheets
-    public static final int SURFACE2 = 0xFF242428;    // buttons, chips
-    public static final int SURFACE3 = 0xFF303035;    // pressed / selected chip
+    public static final int BG = 0xFF0A0F1A;          // page (brand navy, near black)
+    public static final int SURFACE = 0xFF141B29;     // cards, sheets
+    public static final int SURFACE2 = 0xFF1F2738;    // buttons, chips
+    public static final int SURFACE3 = 0xFF2A3346;    // pressed / selected chip
     public static final int LINE = 0x1FFFFFFF;
     public static final int TEXT = 0xFFFFFFFF;
+    // AJ Network Solutions brand (logo green, navy)
+    public static final int BRAND = 0xFF6BBC46;
+    public static final int BRAND_DARK = 0xFF418331;
+    public static final int NAVY = 0xFF0B1220;
     public static final int SUB = 0xFFA1A1A8;
     public static final int MUTED = 0xFF6B6B73;
-    public static final int LIVE = 0xFF6FDC8C;        // "playing" indicator
+    public static final int LIVE = 0xFF7FD45A;        // "playing" indicator (brand green, lighter)
     public static final int AMBER = 0xFFF2B54A;       // break
-    public static final int INK = 0xFF0B0B0D;         // text on white
+    public static final int INK = 0xFF0B1220;         // text on brand green / white
 
     public static int dp(Context c, float v) { return Math.round(v * c.getResources().getDisplayMetrics().density); }
 
@@ -75,7 +79,7 @@ public final class Theme {
         b.setGravity(Gravity.CENTER);
         b.setPadding(dp(c, 22), 0, dp(c, 22), 0);
         b.setMinHeight(dp(c, 48));
-        Drawable bg = kind == 1 ? box(c, TEXT, 24) : kind == 2 ? outline(c, 0x00000000, 0x55FFFFFF, 24) : box(c, SURFACE2, 24);
+        Drawable bg = kind == 1 ? box(c, BRAND, 24) : kind == 2 ? outline(c, 0x00000000, 0x55FFFFFF, 24) : box(c, SURFACE2, 24);
         b.setBackground(press(c, bg, 24, kind == 1));
         b.setClickable(true); b.setFocusable(true);
         return b;
@@ -86,13 +90,38 @@ public final class Theme {
         FrameLayout f = new FrameLayout(c);
         Icon i = new Icon(c, icon, kind == 1 ? INK : TEXT);
         f.addView(i, new FrameLayout.LayoutParams(dp(c, iconDp), dp(c, iconDp), Gravity.CENTER));
-        Drawable bg = kind == 1 ? box(c, TEXT, sizeDp) : kind == 2 ? box(c, SURFACE2, sizeDp) : box(c, 0x00000000, sizeDp);
+        Drawable bg = kind == 1 ? box(c, BRAND, sizeDp) : kind == 2 ? box(c, SURFACE2, sizeDp) : box(c, 0x00000000, sizeDp);
         f.setBackground(press(c, bg, sizeDp, kind == 1));
         f.setClickable(true); f.setFocusable(true); f.setContentDescription(desc);
         f.setLayoutParams(new LinearLayout.LayoutParams(dp(c, sizeDp), dp(c, sizeDp)));
         return f;
     }
     public static Icon iconOf(FrameLayout iconButton) { return (Icon) iconButton.getChildAt(0); }
+
+    /** the company logo mark (assets/logo_mark.png), null if missing */
+    private static android.graphics.Bitmap logo;
+    public static android.graphics.Bitmap logo(Context c) {
+        if (logo == null) {
+            try (java.io.InputStream in = c.getAssets().open("logo_mark.png")) { logo = android.graphics.BitmapFactory.decodeStream(in); }
+            catch (Exception ignored) { }
+        }
+        return logo;
+    }
+    public static android.widget.ImageView logoView(Context c) {
+        android.widget.ImageView v = new android.widget.ImageView(c);
+        v.setImageBitmap(logo(c)); v.setScaleType(android.widget.ImageView.ScaleType.FIT_CENTER);
+        v.setContentDescription("AJ Network Solutions");
+        return v;
+    }
+    /** logo + "AJ NETWORK SOLUTIONS" */
+    public static LinearLayout brandLine(Context c, int markDp, float textSp, int color) {
+        LinearLayout l = new LinearLayout(c); l.setGravity(Gravity.CENTER_VERTICAL);
+        l.addView(logoView(c), new LinearLayout.LayoutParams(dp(c, markDp * 0.7f), dp(c, markDp)));
+        TextView t = text(c, "AJ NETWORK SOLUTIONS", textSp, color, MEDIUM); t.setLetterSpacing(0.12f);
+        t.setPadding(dp(c, 10), 0, 0, 0);
+        l.addView(t);
+        return l;
+    }
 
     // =========================================================== icons
     public static final int PLAY = 1, PAUSE = 2, NEXT = 3, PREV = 4, VOLUME = 5, VOLUME_OFF = 6, ROOMS = 7, NOTE = 8,
@@ -187,7 +216,7 @@ public final class Theme {
         private final Paint track = new Paint(Paint.ANTI_ALIAS_FLAG), fill = new Paint(Paint.ANTI_ALIAS_FLAG), thumb = new Paint(Paint.ANTI_ALIAS_FLAG);
         public Slider(Context c) {
             super(c);
-            track.setColor(0x38FFFFFF); fill.setColor(TEXT); thumb.setColor(TEXT);
+            track.setColor(0x38FFFFFF); fill.setColor(BRAND); thumb.setColor(TEXT);
             thumb.setShadowLayer(dp(c, 3), 0, dp(c, 1), 0x66000000);
             setLayerType(LAYER_TYPE_SOFTWARE, null);
         }
@@ -233,7 +262,7 @@ public final class Theme {
             invalidate();
         }
         @Override protected void onSizeChanged(int w, int h, int ow, int oh) {
-            shade.setShader(new LinearGradient(0, 0, 0, h, new int[]{0xB80B0B0D, 0xE00B0B0D, 0xF70B0B0D}, new float[]{0, .55f, 1}, Shader.TileMode.CLAMP));
+            shade.setShader(new LinearGradient(0, 0, 0, h, new int[]{0xB80A0F1A, 0xE00A0F1A, 0xF70A0F1A}, new float[]{0, .55f, 1}, Shader.TileMode.CLAMP));
         }
         @Override protected void onDraw(Canvas cv) {
             if (blur == null) return;
