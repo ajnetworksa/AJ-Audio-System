@@ -20,6 +20,7 @@ public class ZigbeeBridge {
     public static volatile long rx, tx;   // bytes radio->HA, HA->radio
 
     private final String tty, allow;
+    private String serialProblem = "";
     private final int port;
     private volatile boolean run;
     private ServerSocket server;
@@ -49,12 +50,9 @@ public class ZigbeeBridge {
         try {
             in = new FileInputStream(tty);
             out = new FileOutputStream(tty);
-            // 115200 8N1, RTS/CTS, raw – what the Tuya host used (probe 2)
-            // proven base first (this worked with ZHA); then switch off the stray input flags toybox's "raw" leaves on
-            String r = sh("stty -F " + tty + " 115200 cs8 -parenb -cstopb crtscts raw -echo -echoe -echok -echoctl -echoke -onlcr -icrnl -ixon -ixoff");
-            String r2 = sh("stty -F " + tty + " -ignpar -inpck -iuclc -ixany -iutf8 -imaxbel -istrip -brkint");
-            if (!r2.isEmpty()) r += " / extra: " + r2.trim();
-            Log.i("zigbee bridge: " + tty + " opened, stty " + (r.isEmpty() ? "ok" : r.trim()) + " | " + sh("stty -F " + tty).replace('\n', ' ').trim());
+            serialProblem = configureTty(tty);
+            String bad = serialProblem;
+            if (!bad.isEmpty()) Log.i("zigbee bridge: WARNING serial flags still wrong: " + bad);
         } catch (Exception e) {
             status = "error: cannot open " + tty + " (" + e.getMessage() + ")";
             Log.i("zigbee bridge: " + status);
@@ -65,7 +63,8 @@ public class ZigbeeBridge {
             server = new ServerSocket();
             server.setReuseAddress(true);
             server.bind(new InetSocketAddress(port));
-            status = "waiting for Home Assistant on port " + port + (allow.isEmpty() ? "" : " (only " + allow + ")");
+            status = "waiting for Home Assistant on port " + port + (allow.isEmpty() ? "" : " (only " + allow + ")")
+                    + (serialProblem.isEmpty() ? "" : " – WARNING serial flags wrong: " + serialProblem);
             Log.i("zigbee bridge: " + status);
             while (run) {
                 Socket s = server.accept();
@@ -148,10 +147,38 @@ public class ZigbeeBridge {
     private static String sh(String cmd) {
         try {
             Process p = new ProcessBuilder("sh", "-c", cmd + " 2>&1").start();
-            byte[] all = new byte[4096];
-            int n = p.getInputStream().read(all);
+            java.io.ByteArrayOutputStream b = new java.io.ByteArrayOutputStream();
+            byte[] buf = new byte[4096]; int n;
+            while ((n = p.getInputStream().read(buf)) > 0) b.write(buf, 0, n);
             p.waitFor();
-            return n > 0 ? new String(all, 0, n) : "";
-        } catch (Exception e) { return e.getMessage(); }
+            return b.toString("UTF-8");
+        } catch (Exception e) { return String.valueOf(e.getMessage()); }
+    }
+
+    /*
+     * The radio speaks binary ASH frames, so the serial port must pass every byte unchanged.
+     * Android's toybox `stty raw` is NOT reliable: on the Judian panels it left istrip/iuclc/inlcr switched ON
+     * (0xC1 arrived as 0x61, 0x0A as 0x0D – the radio's reset reply became garbage and ZHA kept retrying),
+     * and running it again flipped flags back and forth – which is why ZHA worked once and then stopped.
+     * So: never use "raw"; set each flag on its own (one bad/unknown flag can't block the others), then read the
+     * settings back and report anything still wrong.
+     */
+    static final String[] OFF = {"parenb", "cstopb", "ignbrk", "brkint", "ignpar", "parmrk", "inpck", "istrip", "inlcr", "igncr",
+            "icrnl", "ixon", "ixoff", "ixany", "iuclc", "imaxbel", "iutf8", "opost", "onlcr", "isig", "icanon", "iexten",
+            "echo", "echoe", "echok", "echonl", "echoctl", "echoke"};
+    static final String[] ON = {"cs8", "crtscts", "clocal", "cread"};
+
+    static String configureTty(String tty) {
+        sh("stty -F " + tty + " 115200");
+        for (String f : ON) sh("stty -F " + tty + " " + f);
+        for (String f : OFF) sh("stty -F " + tty + " -" + f);
+        sh("stty -F " + tty + " min 1 time 0");
+        String all = " " + sh("stty -F " + tty + " -a").replace('\n', ' ').replace(';', ' ') + " ";
+        StringBuilder bad = new StringBuilder();
+        if (!all.contains("115200")) bad.append("speed ");
+        for (String f : ON) if (!all.contains(" " + f + " ")) bad.append(f).append("=off ");
+        for (String f : OFF) if (all.contains(" " + f + " ")) bad.append(f).append("=on ");
+        Log.i("zigbee bridge: serial " + tty + (bad.length() == 0 ? " ok (115200 8N1 RTS/CTS, binary)" : " problems: " + bad));
+        return bad.toString().trim();
     }
 }
