@@ -79,6 +79,7 @@ public class ZigbeeBridge {
                 s.setTcpNoDelay(true);
                 s.setKeepAlive(true);
                 cur = s;
+                sessRx = 0; sessTx = 0; firstRx.setLength(0); firstTx.setLength(0);
                 client = from;
                 status = "connected to " + from;
                 Log.i("zigbee bridge: " + status);
@@ -99,7 +100,7 @@ public class ZigbeeBridge {
                 if (s == null) continue;      // nobody listening: drop (ASH resends)
                 try {
                     s.getOutputStream().write(b, 0, n);
-                    rx += n;
+                    rx += n; sessRx += n; hex(firstRx, b, n);
                 } catch (Exception e) {
                     if (s == cur) dropped(s, e);
                 }
@@ -117,7 +118,7 @@ public class ZigbeeBridge {
             while (run && (n = i.read(b)) >= 0) {
                 out.write(b, 0, n);
                 out.flush();
-                tx += n;
+                tx += n; sessTx += n; hex(firstTx, b, n);
             }
             if (s == cur) dropped(s, null);
         } catch (Exception e) {
@@ -125,7 +126,15 @@ public class ZigbeeBridge {
         }
     }
 
+    // per-connection diagnostics: how much came back from the radio and the first bytes each way (ASH frames)
+    private volatile long sessRx, sessTx;
+    private final StringBuffer firstRx = new StringBuffer(), firstTx = new StringBuffer();
+    private static void hex(StringBuffer sb, byte[] b, int n) {
+        for (int i = 0; i < n && sb.length() < 96; i++) sb.append(String.format("%02x", b[i] & 0xff));
+    }
+
     private void dropped(Socket s, Exception e) {
+        if (cur == s) Log.i("zigbee bridge: session ended – HA->radio " + sessTx + " B (" + firstTx + "…), radio->HA " + sessRx + " B (" + firstRx + "…)");
         closeQuiet(s);
         if (cur == s) { cur = null; client = ""; }
         if (run) {

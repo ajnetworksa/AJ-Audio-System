@@ -52,6 +52,7 @@ Newest entries on top. Decisions are `D-###`.
 ## Log
 
 ### 2026-11-18
+- AJ Panel 0.7.3: UI scales with the screen (designed for 1024×600 dp, bigger screens such as the DSPPA scale up to 1.6×); rail items equal size/spacing and centred; Zigbee bridge logs bytes per HA session (first ASH bytes) to debug ZHA set-up retries.
 - AJ Panel 0.7.2: floating **Share** button over other apps (YouTube etc.) – pick a group (one tap) or rooms without leaving the app; shows "● Sharing" with Change/Stop; drag to move; hidden on AJ Panel's own screen; setting `share_bubble`. Zigbee bridge: cleaner serial flags.
 
 ### 2026-11-17

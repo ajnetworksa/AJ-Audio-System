@@ -72,6 +72,10 @@ public class MainActivity extends Activity implements PanelService.Listener {
         PanelService.start(this);
         DisplayMetrics m = getResources().getDisplayMetrics();
         wDp = m.widthPixels / m.density; hDp = m.heightPixels / m.density;
+        // dynamic size: designed for 1024×600 dp; larger screens (in dp) scale everything up so it fills the same share
+        Theme.scale = Math.max(1f, Math.min(1.6f, Math.min(Math.max(wDp, hDp) / 1024f, Math.min(wDp, hDp) / 600f)));
+        wDp /= Theme.scale; hDp /= Theme.scale;
+        Log.i("screen " + m.widthPixels + "x" + m.heightPixels + " density " + m.density + " -> ui scale " + Theme.scale);
 
         FrameLayout root = new FrameLayout(this);
         root.setBackgroundColor(BG);
@@ -116,25 +120,23 @@ public class MainActivity extends Activity implements PanelService.Listener {
         navItems[NOW] = navItem(NOTE, "Playing", () -> show(NOW));
         navItems[MUSIC] = navItem(LIBRARY, "Music", () -> show(MUSIC));
         navItems[ROOMS] = navItem(Theme.ROOMS, "Rooms", () -> show(ROOMS));
-        r.addView(navItems[NOW]);
-        LinearLayout.LayoutParams g1 = new LinearLayout.LayoutParams(dp(76), dp(76)); g1.topMargin = dp(10);
-        r.addView(navItems[MUSIC], g1);
-        LinearLayout.LayoutParams g2 = new LinearLayout.LayoutParams(dp(76), dp(76)); g2.topMargin = dp(10);
-        r.addView(navItems[ROOMS], g2);
+        // same size + same gap for every item, all centred in the rail
+        for (View v : navItems) { LinearLayout.LayoutParams p = new LinearLayout.LayoutParams(dp(76), dp(76)); p.topMargin = dp(10); r.addView(v, p); }
         r.addView(new View(this), new LinearLayout.LayoutParams(1, 0, 1));
-        r.addView(navItem(GEAR, "Settings", () -> startActivity(new Intent(this, SettingsActivity.class))));
+        r.addView(navItem(GEAR, "Settings", () -> startActivity(new Intent(this, SettingsActivity.class))), new LinearLayout.LayoutParams(dp(76), dp(76)));
         return r;
     }
 
     private View navItem(int icon, String label, Runnable go) {
         LinearLayout v = new LinearLayout(this); v.setOrientation(LinearLayout.VERTICAL); v.setGravity(Gravity.CENTER);
-        v.addView(new Icon(this, icon, MUTED), new LinearLayout.LayoutParams(dp(28), dp(28)));
-        TextView t = Theme.text(this, label, 12, MUTED, MEDIUM); t.setPadding(0, dp(6), 0, 0);
-        v.addView(t);
+        LinearLayout.LayoutParams ip = new LinearLayout.LayoutParams(dp(28), dp(28)); ip.gravity = Gravity.CENTER_HORIZONTAL;
+        v.addView(new Icon(this, icon, MUTED), ip);
+        TextView t = Theme.text(this, label, 12, MUTED, MEDIUM); t.setPadding(0, dp(6), 0, 0); t.setGravity(Gravity.CENTER);
+        LinearLayout.LayoutParams tp = new LinearLayout.LayoutParams(-1, -2); tp.gravity = Gravity.CENTER_HORIZONTAL;
+        v.addView(t, tp);
         clickable(v, box(this, 0x00000000, 18), 18);
         v.setContentDescription(label);
         v.setOnClickListener(x -> go.run());
-        v.setLayoutParams(new LinearLayout.LayoutParams(dp(76), dp(76)));
         return v;
     }
 
@@ -650,7 +652,7 @@ public class MainActivity extends Activity implements PanelService.Listener {
         head.addView(Theme.text(this, "Music", 30, TEXT, MEDIUM), new LinearLayout.LayoutParams(0, -2, 1));
 
         searchBox = new android.widget.EditText(this);
-        searchBox.setSingleLine(true); searchBox.setTextSize(16); searchBox.setTextColor(TEXT); searchBox.setHintTextColor(MUTED);
+        searchBox.setSingleLine(true); searchBox.setTextSize(Theme.scale * 16); searchBox.setTextColor(TEXT); searchBox.setHintTextColor(MUTED);
         searchBox.setHint("Search songs, artists, radio");
         searchBox.setBackground(box(this, SURFACE2, 22)); searchBox.setPadding(dp(18), 0, dp(18), 0);
         searchBox.setImeOptions(android.view.inputmethod.EditorInfo.IME_ACTION_SEARCH);
@@ -695,7 +697,7 @@ public class MainActivity extends Activity implements PanelService.Listener {
         tabsRow.removeAllViews();
         for (String[] t : TABS) {
             boolean sel = query.isEmpty() && t[0].equals(tab);
-            TextView c = pill(this, t[1], sel ? 1 : 0); c.setTextSize(15); c.setMinHeight(dp(40)); c.setPadding(dp(18), 0, dp(18), 0);
+            TextView c = pill(this, t[1], sel ? 1 : 0); c.setTextSize(Theme.scale * 15); c.setMinHeight(dp(40)); c.setPadding(dp(18), 0, dp(18), 0);
             c.setOnClickListener(v -> { tab = t[0]; query = ""; searchBox.setText(""); renderTabs(); loadMusic(); });
             LinearLayout.LayoutParams p = new LinearLayout.LayoutParams(-2, dp(40)); p.rightMargin = dp(8);
             tabsRow.addView(c, p);
@@ -1095,7 +1097,7 @@ public class MainActivity extends Activity implements PanelService.Listener {
     }
 
     private TextView chip(String s, Runnable r) {
-        TextView c = pill(this, s, 0); c.setTextSize(14); c.setMinHeight(dp(38)); c.setPadding(dp(16), 0, dp(16), 0);
+        TextView c = pill(this, s, 0); c.setTextSize(Theme.scale * 14); c.setMinHeight(dp(38)); c.setPadding(dp(16), 0, dp(16), 0);
         c.setOnClickListener(v -> r.run());
         LinearLayout.LayoutParams p = new LinearLayout.LayoutParams(-2, dp(38)); p.rightMargin = dp(8);
         c.setLayoutParams(p);
@@ -1206,7 +1208,7 @@ public class MainActivity extends Activity implements PanelService.Listener {
         sheetLayer.setVisibility(View.VISIBLE);
     }
 
-    private TextView choice(String s, Runnable r) { TextView b = pill(this, s, 0); b.setTextSize(15); b.setOnClickListener(v -> r.run()); return b; }
+    private TextView choice(String s, Runnable r) { TextView b = pill(this, s, 0); b.setTextSize(Theme.scale * 15); b.setOnClickListener(v -> r.run()); return b; }
     private LinearLayout.LayoutParams weight(int left) { return side(0, 56, left, 1); }
     private static long next7() {
         Calendar c = Calendar.getInstance();

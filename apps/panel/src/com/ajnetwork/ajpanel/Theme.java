@@ -46,12 +46,14 @@ public final class Theme {
     public static final int AMBER = 0xFFF2B54A;       // break
     public static final int INK = 0xFF0B1220;         // text on brand green / white
 
-    public static int dp(Context c, float v) { return Math.round(v * c.getResources().getDisplayMetrics().density); }
+    /** UI scale so every panel looks alike: 1.0 on a 1024×600 dp screen, bigger on screens with more dp (e.g. DSPPA). Set by MainActivity. */
+    public static float scale = 1f;
+    public static int dp(Context c, float v) { return Math.round(v * scale * c.getResources().getDisplayMetrics().density); }
 
     // ---- type ----
     public static final int LIGHT = 0, REGULAR = 1, MEDIUM = 2;
     public static TextView text(Context c, CharSequence s, float sp, int color, int weight) {
-        TextView t = new TextView(c); t.setText(s); t.setTextSize(sp); t.setTextColor(color);
+        TextView t = new TextView(c); t.setText(s); t.setTextSize(sp * scale); t.setTextColor(color);
         t.setSingleLine(true); t.setEllipsize(TextUtils.TruncateAt.END);
         t.setIncludeFontPadding(false);
         t.setTypeface(Typeface.create(weight == LIGHT ? "sans-serif-light" : weight == MEDIUM ? "sans-serif-medium" : "sans-serif", Typeface.NORMAL));
