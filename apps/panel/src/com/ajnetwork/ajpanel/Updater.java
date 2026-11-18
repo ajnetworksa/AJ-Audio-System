@@ -24,6 +24,7 @@ import java.util.regex.Pattern;
 public final class Updater {
     private Updater() { }
     public static volatile String availableVersion = "", availableUrl = "";
+    public static volatile long availablePublished;
     private static volatile long lastCheck;
     public static volatile String state = "";        // "", "downloading", "waiting for Install", error text
 
@@ -41,10 +42,10 @@ public final class Updater {
     }
     private static int parse(String s) { try { return Integer.parseInt(s.replaceAll("\\D.*", "")); } catch (Exception e) { return 0; } }
 
-    /** blocking; called from the poll thread – does the real check at most every 6 h (or when forced) */
+    /** blocking; called from the poll thread – does the real check at most every hour with automatic updates, else 6 h (or when forced) */
     public static void maybeCheck(Context c, Cfg cfg, boolean force) {
         long now = System.currentTimeMillis();
-        if (!force && now - lastCheck < 6 * 3600_000L) return;
+        if (!force && now - lastCheck < (cfg.autoUpdate() ? 3600_000L : 6 * 3600_000L)) return;
         lastCheck = now;
         try {
             HttpURLConnection h = (HttpURLConnection) new URL("https://api.github.com/repos/" + cfg.repo() + "/releases/latest").openConnection();
@@ -54,6 +55,11 @@ public final class Updater {
             if (h.getResponseCode() != 200) { Log.i("update check: GitHub said " + h.getResponseCode()); return; }
             JSONObject rel = new JSONObject(read(h.getInputStream()));
             JSONArray assets = rel.optJSONArray("assets");
+            try {
+                java.text.SimpleDateFormat f = new java.text.SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'", java.util.Locale.US);
+                f.setTimeZone(java.util.TimeZone.getTimeZone("UTC"));
+                availablePublished = f.parse(rel.optString("published_at")).getTime();
+            } catch (Exception e) { availablePublished = 0; }
             Pattern p = Pattern.compile("^AJ_Panel_v([0-9.]+)\\.apk$");
             String ver = "", url = "";
             for (int i = 0; assets != null && i < assets.length(); i++) {
@@ -125,4 +131,43 @@ public final class Updater {
         while ((n = in.read(buf)) > 0) b.write(buf, 0, n);
         in.close(); return b.toString("UTF-8");
     }
+
+    // ---------------- automatic updates (scheduled) ----------------
+    private static String autoTried = "";
+    private static long autoTriedAt;
+
+    /** is "now" inside the update window ("HH-HH", may wrap midnight) on an allowed day ("1234567", 1 = Monday)? */
+    static boolean inWindow(Cfg cfg, java.util.Calendar now) {
+        int dow = now.get(java.util.Calendar.DAY_OF_WEEK);           // Sunday = 1
+        int day = dow == java.util.Calendar.SUNDAY ? 7 : dow - 1;    // Monday = 1 … Sunday = 7
+        if (!cfg.updateDays().contains(String.valueOf(day))) return false;
+        String w = cfg.updateWindow();
+        if (w.equals("any")) return true;
+        try {
+            String[] p = w.split("-");
+            int from = Integer.parseInt(p[0].trim()), to = Integer.parseInt(p[1].trim()), h = now.get(java.util.Calendar.HOUR_OF_DAY);
+            return from <= to ? h >= from && h < to : h >= from || h < to;
+        } catch (Exception e) { return false; }
+    }
+
+    /**
+     * Called every poll (background thread): installs a newer release by itself when automatic updates are on,
+     * the panel is allowed to install silently (device owner), it's inside the schedule and nothing plays here.
+     * A version that failed is retried after 6 h at the earliest.
+     */
+    public static void autoInstall(Context c, Cfg cfg, NowPlaying n) {
+        if (!cfg.autoUpdate() || availableVersion.isEmpty() || availableUrl.isEmpty()) return;
+        if (!AdminReceiver.owner(c)) return;                        // would ask on the screen – the banner does that
+        if (n != null && "playing".equals(n.state)) return;         // never interrupt music
+        if (ShareService.running) return;
+        if (!inWindow(cfg, java.util.Calendar.getInstance())) return;
+        long now = System.currentTimeMillis();
+        if (availablePublished > 0 && now - availablePublished < cfg.updateDelayH() * 3600_000L) return;   // still in the test period
+        if (availableVersion.equals(autoTried) && now - autoTriedAt < 6 * 3600_000L) return;
+        autoTried = availableVersion; autoTriedAt = now;
+        Log.i("auto update: installing v" + availableVersion + " (window " + cfg.updateWindow() + ", days " + cfg.updateDays() + ")");
+        String err = download(c, availableUrl);
+        if (err != null) Log.i("auto update failed: " + err);
+    }
+
 }

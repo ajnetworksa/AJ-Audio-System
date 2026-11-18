@@ -6,6 +6,7 @@ import 'package:http/http.dart' as http;
 import 'package:path_provider/path_provider.dart';
 import 'api.dart';
 import 'tools.dart';
+import 'auto_update.dart';
 import 'main.dart';
 import 'ui.dart';
 
@@ -58,6 +59,13 @@ class _BulkUpdatePageState extends State<BulkUpdatePage> {
       if (mounted) toast(context, '$e');
     }
     if (mounted) setState(() => loading = false);
+  }
+
+  String _autoLine() {
+    final withInfo = panels.where((f) => f.info?['auto_update'] != null).toList();
+    if (withInfo.isEmpty) return 'Panels install fixes by themselves at night – set the schedule';
+    final onN = withInfo.where((f) => f.info?['auto_update'] == true).length;
+    return onN == 0 ? 'Off on all panels' : 'On for $onN of ${panels.length} panels · ${withInfo.first.info?['update_window']}';
   }
 
   /// older than the newest release?
@@ -143,6 +151,21 @@ class _BulkUpdatePageState extends State<BulkUpdatePage> {
         onPressed: canRun ? run : null,
       ),
       children: [
+        Glass(
+          onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => AutoUpdatePage(s: widget.s, panels: panels))).then((_) => load()),
+          child: Row(children: [
+            const IconBadge(Icons.schedule),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                const Text('Automatic updates', style: TextStyle(fontSize: 16.5, fontWeight: FontWeight.w600)),
+                Text(_autoLine(), style: const TextStyle(color: C.sub, fontSize: 13)),
+              ]),
+            ),
+            const Icon(Icons.chevron_right, color: C.sub),
+          ]),
+        ),
+        const Label('Update now'),
         const Label('What to install'),
         Glass(
           selected: !useFile,

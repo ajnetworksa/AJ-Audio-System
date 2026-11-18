@@ -145,7 +145,10 @@ public class PanelService extends Service implements SnapProcess.Listener {
             volume.update(n);
             checkOrigin(n);
             keepGroup(n);
-            if (n.serverOk && System.currentTimeMillis() - created > 60_000) Updater.maybeCheck(this, cfg, false);
+            if (n.serverOk && System.currentTimeMillis() - created > 60_000) {
+                Updater.maybeCheck(this, cfg, false);
+                Updater.autoInstall(this, cfg, n);
+            }
             if (n.serverOk && System.currentTimeMillis() - lastSite > 3000) {
                 lastSite = System.currentTimeMillis();
                 try { site = Site.fetch(ma); } catch (Exception e) { Log.e("players/all", e); }

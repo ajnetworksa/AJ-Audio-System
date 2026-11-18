@@ -43,6 +43,12 @@ public class Cfg {
     public int shareBubbleY()    { return p.getInt("share_bubble_y", -1); }
     /** admin token (from the Installer) used ONLY to reload a blocked AriaCast Receiver – see AriaHeal */
     public String repairToken() { return p.getString("repair_token", ""); }
+    /** automatic updates from GitHub: on/off, time window "HH-HH" (panel's local time), days "1234567" (1 = Monday) */
+    public boolean autoUpdate()  { return p.getBoolean("auto_update", true); }
+    public String updateWindow() { return p.getString("update_window", "03-05"); }
+    public String updateDays()   { return p.getString("update_days", "1234567"); }
+    /** wait this many hours after a release is published before installing it automatically (time to test it first) */
+    public int updateDelayH()    { return p.getInt("update_delay_h", 0); }
     public String playerIdOverride() { return p.getString("ma_player_id", ""); }
 
     public String maBase() { return "http://" + host() + ":" + maPort(); }
