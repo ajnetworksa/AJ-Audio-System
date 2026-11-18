@@ -4,6 +4,7 @@
 #   collect_logs.bat -phone                            also the Android phone connected by USB (USB debugging on)
 # Output: tools\logs32\<ip>\  (git-ignored). Nothing on the panels is changed. No passwords/tokens are collected.
 param([string]$panels = "192.168.8.165,192.168.8.194,192.168.8.46", [switch]$phone)
+[Console]::OutputEncoding = [Text.Encoding]::UTF8   # adb output is UTF-8 (else dashes come out garbled)
 $ADB = Join-Path $env:LOCALAPPDATA "Android\Sdk\platform-tools\adb.exe"
 if (-not (Test-Path $ADB)) { $ADB = "adb" }
 $root = Join-Path $PSScriptRoot "logs32"
@@ -19,7 +20,7 @@ foreach ($ip in $panels.Split(",")) {
   Write-Host "=== $ip ==="
   & $ADB connect $dev | Out-Null
   if ((& $ADB -s $dev get-state 2>$null) -ne "device") { "adb not reachable" | Out-File (Join-Path $out "ERROR.txt") -Encoding utf8; Write-Host "  not reachable over adb" -ForegroundColor Yellow; continue }
-  try { Invoke-RestMethod "http://$($ip):8766/api/info" -TimeoutSec 5 | ConvertTo-Json -Depth 5 | Out-File (Join-Path $out "info.json") -Encoding utf8 } catch { "api/info failed: $_" | Out-File (Join-Path $out "info.json") -Encoding utf8 }
+  try { [Text.Encoding]::UTF8.GetString((New-Object Net.WebClient).DownloadData("http://$($ip):8766/api/info")) | ConvertFrom-Json | ConvertTo-Json -Depth 5 | Out-File (Join-Path $out "info.json") -Encoding utf8 } catch { "api/info failed: $_" | Out-File (Join-Path $out "info.json") -Encoding utf8 }
   & $ADB -s $dev logcat -d -v time -s AJPanel 2>&1 | Out-File (Join-Path $out "ajpanel.txt") -Encoding utf8
   & $ADB -s $dev logcat -d -v time 2>&1 | Out-File (Join-Path $out "logcat_all.txt") -Encoding utf8
   $sys = @()

@@ -18,6 +18,7 @@ public class ZigbeeBridge {
     public static volatile String status = "off";
     public static volatile String client = "";
     public static volatile long rx, tx;   // bytes radio->HA, HA->radio
+    static volatile String nativeDir = "";  // where Android unpacked libajtty.so
 
     private final String tty, allow;
     private String serialProblem = "";
@@ -169,6 +170,14 @@ public class ZigbeeBridge {
     static final String[] ON = {"cs8", "crtscts", "clocal", "cread"};
 
     static String configureTty(String tty) {
+        // 1st choice (0.8.7): our own helper sets termios with the kernel ioctl directly – toybox stty on the X8
+        // could not clear icrnl/ixon/ixoff/… (0x0D from the radio became 0x0A → broken frames, ZHA gave up after 15 s)
+        String helper = nativeDir + "/libajtty.so";
+        if (!nativeDir.isEmpty() && new java.io.File(helper).exists()) {
+            String r = sh(helper + " " + tty + " 115200 rtscts").trim();
+            Log.i("zigbee bridge: serial " + tty + " via ajtty: " + r.replace('\n', ' '));
+            if (r.contains("\nok ") || r.startsWith("ok ")) return "";
+        }
         sh("stty -F " + tty + " 115200");
         sh("stty -F " + tty + " min 1 time 0");
         // Android 10's toybox stty applies some flags INVERTED ("-iuclc" switched iuclc ON on the X8). So set each flag,

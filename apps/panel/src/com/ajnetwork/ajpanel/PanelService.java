@@ -442,7 +442,7 @@ public class PanelService extends Service implements SnapProcess.Listener {
         String have = zigbee == null ? "" : zigbee.sig();
         if (want.equals(have)) return;
         if (zigbee != null) { zigbee.stop(); zigbee = null; Log.i("zigbee bridge stopped"); }
-        if (!want.isEmpty()) { zigbee = new ZigbeeBridge(cfg.zigbeeTty(), cfg.zigbeePort(), cfg.zigbeeAllow()); zigbee.start(); }
+        if (!want.isEmpty()) { ZigbeeBridge.nativeDir = getApplicationInfo().nativeLibraryDir; zigbee = new ZigbeeBridge(cfg.zigbeeTty(), cfg.zigbeePort(), cfg.zigbeeAllow()); zigbee.start(); }
     }
 
     @Override public void onDestroy() {

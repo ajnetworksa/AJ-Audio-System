@@ -121,7 +121,7 @@ public class PanelHttp {
             OutputStream o = s.getOutputStream();
             if (method.equals("OPTIONS")) { reply(o, 204, "text/plain", new byte[0]); return; }
             switch (path) {
-                case "/api/info": reply(o, 200, "application/json", info().toString().getBytes(StandardCharsets.UTF_8)); return;
+                case "/api/info": reply(o, 200, "application/json; charset=utf-8", info().toString().getBytes(StandardCharsets.UTF_8)); return;
                 case "/chime.wav": reply(o, 200, "audio/wav", chime()); return;
                 case "/api/locate":
                     // harmless, so no login needed: flash the screen + beep so the installer finds this panel on the wall
@@ -134,7 +134,7 @@ public class PanelHttp {
                     String r;
                     try { Ma m = new Ma(cfg.maBase(), cfg.token()); r = AriaHeal.repair(cfg, m, AriaHeal.instance(m)); }
                     catch (Exception e) { r = String.valueOf(e.getMessage()); }
-                    reply(o, 200, "application/json", new JSONObject().put("result", r.isEmpty() ? "repaired" : r).toString().getBytes(StandardCharsets.UTF_8));
+                    reply(o, 200, "application/json; charset=utf-8", new JSONObject().put("result", r.isEmpty() ? "repaired" : r).toString().getBytes(StandardCharsets.UTF_8));
                     return;
                 }
             }
@@ -143,7 +143,7 @@ public class PanelHttp {
                 applySettings(args);
                 ok(o); return;
             }
-            if (!admin(auth)) { reply(o, 401, "application/json", "{\"error\":\"Music Assistant admin token needed\"}".getBytes(StandardCharsets.UTF_8)); return; }
+            if (!admin(auth)) { reply(o, 401, "application/json; charset=utf-8", "{\"error\":\"Music Assistant admin token needed\"}".getBytes(StandardCharsets.UTF_8)); return; }
             switch (path) {
                 case "/api/log":
                     String crash = Log.lastCrash();
@@ -237,7 +237,7 @@ public class PanelHttp {
         try { return svc.getPackageManager().getPackageInfo(svc.getPackageName(), 0).versionName; } catch (Exception e) { return "?"; }
     }
 
-    private static void ok(OutputStream o) throws Exception { reply(o, 200, "application/json", "{\"ok\":true}".getBytes()); }
+    private static void ok(OutputStream o) throws Exception { reply(o, 200, "application/json; charset=utf-8", "{\"ok\":true}".getBytes()); }
 
     private static void reply(OutputStream o, int code, String type, byte[] body) throws Exception {
         String h = "HTTP/1.1 " + code + (code == 200 ? " OK" : code == 204 ? " No Content" : " Error") + "\r\n"
