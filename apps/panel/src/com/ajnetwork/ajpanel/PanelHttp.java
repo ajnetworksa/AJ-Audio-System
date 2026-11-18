@@ -170,6 +170,10 @@ public class PanelHttp {
                     if (err == null) ok(o); else reply(o, 500, "text/plain", err.getBytes(StandardCharsets.UTF_8));
                     return;
                 }
+                case "/api/adb_pair":
+                    // Judian panels can't use device owner: ask for "Allow debugging" once (tap on the panel)
+                    LocalAdb.pair(svc);
+                    ok(o); return;
                 case "/api/update": {
                     String url = args.get("url");
                     if (url == null || !url.startsWith("http")) { reply(o, 400, "text/plain", "url missing".getBytes()); return; }
@@ -219,7 +223,8 @@ public class PanelHttp {
                 .put("volume", n == null ? -1 : n.volume).put("sdk", Build.VERSION.SDK_INT)
                 .put("crashed", !Log.lastCrash().isEmpty())
                 .put("update_available", Updater.availableVersion)
-                .put("silent_update", AdminReceiver.owner(svc))
+                .put("silent_update", Updater.silent(svc))
+                .put("silent_via", AdminReceiver.owner(svc) ? "device owner" : LocalAdb.ok(svc) ? "local adb" : "").put("adb_pair", LocalAdb.state)
                 .put("repair_ready", !cfg.repairToken().isEmpty())
                 .put("resample", cfg.resample()).put("sync_drops_5min", svc.snap == null ? 0 : svc.snap.syncFailures(5 * 60_000L))
                 .put("auto_update", cfg.autoUpdate()).put("update_window", cfg.updateWindow()).put("update_days", cfg.updateDays()).put("update_delay_h", cfg.updateDelayH())

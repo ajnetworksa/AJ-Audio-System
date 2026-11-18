@@ -100,6 +100,23 @@ public final class Updater {
 
     /** write an APK stream into an install session and ask Android to install it; returns null or the error */
     public static String install(Context c, InputStream in, long len, String what) {
+        // no device owner (Judian: accounts on the device) but local adb allowed → silent install over adb
+        if (!AdminReceiver.owner(c) && LocalAdb.ok(c)) {
+            try {
+                java.io.ByteArrayOutputStream b = new java.io.ByteArrayOutputStream();
+                byte[] buf = new byte[65536]; long total = 0;
+                while (len < 0 || total < len) {
+                    int n = in.read(buf, 0, len < 0 ? buf.length : (int) Math.min(buf.length, len - total));
+                    if (n < 0) break;
+                    b.write(buf, 0, n); total += n;
+                }
+                if (total < 100_000) return "file too small to be an app (" + total + " bytes)";
+                String err = LocalAdb.install(c, b.toByteArray());
+                if (err == null) { state = "installing"; return null; }
+                Log.i("update: " + err + " – falling back to Android's installer");
+                in = new java.io.ByteArrayInputStream(b.toByteArray()); len = total;
+            } catch (Exception e) { return "update failed: " + e.getMessage(); }
+        }
         try {
             PackageInstaller pi = c.getPackageManager().getPackageInstaller();
             PackageInstaller.SessionParams p = new PackageInstaller.SessionParams(PackageInstaller.SessionParams.MODE_FULL_INSTALL);
@@ -157,7 +174,7 @@ public final class Updater {
      */
     public static void autoInstall(Context c, Cfg cfg, NowPlaying n) {
         if (!cfg.autoUpdate() || availableVersion.isEmpty() || availableUrl.isEmpty()) return;
-        if (!AdminReceiver.owner(c)) return;                        // would ask on the screen – the banner does that
+        if (!silent(c)) return;                                     // would ask on the screen – the banner does that
         if (n != null && "playing".equals(n.state)) return;         // never interrupt music
         if (ShareService.running) return;
         if (!inWindow(cfg, java.util.Calendar.getInstance())) return;
@@ -169,5 +186,9 @@ public final class Updater {
         String err = download(c, availableUrl);
         if (err != null) Log.i("auto update failed: " + err);
     }
+
+
+    /** can this panel install updates without a tap? (device owner, or its own adb allowed) */
+    public static boolean silent(Context c) { return AdminReceiver.owner(c) || LocalAdb.ok(c); }
 
 }

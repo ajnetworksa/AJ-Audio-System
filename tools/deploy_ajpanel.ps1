@@ -102,7 +102,14 @@ foreach ($entry in $panels.Split(",")) {
   & $ADB -s $dev shell appops set $PKG PROJECT_MEDIA allow | Tee-Object -Append $log
   & $ADB -s $dev shell cmd notification allow_listener $PKG/$PKG.MediaListener 2>$null | Tee-Object -Append $log
   # device owner = later AJ Panel updates install without a tap on the panel (fails harmlessly if the panel has accounts)
-  & $ADB -s $dev shell dpm set-device-owner $PKG/.AdminReceiver 2>&1 | Tee-Object -Append $log
+  $own = (& $ADB -s $dev shell "dpm set-device-owner $PKG/.AdminReceiver 2>&1" | Out-String)
+  if ($own -match "Success|already set") { Write-Host "silent updates: on (device owner)" }
+  else {
+    # Judian panels have system accounts -> no device owner; AJ Panel then installs its updates over the panel's own adb
+    Write-Host "silent updates: tap ALLOW on the panel screen now (tick 'Always allow') - one time only" -ForegroundColor Yellow
+    & $ADB -s $dev shell am broadcast -f 32 -n "$PKG/.BootReceiver" -a "$PKG.ADB_PAIR" | Out-Null
+  }
+  "device owner: $($own.Trim().Split([char]10)[0])" | Out-File -Append $log -Encoding utf8
 
   # old player off (AJ Panel has its own) - otherwise the panel plays twice / orphan process (BUG-015)
   & $ADB -s $dev shell am start-foreground-service -n de.badaix.snapcast/.SnapclientService -a ACTION_STOP 2>$null | Out-Null

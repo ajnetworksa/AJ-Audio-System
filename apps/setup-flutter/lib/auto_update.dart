@@ -73,8 +73,7 @@ class _AutoUpdatePageState extends State<AutoUpdatePage> {
         if (on && f.info?['silent_update'] != true) {
           // automatic updates need silent installs – switch them on over the network
           try {
-            final o = await Adb.sh(f.ip, 'dpm set-device-owner com.ajnetwork.ajpanel/.AdminReceiver 2>&1');
-            msg = o.contains('Success') || o.contains('already') ? 'saved · silent updates switched on' : 'saved – but silent updates not possible: ${o.trim().split('\n').first}';
+            msg = 'saved · ${await enableSilent(f.ip, widget.s.api.token)}';
           } catch (e) {
             msg = 'saved – silent updates still off (open Panel tools for this panel)';
           }

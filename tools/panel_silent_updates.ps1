@@ -20,7 +20,11 @@ foreach ($ip in $panels.Split(",")) {
   } else {
     $r = (& $ADB -s $dev shell dpm set-device-owner $PKG/.AdminReceiver 2>&1 | Out-String).Trim()
     Write-Host "  $r"
-    if ($r -match "accounts") { Write-Host "  -> this panel has an account signed in (Settings > Accounts). Remove it, then run again." -ForegroundColor Yellow }
+    if ($r -match "accounts") {
+      Write-Host "  -> panel has system accounts (Judian): using the panel's own adb instead - tap ALLOW on the panel (tick 'Always allow')" -ForegroundColor Yellow
+      & $ADB -s $dev shell am broadcast -f 32 -n $PKG/.BootReceiver -a $PKG.ADB_PAIR | Out-Null
+      Start-Sleep 20
+    }
     elseif ($r -match "already") { Write-Host "  -> already set" }
     elseif ($r -match "Unknown admin|not found") { Write-Host "  -> update AJ Panel to 0.7.9 or newer first" -ForegroundColor Yellow }
   }

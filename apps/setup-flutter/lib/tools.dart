@@ -22,6 +22,19 @@ class Adb {
 }
 
 const _pkg = 'com.ajnetwork.ajpanel';
+
+/// silent updates: device owner if Android allows it, otherwise (Judian: system accounts) the panel's own adb –
+/// that needs one tap "Allow" on the panel. Returns a line for the user.
+Future<String> enableSilent(String ip, String token) async {
+  final o = await Adb.sh(ip, 'dpm set-device-owner $_pkg/.AdminReceiver 2>&1');
+  if (o.contains('Success') || o.contains('already')) return 'silent updates: on';
+  try {
+    await PanelApi.post(ip, token, '/api/adb_pair');
+    return 'silent updates: tap ALLOW on the panel now (tick "Always allow") – one time only';
+  } catch (_) {
+    return 'silent updates not possible yet: ${o.trim().split('\n').first} (update AJ Panel to 0.8.6+)';
+  }
+}
 const _gateway = 'com.judian.gateway.c6';
 
 /// single-quote for the panel's shell
@@ -165,6 +178,9 @@ class _PanelToolsPageState extends State<PanelToolsPage> {
         hasZigbee = at(4) == '1';
         zigbee = (int.tryParse(at(5)) ?? 0) > 0 ? 'Home Assistant (bridge)' : 'Tuya / Smart Life';
       });
+      // Judian panels: silent through the panel's own adb (no device owner) – AJ Panel reports it
+      final i = await PanelApi.info(ip);
+      if (i != null && i['silent_update'] == true && mounted) setState(() => owner = true);
     } catch (e) {
       if (!quiet) say('✗ ${_adbError(e)}');
     }
@@ -216,8 +232,7 @@ class _PanelToolsPageState extends State<PanelToolsPage> {
         'pm grant $_pkg android.permission.RECORD_AUDIO; appops set $_pkg PROJECT_MEDIA allow; '
         'cmd notification allow_listener $_pkg/$_pkg.MediaListener; '
         'am force-stop de.badaix.snapcast 2>/dev/null; true');
-    final o = await sh('dpm set-device-owner $_pkg/.AdminReceiver 2>&1');
-    say(o.contains('Success') || o.contains('already') ? 'silent updates: on' : 'silent updates: not possible (${o.trim().split('\n').first})');
+    say(await enableSilent(ip, api.token));
     say('connecting to the music server ${api.host} …');
     final mac = (await sh('cat /sys/class/net/wlan0/address 2>/dev/null || cat /sys/class/net/eth0/address 2>/dev/null')).trim().toLowerCase();
     final n = name.text.trim().isEmpty ? (model.isEmpty ? ip : model) : name.text.trim();
@@ -236,9 +251,7 @@ class _PanelToolsPageState extends State<PanelToolsPage> {
   // ---------- other tools ----------
   Future<void> silent(bool on) => run(on ? 'Silent updates on' : 'Silent updates off', () async {
         if (on) {
-          final o = await sh('dpm set-device-owner $_pkg/.AdminReceiver 2>&1');
-          say(o.trim());
-          if (o.contains('accounts')) say('→ remove the account in the panel\'s Settings → Accounts, then try again');
+          say(await enableSilent(ip, api.token));
         } else {
           await sh('am broadcast -n $_pkg/.BootReceiver -a $_pkg.RELEASE_OWNER');
         }

@@ -121,8 +121,12 @@ class _BulkUpdatePageState extends State<BulkUpdatePage> {
         final r = await Adb.install(f.ip, path!);
         if (!r.contains('Success')) throw r.trim().isEmpty ? 'no answer' : r.trim();
         // and make later updates (also the panel's own GitHub updates) silent too
-        try { await Adb.sh(f.ip, 'dpm set-device-owner com.ajnetwork.ajpanel/.AdminReceiver 2>&1'); } catch (_) {}
-        result[f.ip] = 'installed ✓ (restarts by itself)';
+        var extra = '';
+        if (f.info?['silent_update'] != true) {
+          await Future.delayed(const Duration(seconds: 8));   // new app version starting
+          try { extra = ' · ${await enableSilent(f.ip, api.token)}'; } catch (_) {}
+        }
+        result[f.ip] = 'installed ✓ (restarts by itself)$extra';
       } catch (adbErr) {
         // fallback: hand the APK to AJ Panel's own installer (panel shows "Install" unless silent updates are on)
         try {
