@@ -96,6 +96,7 @@ public class PanelService extends Service implements SnapProcess.Listener {
         cpuLock.acquire();
         snap = new SnapProcess(this, cfg, this);
         overlay = new Overlay(this, cfg);
+        shareBubble = new ShareBubble(this, cfg);
         volume = new VolumeSync(this, ma, cfg);
         breaks = new Breaks(this, ma, cfg);
         http = new PanelHttp(this, cfg);
@@ -161,6 +162,7 @@ public class PanelService extends Service implements SnapProcess.Listener {
     private void publish(NowPlaying n, Bitmap a, boolean changed) {
         for (Listener l : listeners) l.onUpdate(n, a);
         if (cfg.overlay() && (Build.VERSION.SDK_INT < 23 || Settings.canDrawOverlays(this))) overlay.update(n, a, changed);
+        shareBubble.update();
         if (!changed) return;
         if (n.active()) {
             MediaMetadata.Builder md = new MediaMetadata.Builder()
@@ -378,6 +380,7 @@ public class PanelService extends Service implements SnapProcess.Listener {
     }
 
     ZigbeeBridge zigbee;
+    ShareBubble shareBubble;
 
     /** TEST: Zigbee radio -> TCP for Home Assistant ZHA (off unless zigbee_bridge is set) */
     private void applyZigbee() {
@@ -394,6 +397,7 @@ public class PanelService extends Service implements SnapProcess.Listener {
         if (poller != null) poller.interrupt();
         snap.stop();
         overlay.remove();
+        shareBubble.remove();
         bridge.stop();
         http.stop();
         session.release();

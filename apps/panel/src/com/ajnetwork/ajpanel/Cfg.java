@@ -38,6 +38,9 @@ public class Cfg {
     public String zigbeeTty()   { return p.getString("zigbee_tty", "/dev/ttyS3"); }
     /** only this address may connect (default: the music server = Home Assistant); "any" = everyone on the network, "ha"/empty = default */
     public String zigbeeAllow() { String a = p.getString("zigbee_allow", ""); return a.equals("any") ? "" : a.isEmpty() || a.equals("ha") ? host() : a; }
+    /** floating Share button over other apps (YouTube …) */
+    public boolean shareBubble() { return p.getBoolean("share_bubble", true); }
+    public int shareBubbleY()    { return p.getInt("share_bubble_y", -1); }
     public String playerIdOverride() { return p.getString("ma_player_id", ""); }
 
     public String maBase() { return "http://" + host() + ":" + maPort(); }

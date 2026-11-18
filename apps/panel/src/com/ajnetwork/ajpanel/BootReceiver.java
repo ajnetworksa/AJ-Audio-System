@@ -42,7 +42,7 @@ public class BootReceiver extends BroadcastReceiver {
             if (hid != null && hid.matches("ajpanel_[0-9a-f]{12}") && !c.getSharedPreferences("ajpanel", Context.MODE_PRIVATE).contains("host_id"))
                 e.putString("host_id", hid);
             for (String k : new String[]{"latency", "ma_port", "snap_port", "zigbee_port"}) if (i.hasExtra(k)) e.putInt(k, i.getIntExtra(k, 0));
-            for (String k : new String[]{"overlay", "player", "resample", "vendor_bridge", "system_volume", "zigbee_bridge"}) if (i.hasExtra(k)) e.putBoolean(k, i.getBooleanExtra(k, true));
+            for (String k : new String[]{"overlay", "player", "resample", "vendor_bridge", "system_volume", "zigbee_bridge", "share_bubble"}) if (i.hasExtra(k)) e.putBoolean(k, i.getBooleanExtra(k, true));
             e.commit();
             Log.i("config updated by broadcast");
             PanelService s = PanelService.instance;

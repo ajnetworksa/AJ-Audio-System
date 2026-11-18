@@ -50,7 +50,10 @@ public class ZigbeeBridge {
             in = new FileInputStream(tty);
             out = new FileOutputStream(tty);
             // 115200 8N1, RTS/CTS, raw – what the Tuya host used (probe 2)
+            // proven base first (this worked with ZHA); then switch off the stray input flags toybox's "raw" leaves on
             String r = sh("stty -F " + tty + " 115200 cs8 -parenb -cstopb crtscts raw -echo -echoe -echok -echoctl -echoke -onlcr -icrnl -ixon -ixoff");
+            String r2 = sh("stty -F " + tty + " -ignpar -inpck -iuclc -ixany -iutf8 -imaxbel -istrip -brkint");
+            if (!r2.isEmpty()) r += " / extra: " + r2.trim();
             Log.i("zigbee bridge: " + tty + " opened, stty " + (r.isEmpty() ? "ok" : r.trim()) + " | " + sh("stty -F " + tty).replace('\n', ' ').trim());
         } catch (Exception e) {
             status = "error: cannot open " + tty + " (" + e.getMessage() + ")";

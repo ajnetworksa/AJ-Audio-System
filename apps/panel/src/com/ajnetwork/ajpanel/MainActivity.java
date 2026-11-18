@@ -93,8 +93,10 @@ public class MainActivity extends Activity implements PanelService.Listener {
 
     @Override protected void onNewIntent(Intent i) { super.onNewIntent(i); shareSig = ""; }
 
-    @Override protected void onResume() { super.onResume(); PanelService.addListener(this); h.post(tick); }
-    @Override protected void onPause() { PanelService.removeListener(this); h.removeCallbacks(tick); super.onPause(); }
+    /** AJ Panel's own screen is in front (the floating Share button hides then) */
+    static volatile boolean visible;
+    @Override protected void onResume() { super.onResume(); visible = true; PanelService.addListener(this); h.post(tick); PanelService s = svc(); if (s != null && s.shareBubble != null) s.shareBubble.remove(); }
+    @Override protected void onPause() { visible = false; PanelService.removeListener(this); h.removeCallbacks(tick); super.onPause(); }
     @Override public void onBackPressed() {
         if (sheetLayer.getVisibility() == View.VISIBLE) { closeSheet(); return; }
         if (page != NOW) { show(NOW); return; }

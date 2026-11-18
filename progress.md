@@ -51,6 +51,9 @@ Newest entries on top. Decisions are `D-###`.
 
 ## Log
 
+### 2026-11-18
+- AJ Panel 0.7.2: floating **Share** button over other apps (YouTube etc.) – pick a group (one tap) or rooms without leaving the app; shows "● Sharing" with Change/Stop; drag to move; hidden on AJ Panel's own screen; setting `share_bubble`. Zigbee bridge: cleaner serial flags.
+
 ### 2026-11-17
 - AJ Zigbee Survey v0.1.0 (D-022): USB-serial (CP210x/CH34x/CDC/FTDI), EZSP (ASH, legacy + extended frames) and ZNP clients with auto-detect + coordinator info, beacon/energy scans, floor plans (image/PDF) with heat map and router suggestions, Wi-Fi scan, ZHA + Zigbee2MQTT network health and test-device readings, PDF + JSON export. Protocol tests against simulated EZSP v7/v13 + ZNP sticks pass; CI builds the APK.
 - Branding (D-021): logo icons for Panel 0.7.0, Client 0.7.0, Installer 0.4.0; brand colours; logo on login/overview screens, panel rail and idle screen. Assets in apps/branding (tools/make_branding.py).
