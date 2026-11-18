@@ -1,7 +1,7 @@
 name: aj_audio
 description: AJ Audio - group and control AJ wall panels (Music Assistant) from Android and iOS.
 publish_to: none
-version: 0.7.3+14
+version: 0.7.4+15
 
 environment:
   sdk: ">=3.3.0 <4.0.0"

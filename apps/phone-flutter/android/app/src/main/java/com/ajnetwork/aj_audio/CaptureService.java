@@ -49,6 +49,7 @@ public class CaptureService extends Service {
     private AriaWs audio, meta;
     private Thread worker;
     private PowerManager.WakeLock wake;
+    private android.net.wifi.WifiManager.WifiLock wifi;
     private volatile boolean mutedByUs, muteCheck;
     private long mutedAt;
 
@@ -109,6 +110,12 @@ public class CaptureService extends Service {
         lastError = "";
         wake = ((PowerManager) getSystemService(POWER_SERVICE)).newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "aj:capture");
         wake.acquire(6 * 3600_000L);
+        // keep Wi-Fi out of power-save while streaming (power-save = 100–300 ms gaps = stutter in every room)
+        try {
+            android.net.wifi.WifiManager wm = (android.net.wifi.WifiManager) getApplicationContext().getSystemService(WIFI_SERVICE);
+            wifi = wm.createWifiLock(Build.VERSION.SDK_INT >= 29 ? 4 /* FULL_LOW_LATENCY */ : android.net.wifi.WifiManager.WIFI_MODE_FULL_HIGH_PERF, "aj:capture");
+            wifi.acquire();
+        } catch (Exception e) { wifi = null; }
         worker = new Thread(this::stream, "aj-capture");
         worker.start();
         return START_NOT_STICKY;
@@ -189,6 +196,7 @@ public class CaptureService extends Service {
                 }
                 if (audio.isClosed()) throw new IllegalStateException("Music server closed the connection");
                 if (dropBudget > 0) { dropBudget--; continue; }   // catch up: server queue too long
+                while (padBudget > 0) { padBudget--; audio.sendBinary(SILENCE); }   // rebuild the cushion
                 audio.sendBinary(frame);
                 // mute the phone's own speaker once real sound flows; if this phone then only captures
                 // silence (its capture follows the volume), unmute again and remember that for next time
@@ -297,6 +305,7 @@ public class CaptureService extends Service {
         if (meta != null) meta.close();
         if (stats != null) { stats.close(); stats = null; }
         MediaWatch.stopServer();
+        if (wifi != null) { try { if (wifi.isHeld()) wifi.release(); } catch (Exception ignored) { } wifi = null; }
         audio = null; meta = null;
         if (rec != null) { try { rec.stop(); } catch (Exception ignored) { } rec.release(); rec = null; }
         if (projection != null) { try { projection.stop(); } catch (Exception ignored) { } projection = null; }
@@ -305,17 +314,30 @@ public class CaptureService extends Service {
     }
 
     @Override public void onDestroy() { stopAll(); super.onDestroy(); }
-    // ---- low latency: the AriaCast receiver keeps a queue of up to 100 frames (2 s). Any hiccup (Wi-Fi, CPU)
-    // fills it and that delay would stay for the whole session. Its /stats socket reports the queue once a
-    // second; when more than 3 frames (60 ms) wait, we skip that many frames so the delay shrinks back.
+    // ---- smooth + low latency: the AriaCast receiver plays frames as they arrive (no buffer of its own) and lets a
+    // backlog grow up to 2 s. Its /stats socket reports the queue once a second; we keep it near TARGET frames:
+    // enough to ride out Wi-Fi hiccups, small enough that the delay stays low.
     private AriaWs stats;
-    private volatile int dropBudget;
+    private volatile int dropBudget, padBudget;
+    // jitter cushion on the server: ~160 ms of sound waiting there absorbs Wi-Fi hiccups (no stutter);
+    // nearly empty -> add a little silence once to rebuild it; grown past 400 ms -> skip back to 160 ms
+    private static final int TARGET = 8, LOW = 3, HIGH = 20;
+    private static final byte[] SILENCE = new byte[3840];
+    private long lastPad; private int uselessPads; private boolean padOff;
+    private void onStats(int q) {
+        long now = System.currentTimeMillis();
+        if (q > HIGH) { dropBudget = q - TARGET; return; }
+        if (q >= LOW || padOff) return;
+        if (now - lastPad < 2500) { if (++uselessPads >= 3) padOff = true; return; }   // cushion didn't hold: server reads ahead, stop padding
+        if (now - lastPad < 15_000) return;                                             // at most one small pad per 15 s
+        padBudget = TARGET - q; lastPad = now;
+    }
     static int queuedFrames(String json) {
         java.util.regex.Matcher m = java.util.regex.Pattern.compile("\"queuedFrames\"\\s*:\\s*(\\d+)").matcher(json);
         return m.find() ? Integer.parseInt(m.group(1)) : 0;
     }
     private void openStats(String host) {
-        try { stats = new AriaWs(host, PORT, "/stats", s -> { int q = queuedFrames(s); if (q > 3) dropBudget = q - 2; }); }
+        try { stats = new AriaWs(host, PORT, "/stats", s -> onStats(queuedFrames(s))); }
         catch (Exception e) { stats = null; }   // older plugin without /stats: just no trimming
     }
 
