@@ -247,6 +247,11 @@ class _RoomDetailState extends State<RoomDetail> {
               onPressed: !panel ? null : () => run('Playing a chime – listen in ${r.name}', () => api.announce(r.id, PanelApi.chimeUrl(r.ip!))),
             ),
             OutlineBtn(
+              label: 'Locate',
+              icon: Icons.my_location,
+              onPressed: info == null ? null : () => run('${r.name} flashes and beeps for 30 s', () => PanelApi.locate(r.ip!)),
+            ),
+            OutlineBtn(
               label: 'Restart player',
               icon: Icons.restart_alt,
               onPressed: info == null ? null : () => run('Player restarting', () => PanelApi.post(r.ip!, api.token, '/api/restart')),

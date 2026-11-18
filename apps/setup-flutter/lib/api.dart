@@ -257,6 +257,15 @@ class PanelApi {
 
   static String chimeUrl(String ip) => 'http://$ip:$port/chime.wav';
 
+  /// "Locate": the panel flashes its screen with its name + beeps (AJ Panel 0.8.3+; no login needed). [off] ends it.
+  static Future<void> locate(String ip, {bool off = false, bool sound = true}) async {
+    final r = await http
+        .post(_u(ip, '/api/locate').replace(queryParameters: {if (off) 'off': '1', if (!sound) 'sound': '0'}))
+        .timeout(const Duration(seconds: 6));
+    if (r.statusCode == 404 || r.statusCode == 401) throw ApiException(404, 'This panel needs AJ Panel 0.8.3 or newer for Locate');
+    if (r.statusCode != 200) throw ApiException(r.statusCode, 'Panel said ${r.statusCode}');
+  }
+
   /// send an APK file to the panel; Android then asks "Install?" on the panel screen
   static Future<void> upload(String ip, String token, Uint8List apk) async {
     final r = await http

@@ -174,6 +174,16 @@ class _ScanPageState extends State<ScanPage> {
                 const SizedBox(width: 22, height: 22, child: CircularProgressIndicator(strokeWidth: 2.5))
               else
                 IconButton(
+                  tooltip: 'Locate (screen flashes + beeps)',
+                  icon: const Icon(Icons.my_location, color: C.accent),
+                  onPressed: () => PanelApi.locate(f.ip).then((_) {
+                    if (mounted) toast(context, '${f.name} flashes and beeps for 30 s – tap its screen to stop');
+                  }).catchError((e) {
+                    if (mounted) toast(context, '$e');
+                  }),
+                ),
+              if (!busy.contains(f.ip))
+                IconButton(
                   tooltip: 'Panel log',
                   icon: const Icon(Icons.article_outlined, color: C.sub),
                   onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => LogView(title: '${f.name} log', loader: () => PanelApi.log(f.ip, api.token)))),

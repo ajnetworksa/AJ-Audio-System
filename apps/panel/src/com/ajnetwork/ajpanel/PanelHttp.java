@@ -123,6 +123,11 @@ public class PanelHttp {
             switch (path) {
                 case "/api/info": reply(o, 200, "application/json", info().toString().getBytes(StandardCharsets.UTF_8)); return;
                 case "/chime.wav": reply(o, 200, "audio/wav", chime()); return;
+                case "/api/locate":
+                    // harmless, so no login needed: flash the screen + beep so the installer finds this panel on the wall
+                    if ("1".equals(args.get("off"))) Locate.stop();
+                    else Locate.start(svc, cfg.name(), s.getLocalAddress().getHostAddress(), !"0".equals(args.get("sound")));
+                    ok(o); return;
                 case "/art.jpg": { byte[] a = ShareArt.jpeg; if (a == null) reply(o, 404, "text/plain", new byte[0]); else reply(o, 200, "image/jpeg", a); return; }
                 case "/api/repair_aria": {
                     // phones ask a panel to unblock AriaCast (only reloads when nobody really shares – see AriaHeal)

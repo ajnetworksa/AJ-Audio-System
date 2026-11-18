@@ -323,6 +323,15 @@ class _PanelToolsPageState extends State<PanelToolsPage> {
         ].join(' · '),
         onRefresh: refresh,
         children: [
+          tile(Icons.my_location, 'Locate this panel', 'Screen flashes green with its name and it beeps (30 s, tap the panel to stop)', () async {
+            try {
+              await PanelApi.locate(ip);
+              say('locating – look for the flashing panel');
+            } catch (_) {
+              // older/no AJ Panel: at least wake the screen over adb
+              try { await sh('input keyevent KEYCODE_WAKEUP'); say('screen switched on (Locate needs AJ Panel 0.8.3+)'); } catch (e) { say('✗ ${_adbError(e)}'); }
+            }
+          }),
           const Label('Install & set up'),
           TextField(controller: name, decoration: const InputDecoration(labelText: 'Room name (e.g. Living room)')),
           const SizedBox(height: 10),
