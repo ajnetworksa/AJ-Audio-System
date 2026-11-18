@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
 import 'api.dart';
@@ -219,6 +220,16 @@ class _LogViewState extends State<LogView> {
           actions: [
             IconButton(onPressed: load, icon: const Icon(Icons.refresh), tooltip: 'Reload'),
             IconButton(
+              onPressed: text.isEmpty
+                  ? null
+                  : () {
+                      Clipboard.setData(ClipboardData(text: text));
+                      toast(context, 'Log copied');
+                    },
+              icon: const Icon(Icons.copy_all_outlined),
+              tooltip: 'Copy all',
+            ),
+            IconButton(
               onPressed: text.isEmpty ? null : () => shareText('${widget.title.replaceAll(' ', '_')}.txt', text),
               icon: const Icon(Icons.share_outlined),
               tooltip: 'Share',
@@ -236,7 +247,8 @@ class _LogViewState extends State<LogView> {
               margin: const EdgeInsets.fromLTRB(12, 4, 12, 12),
               padding: const EdgeInsets.all(10),
               decoration: BoxDecoration(color: const Color(0xFF0B1018), borderRadius: BorderRadius.circular(14), border: Border.all(color: const Color(0xFF263248))),
-              child: ListView.builder(
+              // long-press to select and copy lines (SelectionArea), or "Copy all" in the bar
+              child: SelectionArea(child: ListView.builder(
                 reverse: true,
                 itemCount: shown.length,
                 itemBuilder: (_, i) {
@@ -246,7 +258,7 @@ class _LogViewState extends State<LogView> {
                   return Text(l,
                       style: TextStyle(fontFamily: 'monospace', fontSize: 11.5, height: 1.35, color: bad ? C.bad : warn ? C.warn : C.sub));
                 },
-              ),
+              )),
             ),
           ),
         ]),

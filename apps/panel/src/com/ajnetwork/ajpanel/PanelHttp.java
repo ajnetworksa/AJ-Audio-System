@@ -220,6 +220,7 @@ public class PanelHttp {
                 .put("crashed", !Log.lastCrash().isEmpty())
                 .put("update_available", Updater.availableVersion)
                 .put("silent_update", AdminReceiver.owner(svc))
+                .put("repair_ready", !cfg.repairToken().isEmpty())
                 .put("resample", cfg.resample()).put("sync_drops_5min", svc.snap == null ? 0 : svc.snap.syncFailures(5 * 60_000L))
                 .put("auto_update", cfg.autoUpdate()).put("update_window", cfg.updateWindow()).put("update_days", cfg.updateDays()).put("update_delay_h", cfg.updateDelayH())
                 .put("auto_update_state", Updater.state)

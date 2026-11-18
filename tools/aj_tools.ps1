@@ -1,0 +1,61 @@
+# aj_tools.ps1 - one menu for all AJ Audio PC tools (troubleshooting from a PC). Start: aj_tools.bat
+# Panels are listed in tools\panels.txt (one "address=Room name" per line) - edit it for each site.
+$ErrorActionPreference = "Continue"
+$here = $PSScriptRoot
+$ADB = Join-Path $env:LOCALAPPDATA "Android\Sdk\platform-tools\adb.exe"
+if (-not (Test-Path $ADB)) { $ADB = "adb" }
+$list = Join-Path $here "panels.txt"
+if (-not (Test-Path $list)) {
+  "# one panel per line: address=Room name`r`n192.168.8.165=X8`r`n192.168.8.194=P8_EN`r`n192.168.8.46=dsppa938t" | Out-File $list -Encoding ascii
+}
+function Panels { Get-Content $list | Where-Object { $_ -match '^\s*\d+\.\d+\.\d+\.\d+' } | ForEach-Object { $p = $_.Trim().Split("=", 2); [pscustomobject]@{ ip = $p[0].Trim(); name = $(if ($p.Count -gt 1) { $p[1].Trim() } else { $p[0].Trim() }) } } }
+function Pick([string]$what) {
+  $ps = @(Panels)
+  Write-Host "`n$what"
+  for ($i = 0; $i -lt $ps.Count; $i++) { Write-Host ("  {0}) {1}  {2}" -f ($i + 1), $ps[$i].name, $ps[$i].ip) }
+  Write-Host "  A) all panels"
+  $c = Read-Host "Choose"
+  if ($c -match '^[aA]$') { return $ps }
+  $n = 0; if ([int]::TryParse($c, [ref]$n) -and $n -ge 1 -and $n -le $ps.Count) { return @($ps[$n - 1]) }
+  return @()
+}
+function Run([string]$bat, [string]$params) { $ps1 = Join-Path $here ($bat -replace '\.bat$', '.ps1'); Push-Location $here; try { Invoke-Expression "& '$ps1' $params" } finally { Pop-Location } }
+
+while ($true) {
+  Write-Host "`n================ AJ Audio tools ================" -ForegroundColor Green
+  Write-Host " 1) Status of all panels (version, server, sync, updates, zigbee)"
+  Write-Host " 2) Install / update AJ Panel (deploy)"
+  Write-Host " 3) Silent + automatic updates on"
+  Write-Host " 4) Collect logs (all panels; add phone on USB)"
+  Write-Host " 5) Locate a panel (screen flashes + beeps)"
+  Write-Host " 6) Restart AJ Panel on a panel"
+  Write-Host " 7) Reboot a panel"
+  Write-Host " 8) Zigbee: backup / switch to Home Assistant / back to Tuya / status"
+  Write-Host " 9) Edit panel list (panels.txt)"
+  Write-Host " 0) Exit"
+  switch (Read-Host "Choose") {
+    "1" {
+      foreach ($p in Panels) {
+        try {
+          $i = Invoke-RestMethod "http://$($p.ip):8766/api/info" -TimeoutSec 4
+          "{0,-12} {1,-15} v{2,-7} server {3,-13} sync {4,-5} silent-upd {5,-5} auto-upd {6} {7}  zigbee: {8}" -f $p.name, $p.ip, $i.version, $i.server, $i.sync_connected, $i.silent_update, $i.auto_update, $i.update_window, $i.zigbee_bridge | Write-Host
+        } catch { "{0,-12} {1,-15} not reachable (off, other network, or no AJ Panel)" -f $p.name, $p.ip | Write-Host -ForegroundColor Yellow }
+      }
+    }
+    "2" { $ps = Pick "Install AJ Panel on:"; if ($ps.Count) { Run "deploy_ajpanel.bat" ("-panels `"" + (($ps | ForEach-Object { "$($_.ip)=$($_.name)" }) -join ",") + "`"") } }
+    "3" { $ps = Pick "Silent updates on:"; if ($ps.Count) { Run "panel_silent_updates.bat" ("-panels `"" + (($ps | ForEach-Object { $_.ip }) -join ",") + "`"") } }
+    "4" { $ph = Read-Host "Phone connected by USB too? (y/n)"; $ps = @(Panels); Run "collect_logs.bat" ("-panels `"" + (($ps | ForEach-Object { $_.ip }) -join ",") + "`"" + $(if ($ph -eq "y") { " -phone" } else { "" })) }
+    "5" { foreach ($p in (Pick "Locate:")) { try { Invoke-RestMethod -Method Post "http://$($p.ip):8766/api/locate" -TimeoutSec 5 | Out-Null; Write-Host "  $($p.name) flashes + beeps for 30 s" } catch { Write-Host "  $($p.name): $_" -ForegroundColor Yellow } } }
+    "6" { foreach ($p in (Pick "Restart AJ Panel on:")) { & $ADB connect "$($p.ip):5555" | Out-Null; & $ADB -s "$($p.ip):5555" shell "am force-stop com.ajnetwork.ajpanel; sleep 1; am broadcast -f 32 -n com.ajnetwork.ajpanel/.BootReceiver -a com.ajnetwork.ajpanel.START" | Out-Null; Write-Host "  $($p.name) restarted" } }
+    "7" { foreach ($p in (Pick "Reboot:")) { & $ADB connect "$($p.ip):5555" | Out-Null; & $ADB -s "$($p.ip):5555" reboot; Write-Host "  $($p.name) rebooting (1-2 min)" } }
+    "8" {
+      $ps = Pick "Zigbee panel:"; if (-not $ps.Count) { continue }
+      Write-Host "  b) backup only   o) switch to Home Assistant   f) back to Tuya   s) status"
+      $m = Read-Host "Choose"
+      $flag = @{ b = ""; o = "-on"; f = "-off"; s = "-status" }[$m]
+      if ($null -ne $flag) { foreach ($p in $ps) { Run "zigbee_test.bat" "-panel $($p.ip) $flag" } }
+    }
+    "9" { notepad $list }
+    "0" { return }
+  }
+}

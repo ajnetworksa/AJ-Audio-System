@@ -54,3 +54,6 @@ ANDROID_KEYSTORE_B64.txt
 # Zigbee test: radio backups hold the network key – never commit
 zigbee_backup/
 .zigpy-venv/
+
+# site-specific panel list for tools/aj_tools.bat
+tools/panels.txt

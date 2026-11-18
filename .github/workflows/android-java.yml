@@ -1,5 +1,5 @@
 name: android-java
-# Builds the Java apps (AJ Panel, AJ Audio v0.1, ControlX Bridge, AJ Zigbee Survey) with tools/build_java_apk.sh (no Gradle).
+# Builds the Java apps (AJ Panel, AJ Zigbee Survey) with tools/build_java_apk.sh (no Gradle).
 # Signing: if the repo secrets ANDROID_KEYSTORE_B64 + ANDROID_KEYSTORE_PASS exist -> release key, else debug key.
 on:
   pull_request:         # check PRs; pushes to main are built by release.yml
@@ -37,8 +37,6 @@ jobs:
         run: |
           export SDK="$ANDROID_HOME" AAPT2="$ANDROID_HOME/build-tools/35.0.0/aapt2" UAS="$RUNNER_TEMP/uas.jar"
           bash tools/build_java_apk.sh apps/panel
-          bash tools/build_java_apk.sh apps/phone-android
-          bash tools/build_java_apk.sh legacy/controlx-bridge
           bash tools/build_java_apk.sh apps/zigbee-survey
       - uses: actions/upload-artifact@v4
         with:
@@ -46,6 +44,4 @@ jobs:
           # only the finished, signed apps (build/ also holds base.apk / unsigned.apk intermediates)
           path: |
             apps/panel/build/*_v*.apk
-            apps/phone-android/build/*_v*.apk
-            legacy/controlx-bridge/build/*_v*.apk
             apps/zigbee-survey/build/*_v*.apk

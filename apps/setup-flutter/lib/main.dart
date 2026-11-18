@@ -176,8 +176,25 @@ class _OverviewState extends State<Overview> {
       try { u = (await widget.s.api.users()).length; } catch (_) {}
       try { aria = await widget.s.api.providerInstance('ariacast_receiver') != null; } catch (_) {}
       setState(() { ms = t; players = p.map(Room.new).toList(); users = u; error = ''; loading = false; });
+      provisionRepair();
     } catch (e) {
       setState(() { error = '$e'; ms = null; loading = false; });
+    }
+  }
+
+  /// self-healing needs every panel to hold a repair token (AriaCast reload). Hand it over in the background
+  /// to panels that don't have one yet – once per app start.
+  bool _provisioned = false;
+  Future<void> provisionRepair() async {
+    if (_provisioned) return;
+    _provisioned = true;
+    String? token;
+    for (final r in players.where((r) => r.isPanel && r.online && r.ip != null)) {
+      final i = await PanelApi.info(r.ip!);
+      if (i == null || i['repair_ready'] != false) continue;   // older panel app, or already has it
+      token ??= await widget.s.api.repairToken();
+      if (token == null) return;                               // this login isn't admin
+      try { await PanelApi.post(r.ip!, widget.s.api.token, '/api/settings', {'repair_token': token}); } catch (_) {}
     }
   }
 

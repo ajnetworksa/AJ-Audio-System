@@ -18,7 +18,7 @@ Inputs (copied from the owner's SDK `%LOCALAPPDATA%\Android\Sdk`):
 - `aapt2` (Linux) from `apktool_2.11.1.jar` → `prebuilt/linux/aapt2_64`
 - `uber-apk-signer-1.3.0.jar`
 
-One command does all steps below (also used by CI): `bash tools/build_java_apk.sh apps/panel` (or `apps/phone-android`, `legacy/controlx-bridge`); copies `lib/` (native libs) into the APK. Output `build/<Label>_v<version>.apk`; copy finished versions to the app's `releases/`.
+One command does all steps below (also used by CI): `bash tools/build_java_apk.sh apps/panel` (or `apps/zigbee-survey`); copies `lib/` (native libs) into the APK. Output `build/<Label>_v<version>.apk`; copy finished versions to the app's `releases/`.
 
 ```bash
 javac -source 8 -target 8 -encoding UTF-8 -bootclasspath android.jar:core-lambda-stubs.jar -d build/classes $(find src -name '*.java')

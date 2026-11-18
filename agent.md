@@ -15,13 +15,10 @@ AJ-Audio-System/
 ├── troubleshoot.md    how to collect logs, read them, what each message means
 ├── ui.md              screens & behaviour of phone app and panel app
 ├── apps/
-│   ├── phone-android/   AJ Audio (Android) — com.ajnetwork.ajaudio
-│   ├── phone-ios/       AJ Audio (iOS) — needs macOS + Xcode to build
 │   ├── panel/           AJ Panel — runs on every panel (Android 8.1+, armv7 + arm64)
 │   └── zigbee-survey/   AJ Zigbee Survey — phone app: USB Zigbee coordinator survey + PDF report
 ├── server/
 │   └── ajsnap-provider/ our fork of Music Assistant's snapcast provider
-├── legacy/              ControlX Bridge (com.ajnetwork.cxbridge) v1.0–v2.0 sources
 └── tools/               PowerShell/.bat helpers (install, logs, network tests)
 ```
 
@@ -62,7 +59,7 @@ The older test scripts `1_…bat` … `25_…bat` and logs live in `D:\Devlopmen
 ## 4. Key technical facts (learned the hard way)
 
 - **Music Assistant API**: `POST /api` body `{"message_id","command","args"}`, header `Authorization: Bearer <token>`. Login: `auth/login(username,password,provider_id,device_name)`. Grouping: `players/cmd/set_members(target_player, player_ids_to_add, player_ids_to_remove)`, `players/cmd/group_many`, `players/cmd/ungroup`. Volume: `players/cmd/volume_set`, `players/cmd/group_volume`. Play: `player_queues/play_media(queue_id, media, option, …, user)`.
-- **Snapcast wire protocol** (implemented & verified in `legacy/.../SnapServer.java`): 26-byte LE header `type,id,refersTo,sent.sec,sent.usec,recv.sec,recv.usec,size`; types 1 CodecHeader, 2 WireChunk, 3 ServerSettings, 4 Time, 5 Hello, 7 ClientInfo.
+- **Snapcast wire protocol** (was implemented & verified in the removed ControlX Bridge, see git history): 26-byte LE header `type,id,refersTo,sent.sec,sent.usec,recv.sec,recv.usec,size`; types 1 CodecHeader, 2 WireChunk, 3 ServerSettings, 4 Time, 5 Hello, 7 ClientInfo.
 - **Snapcast Android app** `de.badaix.snapcast`: `SnapclientService` is exported → `am start-foreground-service -n de.badaix.snapcast/.SnapclientService -a ACTION_START --es EXTRA_HOST <ip> --ei EXTRA_PORT 1704` (ACTION_STOP to stop). It discovers servers named `Snapcast*` on `_snapcast._tcp`.
 - **YJY player (DM938T)** AIDL `com.yjy.musicplayer.IMusicplayerInterface` via action `com.yjy.musicplayer.ACTION.musicplayerAidl`, 4 zones; zone volume streams on U6/PX30: zone1 MUSIC(3), zone2 NOTIFICATION(5), zone3 ALARM(4), zone4 NOTIFICATION(5).
 - **Control X (Auxdio) protocol**: UDP 40188 (device), broadcast 40189, multicast 234.1.1.1; frame `cmd(2) seq model/devID lang zone room len payload xor`. Full table in Project doc `yjy-controlx-bridge-plan.md`.

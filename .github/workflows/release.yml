@@ -1,6 +1,6 @@
 name: release
 # Builds everything and publishes a GitHub Release (repo -> Releases) with:
-#   AJ_Panel_vX.apk, AJ_Audio_vX.apk (Java), ControlX_Bridge_vX.apk, AJ_Audio.apk (Flutter), AJ_Audio.ipa (unsigned)
+#   AJ_Panel_vX.apk, AJ_Audio.apk (Flutter), AJ_Audio.ipa (unsigned)
 # Version (tag) is automatic on every push to main that changes an app:
 #   normal commit -> patch   v0.3.0 -> v0.3.1
 #   "[major]" in a commit message -> v0.3.1 -> v0.4.0      "[breaking]" -> v1.0.0
@@ -10,7 +10,7 @@ on:
   push:
     tags: ["v*"]            # versioned release, e.g. v0.3.0
     branches: [main]        # every push to main -> rolling "latest" release
-    paths: ["apps/**", "legacy/**", "tools/build_java_apk.sh", ".github/workflows/**"]
+    paths: ["apps/**", "tools/build_java_apk.sh", ".github/workflows/**"]
   workflow_dispatch:
     inputs:
       tag:
@@ -85,12 +85,11 @@ jobs:
             OTHER=$(git log --no-merges --format='%s' $RANGE | grep -viE '^(panel|phone|server|tools|ci|docs|legacy)([ (][^:]*)?:' | sed 's/^/- /')
             [ -n "$OTHER" ] && printf '### Other\n%s\n\n' "$OTHER"
             echo "### Files"
-            echo '- **Panels:** `AJ_Panel_*.apk` → install with `tools\deploy_ajpanel.bat`'
+            echo '- **Panels:** `AJ_Panel_*.apk` → Installer app (Panel tools / Update panels) or `tools\aj_tools.bat` on a PC'
             echo '- **Clients:** `AJ_Audio_Client_v*.apk` (Android, incl. "Play my phone") / `AJ_Audio_Client_v*.ipa` (iPhone, Sideloadly)'
             echo
             echo 'Every release contains all apps; a file name only changes when that app got a new version.'
             echo '- **Installer:** `AJ_Audio_Installer_v*.apk` / `.ipa` – admin app for rooms, groups, users, logs, panel updates'
-            echo '- **Control X:** `ControlX_Bridge_*.apk`'
             echo '- **Zigbee survey:** `AJ_Zigbee_Survey_v*.apk` – phone + USB Zigbee coordinator: coverage survey, coordinator info, PDF report'
             echo
             echo "Built from commit ${{ github.sha }}."

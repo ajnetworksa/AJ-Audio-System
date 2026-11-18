@@ -170,15 +170,30 @@ public class ZigbeeBridge {
 
     static String configureTty(String tty) {
         sh("stty -F " + tty + " 115200");
-        for (String f : ON) sh("stty -F " + tty + " " + f);
-        for (String f : OFF) sh("stty -F " + tty + " -" + f);
         sh("stty -F " + tty + " min 1 time 0");
-        String all = " " + sh("stty -F " + tty + " -a").replace('\n', ' ').replace(';', ' ') + " ";
+        // Android 10's toybox stty applies some flags INVERTED ("-iuclc" switched iuclc ON on the X8). So set each flag,
+        // read it back, and if it is still wrong send the opposite spelling – whatever ends up correct is kept.
+        for (String f : ON) fix(tty, f, true);
+        for (String f : OFF) fix(tty, f, false);
+        String all = flags(tty);
         StringBuilder bad = new StringBuilder();
         if (!all.contains("115200")) bad.append("speed ");
         for (String f : ON) if (!all.contains(" " + f + " ")) bad.append(f).append("=off ");
         for (String f : OFF) if (all.contains(" " + f + " ")) bad.append(f).append("=on ");
-        Log.i("zigbee bridge: serial " + tty + (bad.length() == 0 ? " ok (115200 8N1 RTS/CTS, binary)" : " problems: " + bad));
+        Log.i("zigbee bridge: serial " + tty + (bad.length() == 0 ? " ok (115200 8N1 RTS/CTS, binary)" : " problems: " + bad)
+                + (inverted.length() == 0 ? "" : " – toybox stty inverted: " + inverted.toString().trim())
+                + (sttyErr.isEmpty() ? "" : " – stty said: " + sttyErr));
         return bad.toString().trim();
+    }
+    private static final StringBuilder inverted = new StringBuilder();
+    private static String flags(String tty) { return " " + sh("stty -F " + tty + " -a").replace('\n', ' ').replace(';', ' ') + " "; }
+    private static boolean isOn(String all, String f) { return all.contains(" " + f + " "); }
+    private static String sttyErr = "";
+    private static void fix(String tty, String f, boolean want) {
+        String r = sh("stty -F " + tty + " " + (want ? "" : "-") + f).trim();
+        if (!r.isEmpty() && sttyErr.isEmpty()) sttyErr = f + ": " + r;
+        if (isOn(flags(tty), f) == want) return;
+        sh("stty -F " + tty + " " + (want ? "-" : "") + f);       // inverted spelling
+        if (isOn(flags(tty), f) == want) { if (inverted.indexOf(f) < 0) inverted.append(f).append(' '); }
     }
 }

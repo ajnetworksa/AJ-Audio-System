@@ -22,9 +22,7 @@ panels group and play in sync, phones play from any app, panels show what's play
 | `apps/phone-flutter/` | **AJ Audio Client**, Flutter (Android + iOS): rooms, groups, "Play my phone" (Android) |
 | `apps/setup-flutter/` | **AJ Audio Installer**, Flutter (Android + iOS): rooms, groups, users, logs, panel updates |
 | `apps/zigbee-survey/` | **AJ Zigbee Survey** – phone + USB Zigbee coordinator: coverage survey on floor plans, coordinator info, ZHA/Z2M health, PDF report |
-| `apps/phone-android/` | AJ Audio v0.1 (Java) – reference client, has "play my phone" capture |
 | `server/` | AJ Music Assistant: `ajsnap` provider fork + patches → Docker **and** local HA add-on |
-| `legacy/controlx-bridge/` | ControlX Bridge v2.0 (Control X ↔ YJY player), to be merged into AJ Panel |
 | `tools/` | `build_java_apk.sh`, `deploy_ajpanel.bat/.ps1` |
 | `.github/workflows/` | CI: Flutter APK + unsigned IPA, Java APKs |
 

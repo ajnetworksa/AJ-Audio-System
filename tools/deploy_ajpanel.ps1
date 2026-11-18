@@ -109,8 +109,6 @@ foreach ($entry in $panels.Split(",")) {
   Start-Sleep 1
   & $ADB -s $dev shell am force-stop de.badaix.snapcast | Out-Null
   if ($disableOld) { & $ADB -s $dev shell pm disable-user --user 0 de.badaix.snapcast | Tee-Object -Append $log }
-  # ControlX Bridge: keep Control X working, but stop it from (re)joining the Snapcast app to a server
-  & $ADB -s $dev shell am broadcast -n com.ajnetwork.cxbridge/.BootReceiver -a com.ajnetwork.cxbridge.START --es join "''" 2>$null | Out-Null
 
   # configure + start
   # -f 32 = FLAG_INCLUDE_STOPPED_PACKAGES (app was never opened yet)
