@@ -56,6 +56,7 @@ public final class Capture {
         m.put("mute", prefs(c).getBoolean("mute_phone", true));
         m.put("muteBroken", prefs(c).getBoolean("mute_breaks_capture", false));
         m.put("noPrompt", noPrompt(c));
+        m.put("songInfo", MediaWatch.allowed(c));
         return m;
     }
 }

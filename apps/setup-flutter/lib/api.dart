@@ -109,6 +109,18 @@ class Api {
 
   /// A login token for a wall panel: made for the shared "panels" user (created when missing),
   /// so no password has to be typed on any panel.
+  /// admin token the panels use ONLY to reload a blocked AriaCast Receiver (self-healing, see AJ Panel AriaHeal).
+  /// One per Installer session, so the user list doesn't fill up with tokens.
+  String? _repair;
+  Future<String?> repairToken() async {
+    if (_repair != null) return _repair;
+    try {
+      final t = await cmd('auth/token/create', {'name': 'AJ panels – AriaCast repair'});
+      if (t is String && t.isNotEmpty) _repair = t;
+    } catch (_) {}
+    return _repair;
+  }
+
   Future<String> panelToken(String panelName) async {
     var list = await users();
     Map<String, dynamic>? u;

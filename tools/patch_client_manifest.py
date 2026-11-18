@@ -34,5 +34,13 @@ components = """
 if "CaptureService" not in s:
     i = s.rindex("</application>")
     s = s[:i] + components + "    " + s[i:]
+# song title + cover of the playing app for the panels (optional notification access)
+if "MediaWatch" not in s:
+    i = s.rindex("</application>")
+    s = s[:i] + """        <service android:name=".MediaWatch" android:exported="true" android:label="AJ Audio – song info for panels"
+            android:permission="android.permission.BIND_NOTIFICATION_LISTENER_SERVICE">
+            <intent-filter><action android:name="android.service.notification.NotificationListenerService"/></intent-filter>
+        </service>
+    """ + s[i:]
 open(p, "w", encoding="utf-8").write(s)
 print("patched", p)

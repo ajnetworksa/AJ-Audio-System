@@ -134,7 +134,7 @@ public class CaptureService extends Service {
             // the music server must run the AriaCast Receiver plugin (port 12889)
             String inst = ariaInstance(server, token);
             try {
-                audio = new AriaWs(host, PORT, "/audio", s -> Log.i(TAG, "audio: " + s));
+                audio = connectAudio(server, token, host, inst);
                 meta = new AriaWs(host, PORT, "/metadata", null);
                 openStats(host);
             } catch (java.io.IOException e) {
@@ -150,8 +150,7 @@ public class CaptureService extends Service {
             boolean early = false;
             try { api(server, token, "players/cmd/select_source", new JSONObject().put("player_id", target).put("source", inst)); early = true; }
             catch (Exception e) { Log.i(TAG, "select before play not possible yet: " + e.getMessage()); }
-            meta.sendText(new JSONObject().put("type", "update").put("data", new JSONObject()
-                    .put("title", Build.MODEL + " audio").put("artist", "AJ Audio Client").put("is_playing", true)).toString());
+            sendMeta(true);
             if (!early) {
                 // first stream since the server started: the plugin only offers its source once it plays
                 Exception last = null;
@@ -162,7 +161,8 @@ public class CaptureService extends Service {
                 }
                 if (last != null) throw new IllegalStateException("The music server didn't start the sound: " + last.getMessage());
             }
-            pump.join();
+            // song title + cover of the playing app (if the user allowed notification access), every 3 s
+            while (running && pump.isAlive()) { pump.join(3000); if (running && pump.isAlive()) try { sendMeta(true); } catch (Exception ignored) { } }
             if (pumpError != null) throw pumpError;
         } catch (Exception e) {
             Log.w(TAG, "stream", e);
@@ -296,6 +296,7 @@ public class CaptureService extends Service {
         if (audio != null) audio.close();
         if (meta != null) meta.close();
         if (stats != null) { stats.close(); stats = null; }
+        MediaWatch.stopServer();
         audio = null; meta = null;
         if (rec != null) { try { rec.stop(); } catch (Exception ignored) { } rec.release(); rec = null; }
         if (projection != null) { try { projection.stop(); } catch (Exception ignored) { } projection = null; }
@@ -318,4 +319,92 @@ public class CaptureService extends Service {
         catch (Exception e) { stats = null; }   // older plugin without /stats: just no trimming
     }
 
+
+    // ---- what plays: title + cover for the panels ----
+    private String lastMeta = "";
+    private void sendMeta(boolean playing) throws Exception {
+        MediaWatch.Now n = MediaWatch.playing(this);
+        String title = n == null ? Build.MODEL + " audio" : (n.title.isEmpty() ? n.app : n.title);
+        String artist = n == null ? "AJ Audio Client" : (n.title.isEmpty() ? "from " + Build.MODEL : (n.artist.isEmpty() ? n.app : n.artist));
+        int art = n == null ? 0 : MediaWatch.setArt(n.art);
+        String sig = title + "|" + artist + "|" + art + playing;
+        if (sig.equals(lastMeta)) return;
+        lastMeta = sig;
+        JSONObject d = new JSONObject().put("title", title).put("artist", artist).put("is_playing", playing);
+        if (n != null) d.put("album", n.app);
+        if (art > 0 && audio != null) d.put("artworkUrl", "http://" + audio.localIp() + ":" + MediaWatch.ART_PORT + "/art.jpg?v=" + art);
+        meta.sendText(new JSONObject().put("type", "update").put("data", d).toString());
+    }
+
+    // ---- self-healing: Music Assistant's AriaCast plugin keeps a dead sender connection forever (no heartbeat)
+    // and refuses everyone else (403). If nobody really plays its sound, reload the plugin: with this login if it
+    // is an admin, otherwise ask a panel (panels hold a repair token from the Installer). Also wait while the
+    // plugin restarts (port closed for a few seconds).
+    private AriaWs connectAudio(String server, String token, String host, String inst) throws Exception {
+        Exception last = null;
+        boolean repaired = false;
+        for (int attempt = 0; attempt < 8 && running; attempt++) {
+            try {
+                return new AriaWs(host, PORT, "/audio", s -> Log.i(TAG, "audio: " + s));
+            } catch (java.io.IOException e) {
+                last = e;
+                String m = String.valueOf(e.getMessage());
+                if (m.contains("still connected")) {
+                    if (repaired) { Thread.sleep(1500); continue; }
+                    String who = activeUser(server, token, inst);
+                    if (who != null) throw new IllegalStateException(who + " is already playing phone/panel sound – only one at a time. Stop it there first.");
+                    if (!repair(server, token, inst)) throw new IllegalStateException("The music server's AriaCast Receiver is blocked by an old connection. In Music Assistant: Settings → Plugins → AriaCast Receiver → ⋮ → Reload.");
+                    repaired = true;
+                    Log.i(TAG, "AriaCast receiver repaired – reconnecting");
+                    Thread.sleep(3000);
+                } else if (m.contains("refused") || m.contains("ECONNREFUSED") || m.contains("timed out") || m.contains("failed to connect")) {
+                    Thread.sleep(1500);   // plugin (re)starting
+                } else throw e;
+            }
+        }
+        if (last != null && String.valueOf(last.getMessage()).contains("refused"))
+            throw new IllegalStateException("The music server's AriaCast Receiver isn't running (port 12889). In Music Assistant: Settings → Plugins → AriaCast Receiver – add it or check its error.");
+        throw last == null ? new IllegalStateException("stopped") : last;
+    }
+
+    private static String activeUser(String server, String token, String inst) {
+        try {
+            Object all = api(server, token, "players/all", new JSONObject());
+            if (all instanceof JSONArray) for (int i = 0; i < ((JSONArray) all).length(); i++) {
+                JSONObject p = ((JSONArray) all).optJSONObject(i);
+                if (p != null && inst.equals(p.optString("active_source")) && "playing".equals(p.optString("playback_state")))
+                    return p.optString("display_name", p.optString("name", "Another device"));
+            }
+        } catch (Exception ignored) { }
+        return null;
+    }
+
+    private static boolean repair(String server, String token, String inst) {
+        try { api(server, token, "config/providers/reload", new JSONObject().put("instance_id", inst)); return true; }
+        catch (Exception e) { Log.i(TAG, "own reload not allowed: " + e.getMessage()); }
+        // ask the panels (AJ Panel 0.7.5+: /api/repair_aria)
+        try {
+            Object all = api(server, token, "players/all", new JSONObject());
+            if (!(all instanceof JSONArray)) return false;
+            for (int i = 0; i < ((JSONArray) all).length(); i++) {
+                JSONObject p = ((JSONArray) all).optJSONObject(i);
+                if (p == null || !p.optString("player_id").startsWith("ma_ajpanel_")) continue;
+                JSONObject di = p.optJSONObject("device_info");
+                JSONObject ids = di == null ? null : di.optJSONObject("identifiers");
+                String ip = ids == null ? "" : ids.optString("ip_address", "");
+                if (ip.isEmpty()) continue;
+                try {
+                    HttpURLConnection c = (HttpURLConnection) new URL("http://" + ip + ":8766/api/repair_aria").openConnection();
+                    c.setConnectTimeout(2500); c.setReadTimeout(15000);
+                    InputStream in = c.getInputStream();
+                    ByteArrayOutputStream b = new ByteArrayOutputStream();
+                    byte[] buf = new byte[1024]; int k; while ((k = in.read(buf)) > 0) b.write(buf, 0, k);
+                    String r = new JSONObject(b.toString("UTF-8")).optString("result");
+                    Log.i(TAG, "panel " + ip + " repair: " + r);
+                    if ("repaired".equals(r)) return true;
+                } catch (Exception ignored) { }
+            }
+        } catch (Exception ignored) { }
+        return false;
+    }
 }

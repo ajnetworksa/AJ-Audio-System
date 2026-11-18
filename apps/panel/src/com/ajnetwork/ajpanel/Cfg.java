@@ -41,6 +41,8 @@ public class Cfg {
     /** floating Share button over other apps (YouTube …) */
     public boolean shareBubble() { return p.getBoolean("share_bubble", true); }
     public int shareBubbleY()    { return p.getInt("share_bubble_y", -1); }
+    /** admin token (from the Installer) used ONLY to reload a blocked AriaCast Receiver – see AriaHeal */
+    public String repairToken() { return p.getString("repair_token", ""); }
     public String playerIdOverride() { return p.getString("ma_player_id", ""); }
 
     public String maBase() { return "http://" + host() + ":" + maPort(); }

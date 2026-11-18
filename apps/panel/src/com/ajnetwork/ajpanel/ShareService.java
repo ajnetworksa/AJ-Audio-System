@@ -93,9 +93,9 @@ public class ShareService extends Service {
                     .setAudioPlaybackCaptureConfig(cc).build();
 
             // 1. the music server must have the AriaCast Receiver plugin – check BEFORE grouping anything
-            String inst = ariaInstance(ma);
+            String inst = AriaHeal.instance(ma);
             step("connecting to the music server");
-            audio = new AriaWs(cfg.host(), PORT, "/audio", s -> Log.i("share audio: " + s));
+            audio = AriaHeal.connectAudio(cfg, ma, inst, () -> step("repairing the music server's AriaCast receiver"));
             meta = new AriaWs(cfg.host(), PORT, "/metadata", null);
             openStats(cfg.host());
 
@@ -252,11 +252,13 @@ public class ShareService extends Service {
         String title = l != null && !l.title.isEmpty() ? l.title : (l != null ? l.app : "Panel sound") + " · " + room;
         String artist = l != null && !l.title.isEmpty() ? (l.artist.isEmpty() ? l.app : l.artist) : "from " + room;
         sharingWhat = l == null ? "" : (l.title.isEmpty() ? l.app : l.title);
-        String sig = title + artist + playing;
+        int art = l == null ? 0 : ShareArt.set(l.art);
+        String sig = title + artist + playing + art;
         if (sig.equals(lastMetaSig) && playing) return;
         lastMetaSig = sig;
-        meta.sendText(new JSONObject().put("type", "update").put("data", new JSONObject()
-                .put("title", title).put("artist", artist).put("is_playing", playing)).toString());
+        JSONObject d = new JSONObject().put("title", title).put("artist", artist).put("is_playing", playing);
+        if (art > 0 && audio != null) d.put("artworkUrl", "http://" + audio.localIp() + ":" + PanelHttp.PORT + "/art.jpg?v=" + art);
+        meta.sendText(new JSONObject().put("type", "update").put("data", d).toString());
     }
 
     private void fail(String msg) {

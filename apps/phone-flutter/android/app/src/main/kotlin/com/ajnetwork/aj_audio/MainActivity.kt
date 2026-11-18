@@ -28,6 +28,7 @@ class MainActivity : FlutterActivity() {
                 }
                 "stop" -> { Capture.stop(this); result.success(true) }
                 "status" -> result.success(Capture.status(this))
+                "songInfo" -> { MediaWatch.openSettings(this); result.success(true) }
                 else -> result.notImplemented()
             }
         }

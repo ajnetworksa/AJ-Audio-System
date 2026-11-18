@@ -123,6 +123,15 @@ public class PanelHttp {
             switch (path) {
                 case "/api/info": reply(o, 200, "application/json", info().toString().getBytes(StandardCharsets.UTF_8)); return;
                 case "/chime.wav": reply(o, 200, "audio/wav", chime()); return;
+                case "/art.jpg": { byte[] a = ShareArt.jpeg; if (a == null) reply(o, 404, "text/plain", new byte[0]); else reply(o, 200, "image/jpeg", a); return; }
+                case "/api/repair_aria": {
+                    // phones ask a panel to unblock AriaCast (only reloads when nobody really shares – see AriaHeal)
+                    String r;
+                    try { Ma m = new Ma(cfg.maBase(), cfg.token()); r = AriaHeal.repair(cfg, m, AriaHeal.instance(m)); }
+                    catch (Exception e) { r = String.valueOf(e.getMessage()); }
+                    reply(o, 200, "application/json", new JSONObject().put("result", r.isEmpty() ? "repaired" : r).toString().getBytes(StandardCharsets.UTF_8));
+                    return;
+                }
             }
             if (path.equals("/api/settings") && args.containsKey("host") && !admin(auth) && mayAdopt(auth, args)) {
                 Log.i("setup: adopted by the installer -> server " + args.get("host"));
@@ -174,6 +183,7 @@ public class PanelHttp {
         if (args.containsKey("host") && args.get("host").matches("[A-Za-z0-9._-]{1,80}")) ed.putString("host", args.get("host"));
         if (args.containsKey("ma_port")) ed.putInt("ma_port", Integer.parseInt(args.get("ma_port")));
         if (args.containsKey("token") && !args.get("token").isEmpty()) ed.putString("token", args.get("token"));
+        if (args.containsKey("repair_token") && !args.get("repair_token").isEmpty()) ed.putString("repair_token", args.get("repair_token"));
         if (args.containsKey("latency")) ed.putInt("latency", Integer.parseInt(args.get("latency")));
         if (args.containsKey("overlay")) ed.putBoolean("overlay", Boolean.parseBoolean(args.get("overlay")));
         if (args.containsKey("system_volume")) ed.putBoolean("system_volume", Boolean.parseBoolean(args.get("system_volume")));

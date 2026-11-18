@@ -20,6 +20,7 @@ public class MediaListener extends NotificationListenerService {
 
     public static class Local {
         public String pkg = "", app = "", title = "", artist = "";
+        public android.graphics.Bitmap art;
     }
 
     /** the other app that is playing right now on this panel, or null */
@@ -48,6 +49,7 @@ public class MediaListener extends NotificationListenerService {
                     CharSequence a = md.getText(MediaMetadata.METADATA_KEY_ARTIST);
                     x.title = t == null ? "" : t.toString();
                     x.artist = a == null ? "" : a.toString();
+                    x.art = ShareArt.from(md);
                 }
                 return x;
             }

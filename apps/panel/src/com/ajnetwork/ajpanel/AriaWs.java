@@ -68,6 +68,8 @@ public class AriaWs {
         closed = true;
     }
 
+    /** this device's address as the server sees it (for URLs the server should call back) */
+    public String localIp() { return sock.getLocalAddress().getHostAddress(); }
     public boolean isClosed() { return closed || sock.isClosed(); }
 
     public void sendText(String s) throws IOException { send(0x1, s.getBytes(StandardCharsets.UTF_8)); }

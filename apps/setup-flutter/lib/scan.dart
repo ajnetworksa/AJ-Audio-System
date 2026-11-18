@@ -64,10 +64,12 @@ class _ScanPageState extends State<ScanPage> {
       final n = (name ?? f.name).trim();
       final token = await api.panelToken(n.isEmpty ? f.ip : n);
       final port = Uri.parse(api.base).port;
+      final repair = await api.repairToken();
       await PanelApi.post(f.ip, api.token, '/api/settings', {
         'host': api.host,
         'ma_port': '$port',
         'token': token,
+        if (repair != null) 'repair_token': repair,
         if (n.isNotEmpty) 'name': n,
       });
       ok = true;

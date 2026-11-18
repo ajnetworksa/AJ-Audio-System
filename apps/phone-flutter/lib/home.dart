@@ -7,7 +7,7 @@ import 'updater.dart';
 
 const _accent = Color(0xFF6BBC46); // brand green
 
-/// Home: groups on top (saved + temporary), rooms (single panels/speakers) below.
+/// Three tabs: Playing (player + Play my phone), Groups, Rooms.
 class HomePage extends StatefulWidget {
   final Ma ma;
   final VoidCallback onLogout;
@@ -296,14 +296,37 @@ class _HomePageState extends State<HomePage> {
   }
 
   // ---------- widgets ----------
+  // volume: sends while dragging (4×/s) so you hear it, and keeps showing your value until the server reports it
+  // (otherwise the 2-s refresh shows the old value for a moment and the slider jumps back and forth)
+  final Map<String, _Pending> pending = {};
+  final Map<String, DateTime> lastSent = {};
   Widget volumeSlider(String id, num? level, Future<void> Function(int) set) {
-    final v = dragging[id] ?? (level ?? 0).toDouble();
+    final server = (level ?? 0).toDouble();
+    double v = dragging[id] ?? server;
+    if (dragging[id] == null) {
+      final p = pending[id];
+      if (p != null) {
+        if (DateTime.now().isBefore(p.until) && (server - p.value).abs() > 2) {
+          v = p.value;
+        } else {
+          pending.remove(id);
+        }
+      }
+    }
     return Slider(
       value: v.clamp(0, 100).toDouble(),
       max: 100,
-      onChanged: (x) => setState(() => dragging[id] = x),
+      onChanged: (x) {
+        setState(() => dragging[id] = x);
+        final now = DateTime.now();
+        if (now.difference(lastSent[id] ?? DateTime(2000)).inMilliseconds > 250) {
+          lastSent[id] = now;
+          set(x.round()).catchError((_) {});
+        }
+      },
       onChangeEnd: (x) {
         dragging.remove(id);
+        pending[id] = _Pending(x, DateTime.now().add(const Duration(seconds: 5)));
         run(() => set(x.round()));
       },
     );
@@ -431,54 +454,203 @@ class _HomePageState extends State<HomePage> {
         child: Text(t, style: const TextStyle(fontSize: 14, color: Colors.white60, fontWeight: FontWeight.w600, letterSpacing: 1)),
       );
 
+  // ---------- now playing (home tab) ----------
+  int tab = 0;
+  String? focus; // which group/room the player card shows
+
+  /// groups and rooms that have music right now (members of a group are shown through their group)
+  List<Map<String, dynamic>> get active {
+    bool hasMedia(Map<String, dynamic> p) => p['current_media'] != null && '${p['playback_state']}' != 'idle';
+    final memberOfActive = <String>{};
+    final out = <Map<String, dynamic>>[];
+    for (final g in [...savedGroups, ...tempGroups]) {
+      if (hasMedia(g)) {
+        out.add(g);
+        memberOfActive.addAll(members(g));
+      }
+    }
+    for (final r in rooms) {
+      if (memberOfActive.contains(r['player_id']) || r['synced_to'] != null || tempGroups.contains(r)) continue;
+      if (hasMedia(r)) out.add(r);
+    }
+    out.sort((a, b) => (a['playback_state'] == 'playing' ? 0 : 1).compareTo(b['playback_state'] == 'playing' ? 0 : 1));
+    return out;
+  }
+
+  String? imageUrl(Map<String, dynamic>? m) {
+    final u = '${m?['image_url'] ?? ''}';
+    if (u.isEmpty) return null;
+    if (u.startsWith('http')) return u;
+    return '${widget.ma.base}${u.startsWith('/') ? '' : '/'}$u';
+  }
+
+  Widget nowPlaying() {
+    final list = active;
+    if (list.isEmpty) {
+      return Container(
+        margin: const EdgeInsets.fromLTRB(4, 8, 4, 4),
+        padding: const EdgeInsets.all(22),
+        decoration: BoxDecoration(color: const Color(0xFF141B29), borderRadius: BorderRadius.circular(18)),
+        child: Column(children: [
+          const Icon(Icons.music_note, size: 48, color: Colors.white38),
+          const SizedBox(height: 10),
+          const Text('Nothing playing', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700)),
+          const SizedBox(height: 6),
+          Text(PhoneCapture.supported ? 'Use "Play my phone" below, or pick music on a panel.' : 'AirPlay from your iPhone to a group, or pick music on a panel.',
+              textAlign: TextAlign.center, style: const TextStyle(color: Colors.white60)),
+        ]),
+      );
+    }
+    final p = list.firstWhere((x) => x['player_id'] == focus, orElse: () => list.first);
+    final id = p['player_id'] as String;
+    final m = p['current_media'] as Map<String, dynamic>?;
+    final img = imageUrl(m);
+    final title = '${m?['title'] ?? ''}';
+    final artist = '${m?['artist'] ?? ''}';
+    final isGroup = isGroupPlayer(p) || members(p).length > 1;
+    final where = isGroup
+        ? '${p['name']} · ${members(p).where((x) => x != id || !isGroupPlayer(p)).map(nameOf).join(', ')}'
+        : '${p['name']}';
+    return Container(
+      margin: const EdgeInsets.fromLTRB(4, 8, 4, 4),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(color: const Color(0xFF141B29), borderRadius: BorderRadius.circular(18)),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+        if (list.length > 1)
+          SizedBox(
+            height: 40,
+            child: ListView(scrollDirection: Axis.horizontal, children: [
+              for (final x in list)
+                Padding(
+                  padding: const EdgeInsets.only(right: 8),
+                  child: ChoiceChip(
+                    label: Text('${x['name']}'),
+                    selected: x['player_id'] == p['player_id'],
+                    onSelected: (_) => setState(() => focus = x['player_id'] as String),
+                  ),
+                ),
+            ]),
+          ),
+        if (list.length > 1) const SizedBox(height: 12),
+        AspectRatio(
+          aspectRatio: 1.6,
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(14),
+            child: img == null
+                ? Container(color: const Color(0xFF1C2638), child: const Icon(Icons.album, size: 72, color: Colors.white24))
+                : Image.network(img,
+                    fit: BoxFit.cover,
+                    headers: {if (widget.ma.token.isNotEmpty) 'Authorization': 'Bearer ${widget.ma.token}'},
+                    errorBuilder: (_, __, ___) => Container(color: const Color(0xFF1C2638), child: const Icon(Icons.album, size: 72, color: Colors.white24))),
+          ),
+        ),
+        const SizedBox(height: 14),
+        Text(title.isEmpty ? 'Playing' : title, maxLines: 2, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 21, fontWeight: FontWeight.w700)),
+        if (artist.isNotEmpty) Text(artist, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 15, color: Colors.white70)),
+        const SizedBox(height: 4),
+        Row(children: [
+          Icon(isGroup ? Icons.speaker_group : Icons.speaker, size: 16, color: _accent),
+          const SizedBox(width: 6),
+          Expanded(child: Text(where, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(color: _accent))),
+        ]),
+        Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+          IconButton(iconSize: 34, icon: const Icon(Icons.skip_previous), onPressed: () => run(() => widget.ma.simple('previous', id))),
+          IconButton(iconSize: 60, icon: Icon(p['playback_state'] == 'playing' ? Icons.pause_circle_filled : Icons.play_circle_filled, color: _accent), onPressed: () => playPause(p)),
+          IconButton(iconSize: 34, icon: const Icon(Icons.skip_next), onPressed: () => run(() => widget.ma.simple('next', id))),
+        ]),
+        Row(children: [
+          const Icon(Icons.volume_down, color: Colors.white54),
+          Expanded(child: volumeSlider(id, p['volume_level'] as num?, (v) => isGroup ? widget.ma.groupVolume(id, v) : widget.ma.volume(id, v))),
+          const Icon(Icons.volume_up, color: Colors.white54),
+        ]),
+      ]),
+    );
+  }
+
+  Widget songInfoHint() {
+    if (!PhoneCapture.supported || cap['songInfo'] == true) return const SizedBox.shrink();
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(4, 6, 4, 0),
+      child: TextButton.icon(
+        onPressed: () => PhoneCapture.openSongInfoSettings(),
+        icon: const Icon(Icons.image_outlined, size: 18),
+        label: const Text('Show song name & cover on the panels (allow notification access)'),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final saved = savedGroups;
     final temp = tempGroups;
+    final pages = [
+      // 0 – Home: the player + play my phone
+      [
+        const UpdateBanner(appName: 'AJ Audio Client'),
+        nowPlaying(),
+        if (PhoneCapture.supported) captureCard(),
+        songInfoHint(),
+      ],
+      // 1 – Groups
+      [
+        if (saved.isEmpty && temp.isEmpty)
+          const Padding(padding: EdgeInsets.all(16), child: Text('No groups yet – tap "New group".', style: TextStyle(color: Colors.white54))),
+        ...saved.map((g) => groupCard(g, saved: true)),
+        ...temp.map((g) => groupCard(g, saved: false)),
+      ],
+      // 2 – Rooms
+      [...rooms.map(roomCard)],
+    ];
     return Scaffold(
       appBar: AppBar(
         titleSpacing: 12,
         title: Row(children: [
           Image.asset('assets/logo_mark.png', height: 30),
           const SizedBox(width: 10),
-          const Text('AJ Audio', style: TextStyle(fontWeight: FontWeight.w700)),
+          Text(const ['AJ Audio', 'Groups', 'Rooms'][tab], style: const TextStyle(fontWeight: FontWeight.w700)),
         ]),
         actions: [
-          IconButton(
-            tooltip: 'AirPlay receiver on for all saved groups',
-            icon: const Icon(Icons.airplay),
-            onPressed: () => run(() async {
-              for (final g in savedGroups) {
-                if (!airplay.contains(g['player_id'])) await widget.ma.setAirplayReceiver(g['player_id'], true);
-              }
-              airplay = await widget.ma.airplayReceiverPlayers();
-            }, ok: 'AirPlay receiver enabled for all saved groups'),
-          ),
+          if (tab == 1)
+            IconButton(
+              tooltip: 'AirPlay receiver on for all saved groups',
+              icon: const Icon(Icons.airplay),
+              onPressed: () => run(() async {
+                for (final g in savedGroups) {
+                  if (!airplay.contains(g['player_id'])) await widget.ma.setAirplayReceiver(g['player_id'], true);
+                }
+                airplay = await widget.ma.airplayReceiverPlayers();
+              }, ok: 'AirPlay receiver enabled for all saved groups'),
+            ),
           IconButton(icon: const Icon(Icons.refresh), onPressed: refresh),
           IconButton(icon: const Icon(Icons.logout), onPressed: widget.onLogout),
         ],
       ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () => newGroup(),
-        icon: const Icon(Icons.add),
-        label: const Text('New group'),
+      floatingActionButton: tab == 1
+          ? FloatingActionButton.extended(onPressed: () => newGroup(), icon: const Icon(Icons.add), label: const Text('New group'))
+          : null,
+      bottomNavigationBar: NavigationBar(
+        selectedIndex: tab,
+        onDestinationSelected: (i) => setState(() => tab = i),
+        destinations: const [
+          NavigationDestination(icon: Icon(Icons.play_circle_outline), selectedIcon: Icon(Icons.play_circle), label: 'Playing'),
+          NavigationDestination(icon: Icon(Icons.speaker_group_outlined), selectedIcon: Icon(Icons.speaker_group), label: 'Groups'),
+          NavigationDestination(icon: Icon(Icons.speaker_outlined), selectedIcon: Icon(Icons.speaker), label: 'Rooms'),
+        ],
       ),
       body: RefreshIndicator(
         onRefresh: refresh,
         child: ListView(padding: const EdgeInsets.all(8), children: [
           if (error.isNotEmpty) Padding(padding: const EdgeInsets.all(8), child: Text(error, style: const TextStyle(color: Colors.redAccent))),
-          const UpdateBanner(appName: 'AJ Audio Client'),
-          if (PhoneCapture.supported) captureCard(),
-          header('GROUPS'),
-          if (saved.isEmpty && temp.isEmpty)
-            const Padding(padding: EdgeInsets.all(8), child: Text('No groups yet – tap "New group".', style: TextStyle(color: Colors.white54))),
-          ...saved.map((g) => groupCard(g, saved: true)),
-          ...temp.map((g) => groupCard(g, saved: false)),
-          header('ROOMS'),
-          ...rooms.map(roomCard),
+          ...pages[tab],
           const SizedBox(height: 90),
         ]),
       ),
     );
   }
+}
+
+class _Pending {
+  final double value;
+  final DateTime until;
+  _Pending(this.value, this.until);
 }
