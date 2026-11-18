@@ -346,8 +346,9 @@ public class CaptureService extends Service {
     private String lastMeta = "";
     private void sendMeta(boolean playing) throws Exception {
         MediaWatch.Now n = MediaWatch.playing(this);
-        String title = n == null ? Build.MODEL + " audio" : (n.title.isEmpty() ? n.app : n.title);
-        String artist = n == null ? "AJ Audio Client" : (n.title.isEmpty() ? "from " + Build.MODEL : (n.artist.isEmpty() ? n.app : n.artist));
+        // without notification access Android doesn't say what plays – show a neutral line instead of the model code
+        String title = n == null ? "Music from a phone" : (n.title.isEmpty() ? n.app : n.title);
+        String artist = n == null ? "AJ Audio" : (n.title.isEmpty() ? "from a phone" : (n.artist.isEmpty() ? n.app : n.artist));
         int art = n == null ? 0 : MediaWatch.setArt(n.art);
         String sig = title + "|" + artist + "|" + art + playing;
         if (sig.equals(lastMeta)) return;

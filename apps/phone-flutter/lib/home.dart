@@ -569,13 +569,26 @@ class _HomePageState extends State<HomePage> {
 
   Widget songInfoHint() {
     if (!PhoneCapture.supported || cap['songInfo'] == true) return const SizedBox.shrink();
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(4, 6, 4, 0),
-      child: TextButton.icon(
-        onPressed: () => PhoneCapture.openSongInfoSettings(),
-        icon: const Icon(Icons.image_outlined, size: 18),
-        label: const Text('Show song name & cover on the panels (allow notification access)'),
-      ),
+    return Container(
+      margin: const EdgeInsets.fromLTRB(4, 8, 4, 4),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(color: const Color(0xFF141B29), borderRadius: BorderRadius.circular(18), border: Border.all(color: _accent.withOpacity(0.5))),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        const Row(children: [
+          Icon(Icons.image_outlined, color: _accent),
+          SizedBox(width: 10),
+          Expanded(child: Text('Show song name & cover on the panels', style: TextStyle(fontSize: 17, fontWeight: FontWeight.w700))),
+        ]),
+        const SizedBox(height: 6),
+        const Text(
+            'Android only tells an app what is playing (title, artist, picture) when you allow "notification access" for it. '
+            'Tap the button, then switch on "AJ Audio".\n\n'
+            'If the switch is grey ("Restricted setting"): open Settings → Apps → AJ Audio Client → ⋮ (top right) → '
+            '"Allow restricted settings", then try again.',
+            style: TextStyle(color: Colors.white70, height: 1.35)),
+        const SizedBox(height: 10),
+        FilledButton.icon(onPressed: () => PhoneCapture.openSongInfoSettings(), icon: const Icon(Icons.settings), label: const Text('Allow notification access')),
+      ]),
     );
   }
 
@@ -590,6 +603,7 @@ class _HomePageState extends State<HomePage> {
         nowPlaying(),
         if (PhoneCapture.supported) captureCard(),
         songInfoHint(),
+        const SizedBox(height: 24),
       ],
       // 1 – Groups
       [
