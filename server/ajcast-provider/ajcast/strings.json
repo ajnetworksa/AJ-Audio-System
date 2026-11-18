@@ -1,0 +1,23 @@
+{
+  "config_entries": {
+    "mass_player_id": {
+      "label": "[%key:common::config_entries::mass_player_id::label%]",
+      "description": "The player to route AJ Cast audio to."
+    }
+  },
+  "setup_flow": {
+    "user": {
+      "title": "Configure AJ Cast",
+      "description": "Choose the player that receives AJ Cast audio (phones and panels sharing their sound)."
+    },
+    "abort": {
+      "no_players": "No players are available yet. Add a player to Music Assistant first, then try again."
+    }
+  },
+  "errors": {
+    "no_connected_player": "No connected Music Assistant player is configured. Run the setup again to select one."
+  },
+  "manifest": {
+    "description": "AJ Network receiver for phone and panel sound (AriaCast-compatible, self-healing, jitter buffer)."
+  }
+}

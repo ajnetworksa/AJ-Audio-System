@@ -37,7 +37,7 @@ import java.util.List;
 @TargetApi(29)
 public class ShareService extends Service {
     static final String ACTION_STOP = "stop";
-    private static final int FRAME = 3840, PORT = 12889, NID = 9;
+    private static final int FRAME = 3840, NID = 9;
 
     static volatile boolean running;
     static volatile String lastError = "", sharingTo = "", sharingWhat = "";
@@ -96,7 +96,7 @@ public class ShareService extends Service {
             String inst = AriaHeal.instance(ma);
             step("connecting to the music server");
             audio = AriaHeal.connectAudio(cfg, ma, inst, () -> step("repairing the music server's AriaCast receiver"));
-            meta = new AriaWs(cfg.host(), PORT, "/metadata", null);
+            meta = new AriaWs(cfg.host(), AriaHeal.PORT, "/metadata", null);
             openStats(cfg.host());
 
             // 2. start sending sound right away (MA gives up on a source that sends nothing for 1 s)
@@ -183,7 +183,7 @@ public class ShareService extends Service {
         return m.find() ? Integer.parseInt(m.group(1)) : 0;
     }
     private void openStats(String host) {
-        try { stats = new AriaWs(host, PORT, "/stats", s -> onStats(queuedFrames(s))); }
+        try { stats = new AriaWs(host, AriaHeal.PORT, "/stats", s -> onStats(queuedFrames(s))); }
         catch (Exception e) { stats = null; }   // older plugin without /stats: just no trimming
     }
 
@@ -208,17 +208,7 @@ public class ShareService extends Service {
         } catch (Exception e) { if (running) pumpError = e; }
     }
 
-    private String ariaInstance(Ma ma) throws Exception {
-        Object provs = ma.cmd("providers", new JSONObject());
-        if (provs instanceof JSONArray) {
-            JSONArray a = (JSONArray) provs;
-            for (int i = 0; i < a.length(); i++) {
-                JSONObject p = a.optJSONObject(i);
-                if (p != null && "ariacast_receiver".equals(p.optString("domain"))) return p.optString("instance_id");
-            }
-        }
-        throw new IllegalStateException("the music server needs the \"AriaCast Receiver\" plugin (Music Assistant → Settings → Plugins → Add a plugin → AriaCast Receiver)");
-    }
+    private String ariaInstance(Ma ma) throws Exception { return AriaHeal.instance(ma); }   // AJ Cast first, sets the port
 
     private static boolean silent(byte[] f) {
         for (int i = 0; i < f.length; i += 2) { int v = (short) ((f[i] & 0xFF) | (f[i + 1] << 8)); if (v > 30 || v < -30) return false; }

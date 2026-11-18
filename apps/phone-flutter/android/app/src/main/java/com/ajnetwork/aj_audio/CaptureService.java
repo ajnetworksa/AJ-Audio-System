@@ -42,7 +42,9 @@ public class CaptureService extends Service {
     static final String TAG = "AJCapture";
     static volatile boolean running;
     static volatile String lastError = "";
-    private static final int FRAME = 3840, PORT = 12889, NID = 7;
+    private static final int FRAME = 3840, NID = 7;
+    /** AJ Cast (AJ Music Assistant, 12899) if the server has it, else the official AriaCast Receiver (12889) */
+    private static volatile int PORT = 12889;
 
     private MediaProjection projection;
     private AudioRecord rec;
@@ -147,7 +149,7 @@ public class CaptureService extends Service {
             } catch (java.io.IOException e) {
                 String m = String.valueOf(e.getMessage());
                 if (m.contains("ECONNREFUSED") || m.contains("refused") || m.contains("timed out") || m.contains("failed to connect"))
-                    throw new IllegalStateException("The music server's AriaCast Receiver isn't running (port 12889). In Music Assistant: Settings → Plugins → AriaCast Receiver – add it or check its error.");
+                    throw new IllegalStateException("The music server's AriaCast Receiver isn't running (port " + PORT + "). In Music Assistant: Settings → Plugins → AriaCast Receiver – add it or check its error.");
                 throw e;
             }
             // send sound right away (MA drops a source that sends nothing for 1 s), then point the room/group at it
@@ -225,12 +227,13 @@ public class CaptureService extends Service {
         Object provs = api(server, token, "providers", new JSONObject());
         if (provs instanceof JSONArray) {
             JSONArray a = (JSONArray) provs;
-            for (int i = 0; i < a.length(); i++) {
-                JSONObject p = a.optJSONObject(i);
-                if (p != null && "ariacast_receiver".equals(p.optString("domain"))) return p.optString("instance_id");
-            }
+            for (String dom : new String[]{"ajcast", "ariacast_receiver"})
+                for (int i = 0; i < a.length(); i++) {
+                    JSONObject p = a.optJSONObject(i);
+                    if (p != null && dom.equals(p.optString("domain"))) { PORT = dom.equals("ajcast") ? 12899 : 12889; return p.optString("instance_id"); }
+                }
         }
-        throw new IllegalStateException("The music server needs the \"AriaCast Receiver\" plugin: Music Assistant → Settings → Plugins → Add a plugin → AriaCast Receiver");
+        throw new IllegalStateException("The music server needs the \"AriaCast Receiver\" plugin (Music Assistant → Settings → Plugins → Add a plugin → AriaCast Receiver) – or AJ Music Assistant with AJ Cast.");
     }
 
     /** Music Assistant API: find the AriaCast plugin instance and select it as source on the target */
@@ -239,12 +242,16 @@ public class CaptureService extends Service {
         String inst = null;
         if (provs instanceof JSONArray) {
             JSONArray a = (JSONArray) provs;
-            for (int i = 0; i < a.length(); i++) {
-                JSONObject p = a.optJSONObject(i);
-                if (p != null && "ariacast_receiver".equals(p.optString("domain"))) inst = p.optString("instance_id");
+            // same choice as the audio connection: AJ Cast first, the official AriaCast Receiver otherwise
+            for (String dom : new String[]{"ajcast", "ariacast_receiver"}) {
+                for (int i = 0; i < a.length() && inst == null; i++) {
+                    JSONObject p = a.optJSONObject(i);
+                    if (p != null && dom.equals(p.optString("domain"))) inst = p.optString("instance_id");
+                }
+                if (inst != null) break;
             }
         }
-        if (inst == null) throw new IllegalStateException("Ask your installer to add the \"AriaCast Receiver\" plugin in Music Assistant");
+        if (inst == null) throw new IllegalStateException("Ask your installer to add the \"AJ Cast\" (AJ Music Assistant) or \"AriaCast Receiver\" plugin in Music Assistant");
         api(server, token, "players/cmd/select_source", new JSONObject().put("player_id", target).put("source", inst));
     }
 
@@ -386,7 +393,7 @@ public class CaptureService extends Service {
             }
         }
         if (last != null && String.valueOf(last.getMessage()).contains("refused"))
-            throw new IllegalStateException("The music server's AriaCast Receiver isn't running (port 12889). In Music Assistant: Settings → Plugins → AriaCast Receiver – add it or check its error.");
+            throw new IllegalStateException("The music server's AriaCast Receiver isn't running (port " + PORT + "). In Music Assistant: Settings → Plugins → AriaCast Receiver – add it or check its error.");
         throw last == null ? new IllegalStateException("stopped") : last;
     }
 

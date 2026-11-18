@@ -19,10 +19,12 @@ def defines(path, name):
         if isinstance(n, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)) and n.name == name: return True
         if isinstance(n, ast.Assign) and any(getattr(x, 'id', None) == name for x in n.targets): return True
         if isinstance(n, ast.AnnAssign) and getattr(n.target, 'id', None) == name: return True
+        if hasattr(ast, 'TypeAlias') and isinstance(n, ast.TypeAlias) and getattr(n.name, 'id', None) == name: return True   # `type X = ...`
         if isinstance(n, (ast.ImportFrom, ast.Import)) and any((a.asname or a.name).split('.')[0] == name for a in n.names): return True
     d = os.path.dirname(path)
     return os.path.exists(os.path.join(d, name + '.py')) or os.path.isdir(os.path.join(d, name))
-pdir = os.path.join(root, 'music_assistant/providers/ajsnap')
+prov = sys.argv[2] if len(sys.argv) > 2 else 'ajsnap'   # which of our providers to check (ajsnap, ajcast)
+pdir = os.path.join(root, 'music_assistant/providers/' + prov)
 for f in os.listdir(pdir):
     if not f.endswith('.py'): continue
     t = ast.parse(FIX(open(os.path.join(pdir, f)).read()))

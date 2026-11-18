@@ -1,0 +1,12 @@
+{
+  "type": "plugin",
+  "domain": "ajcast",
+  "name": "AJ Cast",
+  "stage": "beta",
+  "description": "AJ Network's AriaCast-compatible receiver: phones and AJ panels send any app's sound to rooms and groups. Detects dead senders, keeps a jitter buffer.",
+  "codeowners": ["@ajnetworksa"],
+  "credits": ["AirPlr (AriaCast Receiver, Music Assistant)"],
+  "documentation": "https://github.com/ajnetworksa/AJ-Audio-System",
+  "multi_instance": false,
+  "requirements": ["aiohttp==3.14.3"]
+}

@@ -174,7 +174,7 @@ class _OverviewState extends State<Overview> {
       final p = await widget.s.api.players();
       int u = 0;
       try { u = (await widget.s.api.users()).length; } catch (_) {}
-      try { aria = await widget.s.api.providerInstance('ariacast_receiver') != null; } catch (_) {}
+      try { aria = await widget.s.api.providerInstance('ajcast') != null || await widget.s.api.providerInstance('ariacast_receiver') != null; } catch (_) {}
       setState(() { ms = t; players = p.map(Room.new).toList(); users = u; error = ''; loading = false; });
       provisionRepair();
     } catch (e) {

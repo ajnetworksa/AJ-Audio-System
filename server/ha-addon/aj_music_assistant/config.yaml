@@ -2,9 +2,9 @@
 # Same image and settings as the official Music Assistant add-on (HA login, sidebar panel, discovery),
 # plus our providers (AJ Snap for the wall panels) baked in at build time.
 name: AJ Music Assistant
-version: "2.10.9-aj3"
+version: "2.10.9-aj4"
 slug: aj_music_assistant
-description: Music Assistant 2.10.9 + AJ Snap provider for AJ wall panels
+description: Music Assistant 2.10.9 + AJ plugins (AJ Snap for the wall panels, AJ Cast for phone/panel sharing)
 url: https://github.com/ajnetworksa/AJ-Audio-System
 arch:
   - aarch64

@@ -4,5 +4,5 @@
 set -e
 cd "$(dirname "$0")"
 rm -rf aj_music_assistant/aj && mkdir -p aj_music_assistant/aj
-cp -r ../ajsnap-provider/ajsnap ../patches ../install_ajsnap.sh aj_music_assistant/aj/
+cp -r ../ajsnap-provider/ajsnap ../ajcast-provider/ajcast ../patches ../install_ajsnap.sh aj_music_assistant/aj/
 echo "ready: $(pwd)/aj_music_assistant  ->  copy to \\\\<ha-host>\\addons\\"

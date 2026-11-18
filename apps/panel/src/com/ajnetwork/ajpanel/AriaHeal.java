@@ -20,7 +20,8 @@ import java.io.IOException;
  *     admin is healed too. Reloads are rate-limited (one per 45 s).
  */
 final class AriaHeal {
-    static final int PORT = 12889;
+    /** AJ Cast (our plugin in AJ Music Assistant, port 12899) is preferred; the official AriaCast Receiver (12889) otherwise */
+    static volatile int PORT = 12889;
     private static long lastRepair;
 
     /** instance id of the AriaCast Receiver plugin, or an explanation */
@@ -28,12 +29,13 @@ final class AriaHeal {
         Object provs = ma.cmd("providers", new JSONObject());
         if (provs instanceof JSONArray) {
             JSONArray a = (JSONArray) provs;
-            for (int i = 0; i < a.length(); i++) {
-                JSONObject p = a.optJSONObject(i);
-                if (p != null && "ariacast_receiver".equals(p.optString("domain"))) return p.optString("instance_id");
-            }
+            for (String dom : new String[]{"ajcast", "ariacast_receiver"})
+                for (int i = 0; i < a.length(); i++) {
+                    JSONObject p = a.optJSONObject(i);
+                    if (p != null && dom.equals(p.optString("domain"))) { PORT = dom.equals("ajcast") ? 12899 : 12889; return p.optString("instance_id"); }
+                }
         }
-        throw new IllegalStateException("the music server needs the \"AriaCast Receiver\" plugin (Music Assistant → Settings → Plugins → Add a plugin → AriaCast Receiver)");
+        throw new IllegalStateException("the music server needs the \"AJ Cast\" plugin (AJ Music Assistant) or the official \"AriaCast Receiver\" (Music Assistant → Settings → Plugins → Add a plugin)");
     }
 
     static boolean busy(Exception e) { return e.getMessage() != null && e.getMessage().contains("still connected"); }
@@ -69,7 +71,7 @@ final class AriaHeal {
             try {
                 new Ma(cfg.maBase(), t).cmd("config/providers/reload", new JSONObject().put("instance_id", inst));
                 lastRepair = now;
-                Log.i("aria repair: AriaCast Receiver reloaded (a dead sender connection blocked it)");
+                Log.i("aria repair: sharing plugin reloaded (a dead sender connection blocked it)");
                 return "";
             } catch (Exception e) { last = e; }
         }
