@@ -101,6 +101,8 @@ foreach ($entry in $panels.Split(",")) {
   & $ADB -s $dev shell pm grant $PKG android.permission.RECORD_AUDIO 2>$null | Out-Null
   & $ADB -s $dev shell appops set $PKG PROJECT_MEDIA allow | Tee-Object -Append $log
   & $ADB -s $dev shell cmd notification allow_listener $PKG/$PKG.MediaListener 2>$null | Tee-Object -Append $log
+  # device owner = later AJ Panel updates install without a tap on the panel (fails harmlessly if the panel has accounts)
+  & $ADB -s $dev shell dpm set-device-owner $PKG/.AdminReceiver 2>&1 | Tee-Object -Append $log
 
   # old player off (AJ Panel has its own) - otherwise the panel plays twice / orphan process (BUG-015)
   & $ADB -s $dev shell am start-foreground-service -n de.badaix.snapcast/.SnapclientService -a ACTION_STOP 2>$null | Out-Null

@@ -80,7 +80,7 @@ class _BulkUpdatePageState extends State<BulkUpdatePage> {
     if (todo.isEmpty) return;
     final what = useFile ? fileName ?? 'the picked file' : 'AJ Panel v${latest!.$1}';
     if (!await confirm(context, 'Update ${todo.length} panels?',
-        'Sends $what to each panel. On every panel someone taps "Install" once on its screen.', ok: 'Send')) return;
+        'Sends $what to each panel. Panels with silent updates (tools\\panel_silent_updates.bat) install it by themselves; on the others someone taps "Install" on the screen.', ok: 'Send')) return;
     setState(() { running = true; result.clear(); });
     Uint8List? bytes;
     if (useFile) {
@@ -100,7 +100,7 @@ class _BulkUpdatePageState extends State<BulkUpdatePage> {
         } else {
           await PanelApi.post(f.ip, api.token, '/api/update', {'url': latest!.$2});
         }
-        result[f.ip] = 'sent – tap Install on the panel';
+        result[f.ip] = f.info?['silent_update'] == true ? 'sent – installs by itself (≈1 min)' : 'sent – tap Install on the panel';
       } catch (e) {
         result[f.ip] = e is ApiException && e.code == 401 ? 'not connected to this server (set it up first)' : 'failed: $e';
       }

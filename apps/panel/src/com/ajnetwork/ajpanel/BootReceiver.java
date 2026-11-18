@@ -19,6 +19,7 @@ import android.content.SharedPreferences;
 public class BootReceiver extends BroadcastReceiver {
     @Override public void onReceive(Context c, Intent i) {
         String a = i.getAction() == null ? "" : i.getAction();
+        if (a.endsWith(".RELEASE_OWNER")) { Log.i("device owner released: " + AdminReceiver.release(c)); return; }
         if (a.endsWith(".STOP")) { c.stopService(new Intent(c, PanelService.class)); Log.i("stopped by broadcast"); return; }
         if (a.endsWith(".LOGIN")) {
             String u = i.getStringExtra("user"), p = i.getStringExtra("pass");
