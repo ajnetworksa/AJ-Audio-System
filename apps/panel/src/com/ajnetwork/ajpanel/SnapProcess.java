@@ -28,6 +28,10 @@ public class SnapProcess {
     private Thread loop;
     public volatile String lastLine = "";
     public volatile boolean connected;
+    /** when the connection to the server last broke (Wi-Fi hiccup, time-sync timeout …) */
+    public volatile long lastDrop;
+    private boolean waitingServer;
+    private long waitingSince;
     public volatile int restarts;
     /** share mode: synced PCM comes out on stdout and PcmRelay plays it on the ALARM stream (FIX-026) */
     public volatile boolean pipe;
@@ -124,6 +128,21 @@ public class SnapProcess {
                     lastLine = line;
                     if (line.contains("Connected to") || line.contains("ServerSettings")) connected = true;
                     if (line.contains("onError") || line.contains("Failed to connect") || line.contains("Connection refused")) connected = false;
+                    if (line.contains("Time sync request failed") || line.contains("Operation Canceled") || line.contains("Failed to send hello")) lastDrop = System.currentTimeMillis();
+                    // while the music server restarts the player retries every second: log that once, not 5 lines per try
+                    boolean retryNoise = line.contains("Connection refused") || line.contains("Failed to connect") || line.contains("Error in socket shutdown")
+                            || line.contains("Resolving host IP") || line.contains("Connecting to ");
+                    if (retryNoise) {
+                        if (!waitingServer && (line.contains("refused") || line.contains("Failed to connect"))) {
+                            waitingServer = true; waitingSince = System.currentTimeMillis();
+                            Log.i("sync player: music server not reachable (restarting?) – retrying every second");
+                        }
+                        if (waitingServer || line.contains("Resolving host IP") || line.contains("Connecting to ")) { listener.onSnapState(true, line); continue; }
+                    }
+                    if (waitingServer && line.contains("Connected to")) {
+                        waitingServer = false;
+                        Log.i("sync player: music server back after " + (System.currentTimeMillis() - waitingSince) / 1000 + " s");
+                    }
                     // "No chunks available" = idle, once per second -> don't flood the log
                     if (!line.contains("Stats") && !line.contains("No chunks available")) Log.i("snap: " + line);
                     listener.onSnapState(true, line);

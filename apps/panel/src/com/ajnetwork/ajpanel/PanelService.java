@@ -144,6 +144,7 @@ public class PanelService extends Service implements SnapProcess.Listener {
             if (cfg.vendorBridge()) bridge.update(n);
             volume.update(n);
             checkOrigin(n);
+            keepGroup(n);
             if (n.serverOk && System.currentTimeMillis() - created > 60_000) Updater.maybeCheck(this, cfg, false);
             if (n.serverOk && System.currentTimeMillis() - lastSite > 3000) {
                 lastSite = System.currentTimeMillis();
@@ -229,8 +230,42 @@ public class PanelService extends Service implements SnapProcess.Listener {
         boolean m = !n.muted;
         async(m ? "pause here (mute)" : "resume here (unmute)", () -> ma.mute(cfg.maPlayerId(), m));
     }
+    // ---- self-healing group membership ----
+    // Music Assistant drops a player from its group when its sync connection breaks for a moment (seen on the
+    // DSPPA's Wi-Fi: time-sync timeouts while streaming). The player reconnects within a second, but stays out of
+    // the group ("Join" shows again). If we were in a playing group, the connection broke shortly before we were
+    // dropped, and nobody here asked to leave, join that group again.
+    private String keptGroup = "";
+    private long keptAt, userLeftAt;
+    private int rejoins;
+    private void keepGroup(NowPlaying n) {
+        long now = System.currentTimeMillis();
+        String g = currentGroupId();
+        if (!g.isEmpty() && "playing".equals(n.state)) { keptGroup = g; keptAt = now; return; }
+        if (keptGroup.isEmpty() || !g.isEmpty()) return;
+        boolean recent = now - keptAt < 90_000;
+        boolean dropped = snap != null && now - snap.lastDrop < 45_000;
+        boolean byUser = now - userLeftAt < 120_000 || breaks.active();
+        if (!recent || !dropped || byUser || rejoins >= 5 || !snap.connected) { if (!recent) { keptGroup = ""; rejoins = 0; } return; }
+        Site st = site;
+        boolean stillPlaying = false;
+        if (st != null) {
+            Site.Group sg = st.group(keptGroup);
+            if (sg != null) stillPlaying = "playing".equals(sg.state);
+            Site.Room lead = st.room(keptGroup);
+            if (lead != null) stillPlaying = lead.playing();
+        }
+        if (!stillPlaying) return;
+        String target = keptGroup;
+        rejoins++;
+        keptAt = now;   // give it time before trying again
+        Log.i("group: dropped from " + target + " after a connection hiccup – joining again (" + rejoins + ")");
+        joinZone(target);
+    }
+
     /** take this panel out of its group */
     public void leaveGroup() {
+        userLeftAt = System.currentTimeMillis(); keptGroup = "";
         NowPlaying n = now; if (n == null) return;
         if (n.staticMember) {   // MA would dissolve the whole saved group → only silence this panel
             async("leave saved group → mute + stop here", () -> ma.mute(cfg.maPlayerId(), true));
@@ -257,6 +292,7 @@ public class PanelService extends Service implements SnapProcess.Listener {
     }
     /** take a break from the group: mode = Breaks.TIME/MINE/GROUP_END */
     public void startBreak(String groupId, String mode, long untilMs, boolean quiet) {
+        userLeftAt = System.currentTimeMillis(); keptGroup = "";
         async("break " + mode, () -> breaks.start(groupId, mode, untilMs, quiet));
         lastSite = 0;
     }
