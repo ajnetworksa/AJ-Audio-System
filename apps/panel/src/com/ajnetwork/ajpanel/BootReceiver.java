@@ -36,7 +36,7 @@ public class BootReceiver extends BroadcastReceiver {
         }
         if (a.endsWith(".CONFIG")) {
             SharedPreferences.Editor e = new Cfg(c).edit();
-            for (String k : new String[]{"host", "name", "token", "engine", "ma_player_id", "zigbee_tty", "zigbee_allow"}) if (i.hasExtra(k)) e.putString(k, i.getStringExtra(k));
+            for (String k : new String[]{"host", "name", "token", "engine", "ma_player_id", "zigbee_tty", "zigbee_allow", "repair_token"}) if (i.hasExtra(k)) e.putString(k, i.getStringExtra(k));
             // stable player id (deploy passes the Wi-Fi MAC): only used when the panel has no id yet, so a reinstall
             // (e.g. after a signing-key change) keeps the same Music Assistant player instead of creating a new one
             String hid = i.getStringExtra("host_id_default");

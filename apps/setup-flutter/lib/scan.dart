@@ -3,6 +3,7 @@ import 'api.dart';
 import 'main.dart';
 import 'ui.dart';
 import 'logs.dart';
+import 'tools.dart';
 
 /// Find panels on the network, see their address / version / state, and connect them to this music server.
 class ScanPage extends StatefulWidget {
@@ -183,16 +184,17 @@ class _ScanPageState extends State<ScanPage> {
           Label('${noApp.length} Android devices without AJ Panel'),
           const Padding(
             padding: EdgeInsets.fromLTRB(2, 0, 2, 8),
-            child: Text('These have the network debug port open, like a new panel. The first install is done once from a PC: tools\\deploy_ajpanel.bat -panels "ADDRESS=Room name".',
+            child: Text('These have the network debug port open, like a new panel. Tap one to install AJ Panel from this phone.',
                 style: TextStyle(color: C.sub, fontSize: 13, height: 1.4)),
           ),
           for (final f in noApp)
             Glass(
+              onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => PanelToolsPage(s: widget.s, ip: f.ip, name: ''))),
               child: Row(children: [
                 const Dot(C.sub),
                 const SizedBox(width: 12),
                 Expanded(child: Text(f.ip, style: const TextStyle(fontSize: 16))),
-                const Text('no AJ Panel', style: TextStyle(color: C.sub, fontSize: 13)),
+                const Text('install →', style: TextStyle(color: C.accent, fontSize: 13)),
               ]),
             ),
         ],

@@ -8,6 +8,7 @@ import 'users.dart';
 import 'logs.dart';
 import 'scan.dart';
 import 'update.dart';
+import 'tools.dart';
 import 'updater.dart';
 
 void main() => runApp(const AjSetupApp());
@@ -270,6 +271,8 @@ class _OverviewState extends State<Overview> {
             () => open(ScanPage(s: widget.s))),
         _nav(Icons.system_update_alt, 'Update panels', 'All at once · newest release or an APK file',
             () => open(BulkUpdatePage(s: widget.s))),
+        _nav(Icons.build_circle_outlined, 'Panel tools', 'Install AJ Panel · silent updates · diagnostics · Zigbee (no PC needed)',
+            () => open(ToolsPage(s: widget.s))),
         const Label('Manage'),
         _nav(Icons.speaker_outlined, 'Rooms & panels', '${rooms.length} rooms · names, AirPlay, Spotify, volume',
             () => open(RoomsPage(s: widget.s))),
