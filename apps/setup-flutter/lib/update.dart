@@ -2,7 +2,10 @@ import 'dart:io';
 import 'dart:typed_data';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
+import 'package:path_provider/path_provider.dart';
 import 'api.dart';
+import 'tools.dart';
 import 'main.dart';
 import 'ui.dart';
 
@@ -80,29 +83,46 @@ class _BulkUpdatePageState extends State<BulkUpdatePage> {
     if (todo.isEmpty) return;
     final what = useFile ? fileName ?? 'the picked file' : 'AJ Panel v${latest!.$1}';
     if (!await confirm(context, 'Update ${todo.length} panels?',
-        'Sends $what to each panel. Panels with silent updates (tools\\panel_silent_updates.bat) install it by themselves; on the others someone taps "Install" on the screen.', ok: 'Send')) return;
+        'Installs $what on each panel over the network – nobody has to tap anything. '
+        '(A panel that never allowed this phone shows "Allow debugging?" once: tick "Always allow".)', ok: 'Update')) return;
     setState(() { running = true; result.clear(); });
+    String? path = useFile ? filePath : null;
     Uint8List? bytes;
-    if (useFile) {
-      try {
-        bytes = await File(filePath!).readAsBytes();
-      } catch (e) {
-        if (mounted) toast(context, 'Could not read the file: $e');
-        setState(() => running = false);
-        return;
+    try {
+      if (path == null) {
+        setState(() => result['*'] = 'downloading v${latest!.$1} …');
+        final r = await http.get(Uri.parse(latest!.$2)).timeout(const Duration(minutes: 3));
+        if (r.statusCode != 200) throw 'download failed (${r.statusCode})';
+        bytes = r.bodyBytes;
+        final f = File('${(await getTemporaryDirectory()).path}/AJ_Panel_v${latest!.$1}.apk');
+        await f.writeAsBytes(bytes);
+        path = f.path;
+      } else {
+        bytes = await File(path).readAsBytes();
       }
+    } catch (e) {
+      if (mounted) toast(context, 'Could not get the APK: $e');
+      setState(() { running = false; result.remove('*'); });
+      return;
     }
+    result.remove('*');
     for (final f in todo) {
-      setState(() => result[f.ip] = 'sending…');
+      setState(() => result[f.ip] = 'installing…');
       try {
-        if (bytes != null) {
-          await PanelApi.upload(f.ip, api.token, bytes);
-        } else {
-          await PanelApi.post(f.ip, api.token, '/api/update', {'url': latest!.$2});
+        // 1st choice: install over the network debug port – silent, no tap on the panel
+        final r = await Adb.install(f.ip, path!);
+        if (!r.contains('Success')) throw r.trim().isEmpty ? 'no answer' : r.trim();
+        // and make later updates (also the panel's own GitHub updates) silent too
+        try { await Adb.sh(f.ip, 'dpm set-device-owner com.ajnetwork.ajpanel/.AdminReceiver 2>&1'); } catch (_) {}
+        result[f.ip] = 'installed ✓ (restarts by itself)';
+      } catch (adbErr) {
+        // fallback: hand the APK to AJ Panel's own installer (panel shows "Install" unless silent updates are on)
+        try {
+          await PanelApi.upload(f.ip, api.token, bytes!);
+          result[f.ip] = f.info?['silent_update'] == true ? 'sent – installs by itself (≈1 min)' : 'sent – tap Install on the panel (network install not possible: $adbErr)';
+        } catch (e) {
+          result[f.ip] = e is ApiException && e.code == 401 ? 'not connected to this server (set it up first)' : 'failed: $e';
         }
-        result[f.ip] = f.info?['silent_update'] == true ? 'sent – installs by itself (≈1 min)' : 'sent – tap Install on the panel';
-      } catch (e) {
-        result[f.ip] = e is ApiException && e.code == 401 ? 'not connected to this server (set it up first)' : 'failed: $e';
       }
       if (mounted) setState(() {});
     }
@@ -114,7 +134,7 @@ class _BulkUpdatePageState extends State<BulkUpdatePage> {
     final canRun = !running && picked.isNotEmpty && (useFile ? filePath != null : latest != null);
     return AjPage(
       title: 'Update panels',
-      subtitle: 'Pick what to install and which panels get it.',
+      subtitle: 'Pick what to install and which panels get it. Installs over the network – no tap on the panels.',
       onRefresh: load,
       bottom: GradButton(
         label: picked.isEmpty ? 'Pick panels' : 'Update ${picked.length} panels',
@@ -186,7 +206,7 @@ class _BulkUpdatePageState extends State<BulkUpdatePage> {
                   Text('${f.ip} · v${f.version}${needs(f) ? ' → v${latest!.$1}' : latest != null ? ' · up to date' : ''}',
                       style: TextStyle(color: needs(f) ? C.warn : C.sub, fontSize: 13)),
                   if (result[f.ip] != null)
-                    Text(result[f.ip]!, style: TextStyle(color: result[f.ip]!.startsWith('sent') ? C.ok : result[f.ip]!.startsWith('sending') ? C.sub : C.bad, fontSize: 13)),
+                    Text(result[f.ip]!, style: TextStyle(color: RegExp(r'^(sent|installed)').hasMatch(result[f.ip]!) ? C.ok : RegExp(r'^(installing|sending|downloading)').hasMatch(result[f.ip]!) ? C.sub : C.bad, fontSize: 13)),
                 ]),
               ),
             ]),

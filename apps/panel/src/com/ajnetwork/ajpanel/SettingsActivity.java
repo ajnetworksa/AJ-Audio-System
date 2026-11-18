@@ -30,6 +30,11 @@ public class SettingsActivity extends Activity implements PanelService.Listener 
     private SeekBar vol;
     private boolean touchingVol;
     private View settings;
+    private ScrollView settingsScroll, logScroll;
+    private void showSettings(boolean on) {
+        settingsScroll.setVisibility(on ? View.VISIBLE : View.GONE);
+        logScroll.setVisibility(on ? View.GONE : View.VISIBLE);
+    }
 
     @Override protected void onCreate(Bundle b) {
         super.onCreate(b);
@@ -90,7 +95,9 @@ public class SettingsActivity extends Activity implements PanelService.Listener 
         side.addView(Ui.text(this, "AJ Panel " + version(), 22, Ui.TEXT, true));
         status = Ui.text(this, "", 15, Ui.SUB, false); status.setSingleLine(false); status.setMaxLines(6);
         side.addView(status);
-        Button set = Ui.button(this, "⚙ Settings"); set.setOnClickListener(v -> settings.setVisibility(settings.getVisibility() == View.VISIBLE ? View.GONE : View.VISIBLE));
+        Button set = Ui.button(this, "⚙ Settings");
+        // settings and log share the space below: one or the other, each scrollable (small screens like the DSPPA)
+        set.setOnClickListener(v -> showSettings(settingsScroll.getVisibility() != View.VISIBLE));
         side.addView(set, topGap());
         Button upd = Ui.button(this, "Check for app update");
         upd.setOnClickListener(v -> {
@@ -105,11 +112,12 @@ public class SettingsActivity extends Activity implements PanelService.Listener 
         });
         side.addView(upd, topGap());
         settings = buildSettings();
-        settings.setVisibility(cfg.token().isEmpty() ? View.VISIBLE : View.GONE);
-        side.addView(settings);
+        settingsScroll = new ScrollView(this); settingsScroll.addView(settings);
+        side.addView(settingsScroll, new LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, 0, 1));
         log = Ui.text(this, "", 11, 0xFF7F8A99, false); log.setSingleLine(false); log.setTypeface(android.graphics.Typeface.MONOSPACE);
-        ScrollView ls = new ScrollView(this); ls.addView(log);
-        side.addView(ls, new LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, 0, 1));
+        logScroll = new ScrollView(this); logScroll.addView(log);
+        side.addView(logScroll, new LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, 0, 1));
+        showSettings(cfg.token().isEmpty());
         LinearLayout.LayoutParams sl = new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.MATCH_PARENT, 2);
         sl.setMarginStart(pad);
         root.addView(side, sl);
