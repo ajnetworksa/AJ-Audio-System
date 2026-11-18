@@ -97,6 +97,7 @@ public class ShareService extends Service {
             step("connecting to the music server");
             audio = new AriaWs(cfg.host(), PORT, "/audio", s -> Log.i("share audio: " + s));
             meta = new AriaWs(cfg.host(), PORT, "/metadata", null);
+            openStats(cfg.host());
 
             // 2. start sending sound right away (MA gives up on a source that sends nothing for 1 s)
             rec.startRecording();
@@ -158,6 +159,21 @@ public class ShareService extends Service {
     static volatile boolean direct;
     private static void step(String s) { step = s; }
 
+
+    // ---- low latency: the AriaCast receiver keeps a queue of up to 100 frames (2 s). Any hiccup (Wi-Fi, CPU)
+    // fills it and that delay would stay for the whole session. Its /stats socket reports the queue once a
+    // second; when more than 3 frames (60 ms) wait, we skip that many frames so the delay shrinks back.
+    private AriaWs stats;
+    private volatile int dropBudget;
+    static int queuedFrames(String json) {
+        java.util.regex.Matcher m = java.util.regex.Pattern.compile("\"queuedFrames\"\\s*:\\s*(\\d+)").matcher(json);
+        return m.find() ? Integer.parseInt(m.group(1)) : 0;
+    }
+    private void openStats(String host) {
+        try { stats = new AriaWs(host, PORT, "/stats", s -> { int q = queuedFrames(s); if (q > 3) dropBudget = q - 2; }); }
+        catch (Exception e) { stats = null; }   // older plugin without /stats: just no trimming
+    }
+
     /** reads the captured sound and sends it, 20 ms frames */
     private void pumpLoop() {
         byte[] frame = new byte[FRAME];
@@ -171,6 +187,7 @@ public class ShareService extends Service {
                 }
                 if (!running) break;
                 if (audio.isClosed()) throw new IllegalStateException("the music server closed the connection");
+                if (dropBudget > 0) { dropBudget--; continue; }   // catch up: server queue too long
                 audio.sendBinary(frame);
                 if (!silent(frame)) lastLoud = System.currentTimeMillis();
             }
@@ -277,6 +294,7 @@ public class ShareService extends Service {
         }
         if (audio != null) audio.close();
         if (meta != null) meta.close();
+        if (stats != null) { stats.close(); stats = null; }
         audio = null; meta = null;
         if (rec != null) { try { rec.stop(); } catch (Exception ignored) { } rec.release(); rec = null; }
         if (projection != null) { try { projection.stop(); } catch (Exception ignored) { } projection = null; }

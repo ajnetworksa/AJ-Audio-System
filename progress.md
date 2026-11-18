@@ -52,6 +52,7 @@ Newest entries on top. Decisions are `D-###`.
 ## Log
 
 ### 2026-11-18
+- Share/Play-my-phone latency: senders read AriaCast's /stats and skip frames when more than 60 ms queue up on the server (its queue holds 2 s and never shrinks by itself) – Panel 0.7.4, Client 0.7.2. Clearer "sender still connected" (403) message: the AriaCast plugin has no heartbeat, a sender that vanished stays "connected" until the plugin is reloaded. Recommended: MA Snapcast built-in buffer 1000 → 400–500 ms.
 - AJ Panel 0.7.3: UI scales with the screen (designed for 1024×600 dp, bigger screens such as the DSPPA scale up to 1.6×); rail items equal size/spacing and centred; Zigbee bridge logs bytes per HA session (first ASH bytes) to debug ZHA set-up retries.
 - AJ Panel 0.7.2: floating **Share** button over other apps (YouTube etc.) – pick a group (one tap) or rooms without leaving the app; shows "● Sharing" with Change/Stop; drag to move; hidden on AJ Panel's own screen; setting `share_bubble`. Zigbee bridge: cleaner serial flags.
 

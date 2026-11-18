@@ -136,6 +136,7 @@ public class CaptureService extends Service {
             try {
                 audio = new AriaWs(host, PORT, "/audio", s -> Log.i(TAG, "audio: " + s));
                 meta = new AriaWs(host, PORT, "/metadata", null);
+                openStats(host);
             } catch (java.io.IOException e) {
                 String m = String.valueOf(e.getMessage());
                 if (m.contains("ECONNREFUSED") || m.contains("refused") || m.contains("timed out") || m.contains("failed to connect"))
@@ -187,6 +188,7 @@ public class CaptureService extends Service {
                     off += n;
                 }
                 if (audio.isClosed()) throw new IllegalStateException("Music server closed the connection");
+                if (dropBudget > 0) { dropBudget--; continue; }   // catch up: server queue too long
                 audio.sendBinary(frame);
                 // mute the phone's own speaker once real sound flows; if this phone then only captures
                 // silence (its capture follows the volume), unmute again and remember that for next time
@@ -293,6 +295,7 @@ public class CaptureService extends Service {
         if (mutedByUs) mutePhone(false);
         if (audio != null) audio.close();
         if (meta != null) meta.close();
+        if (stats != null) { stats.close(); stats = null; }
         audio = null; meta = null;
         if (rec != null) { try { rec.stop(); } catch (Exception ignored) { } rec.release(); rec = null; }
         if (projection != null) { try { projection.stop(); } catch (Exception ignored) { } projection = null; }
@@ -301,4 +304,18 @@ public class CaptureService extends Service {
     }
 
     @Override public void onDestroy() { stopAll(); super.onDestroy(); }
+    // ---- low latency: the AriaCast receiver keeps a queue of up to 100 frames (2 s). Any hiccup (Wi-Fi, CPU)
+    // fills it and that delay would stay for the whole session. Its /stats socket reports the queue once a
+    // second; when more than 3 frames (60 ms) wait, we skip that many frames so the delay shrinks back.
+    private AriaWs stats;
+    private volatile int dropBudget;
+    static int queuedFrames(String json) {
+        java.util.regex.Matcher m = java.util.regex.Pattern.compile("\"queuedFrames\"\\s*:\\s*(\\d+)").matcher(json);
+        return m.find() ? Integer.parseInt(m.group(1)) : 0;
+    }
+    private void openStats(String host) {
+        try { stats = new AriaWs(host, PORT, "/stats", s -> { int q = queuedFrames(s); if (q > 3) dropBudget = q - 2; }); }
+        catch (Exception e) { stats = null; }   // older plugin without /stats: just no trimming
+    }
+
 }

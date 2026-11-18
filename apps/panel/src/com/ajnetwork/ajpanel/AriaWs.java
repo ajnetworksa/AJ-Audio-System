@@ -42,7 +42,7 @@ public class AriaWs {
         if (!h.startsWith("HTTP/1.1 101")) {
             sock.close();
             String first = h.contains("\r\n") ? h.substring(0, h.indexOf("\r\n")) : h;
-            throw new IOException(first.contains("403") ? "Another phone or panel is already sharing its sound (only one at a time)" : "Server refused: " + first);
+            throw new IOException(first.contains("403") ? "Music Assistant's AriaCast receiver says a sender is still connected. If nothing is being shared right now, it is a leftover connection: in Music Assistant open Settings → Plugins → AriaCast Receiver → ⋮ → Reload, then try again." : "Server refused: " + first);
         }
         Thread t = new Thread(() -> readLoop(onText), "ws-read" + path);
         t.setDaemon(true);
