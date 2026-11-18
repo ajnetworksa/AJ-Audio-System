@@ -29,6 +29,8 @@ foreach ($ip in $panels.Split(",")) {
   $sys += "--- AJ Panel version ---"; $sys += Sh $dev "dumpsys package com.ajnetwork.ajpanel | grep -E 'versionName|lastUpdateTime'"
   $sys += "--- processes ---";        $sys += Sh $dev "ps -A | grep -iE 'ajpanel|snap|gateway|judian'"
   $sys += "--- network ---";          $sys += Sh $dev "ip -4 addr show"; $sys += Sh $dev "ping -c 3 -W 1 192.168.8.5"
+  $sys += "--- cpu (top) ---";      $sys += Sh $dev "top -b -n 1 -m 12 | head -20"
+  $sys += "--- wifi ---";           $sys += Sh $dev "dumpsys wifi | grep -iE 'mWifiInfo|RSSI|Link speed|Frequency' | head -4"
   $sys += "--- zigbee serial ---";    $sys += Sh $dev "stty -F /dev/ttyS3 -a"
   $sys += "--- disabled apps ---";    $sys += Sh $dev "pm list packages -d"
   $sys += "--- audio outputs ---";    $sys += Sh $dev "dumpsys media.audio_flinger | grep -iE 'Output thread|Sample rate|HAL frame count|Latency' | head -20"

@@ -30,6 +30,12 @@ public class SnapProcess {
     public volatile boolean connected;
     /** when the connection to the server last broke (Wi-Fi hiccup, time-sync timeout …) */
     public volatile long lastDrop;
+    private final java.util.ArrayList<Long> syncFails = new java.util.ArrayList<>();
+    /** how often the sync connection timed out in the last [ms] */
+    public int syncFailures(long ms) {
+        long since = System.currentTimeMillis() - ms;
+        synchronized (syncFails) { syncFails.removeIf(t -> t < since); return syncFails.size(); }
+    }
     private boolean waitingServer;
     private long waitingSince;
     public volatile int restarts;
@@ -129,6 +135,7 @@ public class SnapProcess {
                     if (line.contains("Connected to") || line.contains("ServerSettings")) connected = true;
                     if (line.contains("onError") || line.contains("Failed to connect") || line.contains("Connection refused")) connected = false;
                     if (line.contains("Time sync request failed") || line.contains("Operation Canceled") || line.contains("Failed to send hello")) lastDrop = System.currentTimeMillis();
+                    if (line.contains("Time sync request failed")) synchronized (syncFails) { syncFails.add(System.currentTimeMillis()); }
                     // while the music server restarts the player retries every second: log that once, not 5 lines per try
                     boolean retryNoise = line.contains("Connection refused") || line.contains("Failed to connect") || line.contains("Error in socket shutdown")
                             || line.contains("Resolving host IP") || line.contains("Connecting to ");

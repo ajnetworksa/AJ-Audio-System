@@ -60,7 +60,7 @@ public final class Log {
     public static String logcat(int lines) {
         StringBuilder sb = new StringBuilder();
         try {
-            Process p = new ProcessBuilder("logcat", "-d", "-v", "time", "-t", String.valueOf(lines), "*:W", TAG + ":I").redirectErrorStream(true).start();
+            Process p = new ProcessBuilder("logcat", "-d", "-v", "time", "-t", String.valueOf(lines), "*:W", TAG + ":I", "libEGL:S", "mali_winsys:S").redirectErrorStream(true).start();
             try (BufferedReader r = new BufferedReader(new InputStreamReader(p.getInputStream()))) {
                 String l; while ((l = r.readLine()) != null) sb.append(l).append('\n');
             }

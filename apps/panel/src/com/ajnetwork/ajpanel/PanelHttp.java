@@ -193,6 +193,7 @@ public class PanelHttp {
         if (args.containsKey("overlay")) ed.putBoolean("overlay", Boolean.parseBoolean(args.get("overlay")));
         if (args.containsKey("system_volume")) ed.putBoolean("system_volume", Boolean.parseBoolean(args.get("system_volume")));
         if (args.containsKey("repo") && args.get("repo").matches("[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+")) ed.putString("repo", args.get("repo"));
+        if (args.containsKey("resample")) ed.putBoolean("resample", Boolean.parseBoolean(args.get("resample")));
         if (args.containsKey("auto_update")) ed.putBoolean("auto_update", Boolean.parseBoolean(args.get("auto_update")));
         if (args.containsKey("update_window") && args.get("update_window").matches("any|([01]?\\d|2[0-3])-([01]?\\d|2[0-4])")) ed.putString("update_window", args.get("update_window"));
         if (args.containsKey("update_delay_h")) ed.putInt("update_delay_h", Math.max(0, Math.min(720, Integer.parseInt(args.get("update_delay_h")))));
@@ -219,6 +220,7 @@ public class PanelHttp {
                 .put("crashed", !Log.lastCrash().isEmpty())
                 .put("update_available", Updater.availableVersion)
                 .put("silent_update", AdminReceiver.owner(svc))
+                .put("resample", cfg.resample()).put("sync_drops_5min", svc.snap == null ? 0 : svc.snap.syncFailures(5 * 60_000L))
                 .put("auto_update", cfg.autoUpdate()).put("update_window", cfg.updateWindow()).put("update_days", cfg.updateDays()).put("update_delay_h", cfg.updateDelayH())
                 .put("auto_update_state", Updater.state)
                 .put("zigbee_bridge", ZigbeeBridge.status).put("zigbee_rx", ZigbeeBridge.rx).put("zigbee_tx", ZigbeeBridge.tx)

@@ -260,6 +260,8 @@ class _PanelToolsPageState extends State<PanelToolsPage> {
         'echo "--- AJ Panel"; dumpsys package $_pkg | grep -E "versionName|lastUpdateTime"; '
         'echo "--- uptime"; uptime; echo "--- network"; ip -4 addr show | grep inet; ping -c 3 -W 1 ${api.host} | tail -2; '
         'echo "--- processes"; ps -A | grep -iE "ajpanel|snap|gateway|judian"; '
+        'echo "--- cpu (top)"; top -b -n 1 -m 12 2>/dev/null | head -20; '
+        'echo "--- wifi"; dumpsys wifi | grep -iE "mWifiInfo|RSSI|Link speed|Frequency" | head -4; '
         'echo "--- zigbee"; getprop persist.sys.jd.has_zigbee; stty -F /dev/ttyS3 -a 2>&1 | head -6; pm list packages -d; '
         'echo "--- AJ Panel log"; logcat -d -v time -s AJPanel | tail -n 1500');
     return out;

@@ -145,6 +145,7 @@ public class PanelService extends Service implements SnapProcess.Listener {
             volume.update(n);
             checkOrigin(n);
             keepGroup(n);
+            lightenIfStruggling();
             if (n.serverOk && System.currentTimeMillis() - created > 60_000) {
                 Updater.maybeCheck(this, cfg, false);
                 Updater.autoInstall(this, cfg, n);
@@ -233,6 +234,20 @@ public class PanelService extends Service implements SnapProcess.Listener {
         boolean m = !n.muted;
         async(m ? "pause here (mute)" : "resume here (unmute)", () -> ma.mute(cfg.maPlayerId(), m));
     }
+    // ---- self-healing for weak panels (DSPPA): the sync player converts 48 kHz to the panel's 44.1 kHz itself, which is
+    // heavy for its CPU; while music plays the player then misses its time-sync answers and drops the connection
+    // ("Time sync request failed"). After 3 such drops in 5 minutes let Android convert instead (much cheaper).
+    private void lightenIfStruggling() {
+        if (snap == null || !cfg.resample()) return;
+        int f = snap.syncFailures(5 * 60_000L);
+        if (f < 3) return;
+        String rate = ((android.media.AudioManager) getSystemService(AUDIO_SERVICE)).getProperty(android.media.AudioManager.PROPERTY_OUTPUT_SAMPLE_RATE);
+        if ("48000".equals(rate)) return;   // nothing to convert – resampling isn't the cause
+        cfg.edit().putBoolean("resample", false).putBoolean("resample_auto_off", true).apply();
+        Log.i("sync player: " + f + " connection drops in 5 min while converting 48000 -> " + rate + " Hz – switching to Android's converter (lighter)");
+        main.post(this::reload);
+    }
+
     // ---- self-healing group membership ----
     // Music Assistant drops a player from its group when its sync connection breaks for a moment (seen on the
     // DSPPA's Wi-Fi: time-sync timeouts while streaming). The player reconnects within a second, but stays out of
