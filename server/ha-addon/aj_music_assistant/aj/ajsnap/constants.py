@@ -37,6 +37,11 @@ SHIPPED_SNAPSERVER_CONFIG_FILE = (
 # never times out abruptly powered-off clients, so we poll lastSeen freshness ourselves.
 SNAPCLIENT_LIVENESS_POLL_INTERVAL = 5  # poll_interval (seconds) for snapcast players
 SNAPCLIENT_STALE_THRESHOLD = 15  # mark unavailable if lastSeen frozen this long (seconds)
+# AJ: Wi-Fi panels (DSPPA, M20) drop their sync connection for 1-3 s now and then ("Time sync request failed")
+# and reconnect at once; the snapserver keeps them in their group meanwhile. Reporting that as "unavailable"
+# made Music Assistant dissolve and re-form the whole sync group for every room. Only a client that stays
+# disconnected longer than this is unavailable.
+SNAPCLIENT_DISCONNECT_GRACE = 20  # seconds
 
 # Socket path template for control script communication
 # The {queue_id} placeholder will be replaced with the actual queue ID

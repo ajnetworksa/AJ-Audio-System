@@ -32,6 +32,7 @@ while ($true) {
   Write-Host " 7) Reboot a panel"
   Write-Host " 8) Zigbee: backup / switch to Home Assistant / back to Tuya / status"
   Write-Host " t) Set time zone + automatic time on panels (wrong clock in logs)"
+  Write-Host " w) Wi-Fi panels: fewer background scans, Wi-Fi never sleeps (DSPPA drops)"
   Write-Host " 9) Edit panel list (panels.txt)"
   Write-Host " 0) Exit"
   switch (Read-Host "Choose") {
@@ -64,6 +65,21 @@ while ($true) {
         $d = "$($p.ip):5555"; & $ADB connect $d | Out-Null
         & $ADB -s $d shell "settings put global auto_time 1; settings put global auto_time_zone 0; service call alarm 3 s16 $tz" | Out-Null
         Write-Host ("  {0}: {1}  ({2})" -f $p.name, ((& $ADB -s $d shell date) -join ""), ((& $ADB -s $d shell getprop persist.sys.timezone) -join ""))
+      }
+    }
+    "w" {
+      # Each Wi-Fi scan takes cheap Wi-Fi chips off the channel for a moment; a >2 s stall drops the sync connection.
+      # CHANGES (Android settings only, undo with -u): scanning while Wi-Fi/BT off, "open network" notification scans,
+      # Wi-Fi sleep policy = never. Nothing else.
+      $undo = (Read-Host "u = undo, Enter = apply") -eq "u"
+      foreach ($p in (Pick "Wi-Fi tuning on:")) {
+        $d = "$($p.ip):5555"; & $ADB connect $d | Out-Null
+        if ($undo) { & $ADB -s $d shell "settings put global wifi_scan_always_enabled 1; settings put global ble_scan_always_enabled 1; settings put global wifi_networks_available_notification_on 1; settings delete global wifi_sleep_policy" | Out-Null; Write-Host "  $($p.name): back to defaults" }
+        else {
+          & $ADB -s $d shell "settings put global wifi_scan_always_enabled 0; settings put global ble_scan_always_enabled 0; settings put global wifi_networks_available_notification_on 0; settings put global wifi_sleep_policy 2" | Out-Null
+          $w = (& $ADB -s $d shell "dumpsys wifi | grep -m1 mWifiInfo") -join ""
+          Write-Host ("  {0}: done  {1}" -f $p.name, ($w -replace '.*(RSSI: -?\d+).*(Frequency: \d+).*', '$1 $2'))
+        }
       }
     }
     "9" { notepad $list }

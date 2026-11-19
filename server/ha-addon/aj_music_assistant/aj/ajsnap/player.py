@@ -18,6 +18,7 @@ from music_assistant.models.player import Player
 from music_assistant.providers.ajsnap.constants import (
     SNAPCLIENT_LIVENESS_POLL_INTERVAL,
     SNAPCLIENT_STALE_THRESHOLD,
+    SNAPCLIENT_DISCONNECT_GRACE,
 )
 from music_assistant.providers.ajsnap.ma_stream import SnapcastMAStream
 from music_assistant.providers.sync_group.constants import SGP_PREFIX
@@ -85,6 +86,7 @@ class SnapCastPlayer(Player):
         # raw lastSeen value + monotonic time it last advanced (skew-proof liveness)
         self._last_seen_raw: tuple[int, int] | None = None
         self._last_seen_changed: float = 0.0
+        self._disconnected_since: float | None = None  # AJ: grace for short Wi-Fi drops
 
     @property
     def snap_provider(self) -> SnapCastProvider:
@@ -131,11 +133,16 @@ class SnapCastPlayer(Player):
             return []
 
         player_ids.remove(self.player_id)
+        # AJ: a member in its short reconnect grace (see _is_alive) stays a member, so a Wi-Fi hiccup on one
+        # panel doesn't change the group's member list (which made MA re-form the whole group)
         connected = [
             player_id
             for player_id in player_ids
             if (client := self.snap_provider.get_snap_client(player_id=player_id))
-            and client.connected
+            and (
+                client.connected
+                or ((pl := self.mass.players.get_player(player_id)) is not None and pl.available)
+            )
         ]
         if connected:
             return [self.player_id, *connected]
@@ -625,7 +632,19 @@ class SnapCastPlayer(Player):
             self._last_seen_raw = ls
             self._last_seen_changed = now
         if not self.snap_client.connected:
-            return False
+            # AJ: a short drop (Wi-Fi panel reconnecting) is not "gone" – keep the player and its group
+            if self._disconnected_since is None:
+                self._disconnected_since = now
+                self.logger.debug("%s disconnected – grace %ss", self.display_name, SNAPCLIENT_DISCONNECT_GRACE)
+            gone = (now - self._disconnected_since) >= SNAPCLIENT_DISCONNECT_GRACE
+            if gone and self._attr_available:
+                self.logger.info("%s stayed disconnected for %ss – unavailable", self.display_name, SNAPCLIENT_DISCONNECT_GRACE)
+            return not gone
+        if self._disconnected_since is not None:
+            self.logger.info(
+                "%s reconnected after %.1fs – kept in its group", self.display_name, now - self._disconnected_since
+            )
+            self._disconnected_since = None
         return (now - self._last_seen_changed) < SNAPCLIENT_STALE_THRESHOLD
 
     def _get_active_snapstream(self) -> SnapstreamProto | None:
