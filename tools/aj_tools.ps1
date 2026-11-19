@@ -33,6 +33,7 @@ while ($true) {
   Write-Host " 8) Zigbee: backup / switch to Home Assistant / back to Tuya / status"
   Write-Host " t) Set time zone + automatic time on panels (wrong clock in logs)"
   Write-Host " w) Wi-Fi panels: fewer background scans, Wi-Fi never sleeps (DSPPA drops)"
+  Write-Host " i) Inventory: complete hardware + software info of panels (read only)"
   Write-Host " 9) Edit panel list (panels.txt)"
   Write-Host " 0) Exit"
   switch (Read-Host "Choose") {
@@ -82,6 +83,7 @@ while ($true) {
         }
       }
     }
+    "i" { $ps = Pick "Inventory of:"; if ($ps.Count) { Run "panel_inventory.bat" ("-panels `"" + (($ps | ForEach-Object { $_.ip }) -join ",") + "`"") } }
     "9" { notepad $list }
     "0" { return }
   }

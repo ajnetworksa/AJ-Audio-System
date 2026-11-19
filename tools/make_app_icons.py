@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """Per-app launcher icons: the AJ logo mark + a small badge so the three apps are easy to tell apart.
-   Installer = gear, Client = play, Panel = speaker. Uses apps/branding/logo_mark.png (made by make_branding.py).
+   Installer = SETUP, Client = AUDIO, Panel = PANEL (label under the logo). Uses apps/branding/logo_mark.png (made by make_branding.py).
 usage: python3 tools/make_app_icons.py
 writes apps/branding/<app>/icon_1024.png + android-res/ (aj-setup, aj-audio) and apps/panel/res/mipmap-*/ (panel)."""
 import math, os
@@ -39,24 +39,33 @@ def speaker(d, cx, cy, r, color, bg):
         d.arc(box, -48, 48, fill=color, width=int(w))
 
 
+FONT = "/usr/share/fonts/truetype/google-fonts/Poppins-Bold.ttf"
+LABELS = {"setup": "SETUP", "client": "AUDIO", "panel": "PANEL"}
+
+
 def glyph(kind):
-    """transparent S×S: logo mark top-left, round badge bottom-right"""
+    """transparent S×S: AJ logo mark on top, short label under it (white, letter-spaced)"""
+    from PIL import ImageFont
     g = Image.new("RGBA", (S, S), (0, 0, 0, 0))
     m = mark.crop(mark.getbbox())
-    k = S * 0.78 / max(m.size)                       # scale UP as well (thumbnail() only shrinks)
+    k = S * 0.62 / max(m.size)
     m = m.resize((int(m.width * k), int(m.height * k)), Image.LANCZOS)
-    g.alpha_composite(m, (int((S * 0.86 - m.width) / 2), int(S * 0.03)))
+    g.alpha_composite(m, ((S - m.width) // 2, int(S * 0.02)))
     d = ImageDraw.Draw(g)
-    r = S * 0.19
-    cx = cy = S - r - S * 0.02
-    d.ellipse([cx - r - S * 0.025, cy - r - S * 0.025, cx + r + S * 0.025, cy + r + S * 0.025], fill=NAVY)   # gap ring
-    d.ellipse([cx - r, cy - r, cx + r, cy + r], fill=GREEN if kind != "setup" else WHITE)
-    if kind == "setup":
-        gear(d, cx, cy, r * 0.78, GREEN, WHITE)
-    elif kind == "client":
-        play(d, cx, cy, r * 0.8, NAVY)
-    else:
-        speaker(d, cx, cy, r * 0.85, NAVY, GREEN)
+    text = LABELS[kind]
+    size = int(S * 0.20)
+    font = ImageFont.truetype(FONT, size)
+    sp = int(S * 0.012)                       # a little letter spacing
+    widths = [d.textlength(c, font=font) for c in text]
+    total = sum(widths) + sp * (len(text) - 1)
+    while total > S * 0.96:                   # keep it inside the safe area
+        size -= 4; font = ImageFont.truetype(FONT, size)
+        widths = [d.textlength(c, font=font) for c in text]; total = sum(widths) + sp * (len(text) - 1)
+    x = (S - total) / 2
+    y = S * 0.66
+    for c, w in zip(text, widths):
+        d.text((x, y), c, font=font, fill=WHITE)
+        x += w + sp
     return g
 
 
