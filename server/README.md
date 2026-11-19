@@ -26,7 +26,7 @@ AJ Panel ≥ 0.8.7 and AJ Audio Client ≥ 0.7.6 use AJ Cast when the server has
 - **Jitter buffer**: 160 ms cushion before playing, real-time pacing, silence instead of stopping on a Wi-Fi gap,
   backlog trimmed above 500 ms → no stutter on short hiccups, latency stays low.
 - Own port 12899 (official one stays free), no UDP discovery (our apps ask MA for the plugin).
-- Add it: MA → Settings → Plugins → Add → **AJ Cast** → choose the default player. Then remove the AriaCast Receiver.
+- Add it: MA → Settings → Plugins → Add → **AJ Cast** → Finish ("No default – AJ apps choose the room" is preselected; a default player is only needed for third-party AriaCast apps). Then remove the AriaCast Receiver.
 
 ## A) Local Home Assistant add-on (keeps HA for other projects)
 1. On the PC: `server\ha-addon\build_addon.bat` (fills `aj_music_assistant\aj\`).

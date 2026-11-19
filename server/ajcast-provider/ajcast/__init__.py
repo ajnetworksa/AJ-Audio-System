@@ -55,6 +55,7 @@ if TYPE_CHECKING:
 # ---------------------------------------------------------------------------
 
 CONF_MASS_PLAYER_ID = "mass_player_id"
+NO_DEFAULT_PLAYER = "none"   # AJ apps pick the room via select_source; a default is optional
 DEFAULT_ARIACAST_NAME = "Music Assistant"
 SUPPORTED_FEATURES = {ProviderFeature.AUDIO_SOURCE}
 AUDIO_SOURCE_ID = "main"
@@ -108,7 +109,8 @@ class AriaCastReceiver(PluginProvider):
     ) -> None:
         """Initialize the AriaCast Receiver provider."""
         super().__init__(mass, manifest, config, SUPPORTED_FEATURES)
-        self._default_player_id = str(self.get_setup_value(CONF_MASS_PLAYER_ID) or "")
+        default = str(self.get_setup_value(CONF_MASS_PLAYER_ID) or "")
+        self._default_player_id = "" if default == NO_DEFAULT_PLAYER else default
 
         # Audio pipeline: one asyncio.Queue, drained per stream (VBAN pattern)
         self._audio_queue: asyncio.Queue[bytes] = asyncio.Queue(maxsize=100)
@@ -181,12 +183,6 @@ class AriaCastReceiver(PluginProvider):
 
     async def handle_async_init(self) -> None:
         """Start the AriaCast WebSocket server."""
-        if not self.get_setup_value(CONF_MASS_PLAYER_ID):
-            raise SetupFailedError(
-                "No connected Music Assistant player is configured",
-                translation_key="no_connected_player",
-                translation_owner=self.translation_owner,
-            )
         app = web.Application()
         app.router.add_get("/audio", self._ws_audio)
         app.router.add_get("/control", self._ws_control)
@@ -1030,6 +1026,9 @@ class AriaCastReceiver(PluginProvider):
             self.logger.debug("Stored player %s no longer available", self._active_player_id)
             self._active_player_id = None
 
+        if not self._default_player_id:
+            # no default: the sender (AJ app) selects AJ Cast as source on a room/group itself
+            return None
         if self.mass.players.get_player(self._default_player_id):
             self.logger.debug("Using configured player: %s", self._default_player_id)
             return self._default_player_id
