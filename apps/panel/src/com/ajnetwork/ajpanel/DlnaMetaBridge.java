@@ -36,7 +36,10 @@ public class DlnaMetaBridge {
     private volatile String controlUrl;     // AVTransport control URL of the local renderer
     private ServerSocket silence;
     private int silencePort;
-    private String lastKey = "";
+    private String lastKey = "", lastImg = "";
+    private boolean coverPushed;
+    private long lastPushAt;
+    private int misses;
     private String expected = "";           // PLAYING / PAUSED_PLAYBACK / STOPPED that WE asked for
     private long lastDiscover;
     private int seq;
@@ -53,16 +56,27 @@ public class DlnaMetaBridge {
     public void update(NowPlaying n) {
         try {
             if (controlUrl == null) {
-                if (System.currentTimeMillis() - lastDiscover < 30000) return;
+                // panels without the Judian player (px30, DSPPA…): try 3× every 30 s, then every 10 min, log once
+                if (System.currentTimeMillis() - lastDiscover < (misses < 3 ? 30_000 : 600_000)) return;
                 lastDiscover = System.currentTimeMillis();
                 controlUrl = discover();
-                if (controlUrl == null) { Log.i("dlna bridge: local renderer not found"); return; }
+                if (controlUrl == null) { if (++misses == 3) Log.i("dlna bridge: no local renderer on this panel – checking again every 10 min"); return; }
+                misses = 0;
                 Log.i("dlna bridge: renderer " + controlUrl);
                 startSilenceServer();
             }
-            String key = n.active() ? n.title + "|" + n.artist + "|" + n.imageUrl : "";
-            if (!key.equals(lastKey)) {
-                lastKey = key;
+            // 0.8.10: the song is title+artist. The cover URL alone changes every few seconds while a phone shares
+            // (new art.jpg?v=…), and every push restarts the Judian player (SetAVTransportURI + Play) – logs showed
+            // 4–7 pushes a minute for the same song and audible dropouts on X8/P8. A new cover for the same song is
+            // pushed at most once, and only 20 s after the last push.
+            String key = n.active() ? n.title + "|" + n.artist : "";
+            String img = n.active() ? n.imageUrl : "";
+            boolean coverOnly = key.equals(lastKey) && !img.equals(lastImg) && !key.isEmpty();
+            if (coverOnly && !coverPushed && System.currentTimeMillis() - lastPushAt > 20_000) {
+                coverPushed = true; lastImg = img;
+                push(n);
+            } else if (!key.equals(lastKey)) {
+                lastKey = key; lastImg = img; coverPushed = false;
                 if (n.active()) push(n); else { soap("Stop", ""); expect("STOPPED"); }
             } else if (n.active()) {
                 String want = "playing".equals(n.state) && !n.muted ? "PLAYING" : "PAUSED_PLAYBACK";
@@ -102,6 +116,7 @@ public class DlnaMetaBridge {
         soap("SetAVTransportURI", "<CurrentURI>" + uri + "</CurrentURI><CurrentURIMetaData>" + x(didl) + "</CurrentURIMetaData>");
         soap("Play", "<Speed>1</Speed>");
         expect("PLAYING");
+        lastPushAt = System.currentTimeMillis();
         Log.i("dlna bridge: pushed '" + n.title + "'");
     }
 
