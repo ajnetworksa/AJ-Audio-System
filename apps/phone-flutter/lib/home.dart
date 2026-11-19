@@ -151,7 +151,7 @@ class _HomePageState extends State<HomePage> {
                 value: saved,
                 onChanged: (v) => set(() => saved = v),
               ),
-            if (edit == null && saved)
+            if (edit != null || saved)
               TextField(controller: nameCtl, decoration: const InputDecoration(labelText: 'Group name (e.g. Whole House)')),
             const SizedBox(height: 8),
             const Text('Rooms', style: TextStyle(color: Colors.white70)),
@@ -184,9 +184,14 @@ class _HomePageState extends State<HomePage> {
     final list = chosen.toList();
     if (edit != null) {
       final old = members(edit).toSet();
-      await run(() => widget.ma.setMembers(edit['player_id'],
-          add: list.where((x) => !old.contains(x)).toList(),
-          remove: old.where((x) => !chosen.contains(x)).toList()), ok: 'Group updated');
+      final newName = nameCtl.text.trim();
+      final renamed = newName.isNotEmpty && newName != '${edit['name']}';
+      await run(() async {
+        if (renamed) await widget.ma.renamePlayer(edit['player_id'], newName);
+        final add = list.where((x) => !old.contains(x)).toList();
+        final remove = old.where((x) => !chosen.contains(x)).toList();
+        if (add.isNotEmpty || remove.isNotEmpty) await widget.ma.setMembers(edit['player_id'], add: add, remove: remove);
+      }, ok: renamed ? 'Group renamed to "$newName" – AirPlay name: "$newName | Music Assistant"' : 'Group updated');
       return;
     }
     if (!saved) {
@@ -391,7 +396,7 @@ class _HomePageState extends State<HomePage> {
                 }
               },
               itemBuilder: (c) => [
-                if (saved) const PopupMenuItem(value: 'edit', child: Text('Change rooms')),
+                if (saved) const PopupMenuItem(value: 'edit', child: Text('Rename / change rooms')),
                 if (!saved) const PopupMenuItem(value: 'ungroup', child: Text('Ungroup')),
                 if (saved) const PopupMenuItem(value: 'delete', child: Text('Delete group')),
               ],

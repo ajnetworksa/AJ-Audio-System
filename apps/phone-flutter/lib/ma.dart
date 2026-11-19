@@ -111,6 +111,10 @@ class Ma {
     return r is Map<String, dynamic> ? r : null;
   }
 
+  /// rename a saved group (also its AirPlay name). Needs an MA admin login (config.players.write).
+  Future<void> renamePlayer(String id, String name) =>
+      cmd('config/players/save', {'player_id': id, 'values': {'name': name}});
+
   Future<void> removeGroup(String id) => cmd('players/remove_group_player', {'player_id': id});
 
   /// expose a player/group as AirPlay receiver ("<name> | Music Assistant")
