@@ -52,7 +52,8 @@ public class Site {
                 Group g = new Group();
                 g.id = s(p, "player_id"); g.name = s(p, "name"); g.state = s(p, "playback_state");
                 g.title = s(m, "title"); g.artist = s(m, "artist"); g.image = s(m, "image_url");
-                g.volume = p.optInt("volume_level", -1);
+                // MA keeps a group's real volume in group_volume (average of its rooms); volume_level is empty for sync groups
+                g.volume = p.isNull("group_volume") ? p.optInt("volume_level", -1) : p.optInt("group_volume", p.optInt("volume_level", -1));
                 g.members = list(p.optJSONArray("group_members"));
                 site.groups.add(g);
             } else {

@@ -337,6 +337,18 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
+  /// a group's real volume: Music Assistant reports it in `group_volume` (average of its rooms);
+  /// a sync group's own `volume_level` is empty, which showed the slider at 0 while music played
+  num? groupVol(Map<String, dynamic> g) {
+    final gv = g['group_volume'] as num?;
+    if (gv != null && (gv > 0 || g['volume_level'] == null)) return gv;
+    final vl = g['volume_level'] as num?;
+    if (vl != null) return vl;
+    // fallback: average of the member rooms we know
+    final vols = members(g).map((m) => byId(m)?['volume_level'] as num?).whereType<num>().toList();
+    return vols.isEmpty ? null : vols.reduce((a, b) => a + b) / vols.length;
+  }
+
   String nowLine(Map<String, dynamic> p) {
     final m = p['current_media'] as Map<String, dynamic>?;
     final t = (m?['title'] ?? '').toString();
@@ -408,7 +420,7 @@ class _HomePageState extends State<HomePage> {
           Row(children: [
             Expanded(child: transport(g)),
           ]),
-          volumeSlider(id, g['volume_level'] as num?, (v) => widget.ma.groupVolume(id, v)),
+          volumeSlider(id, groupVol(g), (v) => widget.ma.groupVolume(id, v)),
         ]),
       ),
     );
@@ -565,7 +577,7 @@ class _HomePageState extends State<HomePage> {
         ]),
         Row(children: [
           const Icon(Icons.volume_down, color: Colors.white54),
-          Expanded(child: volumeSlider(id, p['volume_level'] as num?, (v) => isGroup ? widget.ma.groupVolume(id, v) : widget.ma.volume(id, v))),
+          Expanded(child: volumeSlider(id, isGroup ? groupVol(p) : p['volume_level'] as num?, (v) => isGroup ? widget.ma.groupVolume(id, v) : widget.ma.volume(id, v))),
           const Icon(Icons.volume_up, color: Colors.white54),
         ]),
       ]),
