@@ -256,6 +256,13 @@ public class PanelService extends Service implements SnapProcess.Listener {
     private String keptGroup = "";
     private long keptAt, userLeftAt;
     private int rejoins;
+    private long lastRejoinAt;
+    /*
+     * 0.8.8: logs showed the DSPPA re-joining 5× in 17 s – every poll, while its sync connection was still down.
+     * Each join made Music Assistant re-form the whole group ("Dissolving syncgroup … re-forming with a new leader",
+     * "Player smart can not be grouped") – so one weak panel kept interrupting all the others.
+     * Now: only after the sync connection has been up again for 8 s, at most once per 30 s, max 3 times.
+     */
     private void keepGroup(NowPlaying n) {
         long now = System.currentTimeMillis();
         String g = currentGroupId();
@@ -264,7 +271,8 @@ public class PanelService extends Service implements SnapProcess.Listener {
         boolean recent = now - keptAt < 90_000;
         boolean dropped = snap != null && now - snap.lastDrop < 45_000;
         boolean byUser = now - userLeftAt < 120_000 || breaks.active();
-        if (!recent || !dropped || byUser || rejoins >= 5 || !snap.connected) { if (!recent) { keptGroup = ""; rejoins = 0; } return; }
+        if (!recent || !dropped || byUser || rejoins >= 3 || !snap.connected) { if (!recent) { keptGroup = ""; rejoins = 0; } return; }
+        if (now - snap.connectedAt < 8_000 || now - lastRejoinAt < 30_000) return;   // let the connection settle first
         Site st = site;
         boolean stillPlaying = false;
         if (st != null) {
@@ -276,7 +284,8 @@ public class PanelService extends Service implements SnapProcess.Listener {
         if (!stillPlaying) return;
         String target = keptGroup;
         rejoins++;
-        keptAt = now;   // give it time before trying again
+        keptAt = now;   // keep the memory of the group alive while we wait
+        lastRejoinAt = now;
         Log.i("group: dropped from " + target + " after a connection hiccup – joining again (" + rejoins + ")");
         joinZone(target);
     }

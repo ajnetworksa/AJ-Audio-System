@@ -30,6 +30,7 @@ public class SnapProcess {
     public volatile boolean connected;
     /** when the connection to the server last broke (Wi-Fi hiccup, time-sync timeout …) */
     public volatile long lastDrop;
+    public volatile long connectedAt;   // when the sync connection (re)connected
     private final java.util.ArrayList<Long> syncFails = new java.util.ArrayList<>();
     /** how often the sync connection timed out in the last [ms] */
     public int syncFailures(long ms) {
@@ -132,6 +133,7 @@ public class SnapProcess {
                 String line;
                 while ((line = r.readLine()) != null) {
                     lastLine = line;
+                    if (line.contains("Connected to")) connectedAt = System.currentTimeMillis();
                     if (line.contains("Connected to") || line.contains("ServerSettings")) connected = true;
                     if (line.contains("onError") || line.contains("Failed to connect") || line.contains("Connection refused")) connected = false;
                     if (line.contains("Time sync request failed") || line.contains("Operation Canceled") || line.contains("Failed to send hello")) lastDrop = System.currentTimeMillis();
