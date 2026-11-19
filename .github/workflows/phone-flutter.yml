@@ -38,7 +38,7 @@ jobs:
           # both apps: in-app update from GitHub Releases
           python3 "$GITHUB_WORKSPACE/tools/patch_update_manifest.py" $M
       - name: AJ Network Solutions app icon (Android)
-        run: cp -r "$GITHUB_WORKSPACE/apps/branding/android-res/." android/app/src/main/res/
+        run: cp -r "$GITHUB_WORKSPACE/apps/branding/${{ matrix.art }}/android-res/." android/app/src/main/res/   # per-app icon (gear / play badge)
       - run: flutter pub get
       - run: flutter build apk --release
       - name: Sign with our release key (if secrets set) - same key every build, so updates install over the old app
@@ -83,7 +83,7 @@ jobs:
           D=ios/Runner/Assets.xcassets/AppIcon.appiconset
           for f in "$D"/*.png; do
             w=$(sips -g pixelWidth "$f" | awk '/pixelWidth/ {print $2}')
-            cp "$GITHUB_WORKSPACE/apps/branding/icon_1024.png" "$f"
+            cp "$GITHUB_WORKSPACE/apps/branding/${{ matrix.art }}/icon_1024.png" "$f"
             sips -z "$w" "$w" "$f" >/dev/null
           done
           ls -la "$D"
