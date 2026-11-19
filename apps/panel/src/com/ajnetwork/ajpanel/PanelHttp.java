@@ -230,7 +230,10 @@ public class PanelHttp {
                 .put("auto_update", cfg.autoUpdate()).put("update_window", cfg.updateWindow()).put("update_days", cfg.updateDays()).put("update_delay_h", cfg.updateDelayH())
                 .put("auto_update_state", Updater.state)
                 .put("zigbee_bridge", ZigbeeBridge.status).put("zigbee_rx", ZigbeeBridge.rx).put("zigbee_tx", ZigbeeBridge.tx)
-                .put("uptime_s", (System.currentTimeMillis() - started) / 1000);
+                .put("uptime_s", (System.currentTimeMillis() - started) / 1000)
+                // panel wall clock + zone: a wrong zone makes every log time look wrong (M20 showed 02:51 at 10:51)
+                .put("clock", new java.text.SimpleDateFormat("yyyy-MM-dd HH:mm Z", java.util.Locale.US).format(new java.util.Date()))
+                .put("time_zone", java.util.TimeZone.getDefault().getID());
     }
 
     private String version() {

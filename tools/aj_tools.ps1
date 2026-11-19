@@ -31,6 +31,7 @@ while ($true) {
   Write-Host " 6) Restart AJ Panel on a panel"
   Write-Host " 7) Reboot a panel"
   Write-Host " 8) Zigbee: backup / switch to Home Assistant / back to Tuya / status"
+  Write-Host " t) Set time zone + automatic time on panels (wrong clock in logs)"
   Write-Host " 9) Edit panel list (panels.txt)"
   Write-Host " 0) Exit"
   switch (Read-Host "Choose") {
@@ -38,7 +39,7 @@ while ($true) {
       foreach ($p in Panels) {
         try {
           $i = Invoke-RestMethod "http://$($p.ip):8766/api/info" -TimeoutSec 4
-          "{0,-12} {1,-15} v{2,-7} server {3,-13} sync {4,-5} silent-upd {5,-5} auto-upd {6} {7}  zigbee: {8}" -f $p.name, $p.ip, $i.version, $i.server, $i.sync_connected, $i.silent_update, $i.auto_update, $i.update_window, $i.zigbee_bridge | Write-Host
+          "{0,-12} {1,-15} v{2,-7} server {3,-13} sync {4,-5} silent-upd {5,-5} auto-upd {6} {7}  clock {9}  zigbee: {8}" -f $p.name, $p.ip, $i.version, $i.server, $i.sync_connected, $i.silent_update, $i.auto_update, $i.update_window, $i.zigbee_bridge, $i.clock | Write-Host
         } catch { "{0,-12} {1,-15} not reachable (off, other network, or no AJ Panel)" -f $p.name, $p.ip | Write-Host -ForegroundColor Yellow }
       }
     }
@@ -54,6 +55,16 @@ while ($true) {
       $m = Read-Host "Choose"
       $flag = @{ b = ""; o = "-on"; f = "-off"; s = "-status" }[$m]
       if ($null -ne $flag) { foreach ($p in $ps) { Run "zigbee_test.bat" "-panel $($p.ip) $flag" } }
+    }
+    "t" {
+      # Android's own time-zone call (shell may do this, no root): alarm service, setTimeZone. Clock itself comes from the
+      # network once automatic time is on. CHANGES: time zone + auto_time on the chosen panels, nothing else.
+      $tz = Read-Host "Time zone (Enter = Asia/Riyadh)"; if (-not $tz) { $tz = "Asia/Riyadh" }
+      foreach ($p in (Pick "Set time zone $tz on:")) {
+        $d = "$($p.ip):5555"; & $ADB connect $d | Out-Null
+        & $ADB -s $d shell "settings put global auto_time 1; settings put global auto_time_zone 0; service call alarm 3 s16 $tz" | Out-Null
+        Write-Host ("  {0}: {1}  ({2})" -f $p.name, ((& $ADB -s $d shell date) -join ""), ((& $ADB -s $d shell getprop persist.sys.timezone) -join ""))
+      }
     }
     "9" { notepad $list }
     "0" { return }
