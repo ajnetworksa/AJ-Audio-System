@@ -34,6 +34,7 @@ while ($true) {
   Write-Host " t) Set time zone + automatic time on panels (wrong clock in logs)"
   Write-Host " w) Wi-Fi panels: fewer background scans, Wi-Fi never sleeps (DSPPA drops)"
   Write-Host " i) Inventory: complete hardware + software info of panels (read only)"
+  Write-Host " d) Remove apps panels don't need (dry run first; u = undo)"
   Write-Host " 9) Edit panel list (panels.txt)"
   Write-Host " 0) Exit"
   switch (Read-Host "Choose") {
@@ -84,6 +85,15 @@ while ($true) {
       }
     }
     "i" { $ps = Pick "Inventory of:"; if ($ps.Count) { Run "panel_inventory.bat" ("-panels `"" + (($ps | ForEach-Object { $_.ip }) -join ",") + "`"") } }
+    "d" {
+      $ps = Pick "Clean up which panel (test ONE first):"
+      if ($ps.Count) {
+        $ips = ($ps | ForEach-Object { $_.ip }) -join ","
+        $m = Read-Host "Enter = dry run (shows the list), a = remove stage 1, 2 = stage 2 (vendor home screen - only when our app is ready), u = undo"
+        $args2 = switch ($m) { "a" { "-apply" } "2" { "-apply -stage 2" } "u" { "-restore" } default { "" } }
+        Run "panel_debloat.bat" ("-panels `"$ips`" " + $args2)
+      }
+    }
     "9" { notepad $list }
     "0" { return }
   }

@@ -58,3 +58,4 @@ zigbee_backup/
 # site-specific panel list for tools/aj_tools.bat
 tools/panels.txt
 tools/inventory/
+tools/debloat/
