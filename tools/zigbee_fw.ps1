@@ -1,5 +1,5 @@
 # zigbee_fw.ps1 - TEST: change the Zigbee radio firmware of ONE Judian panel (for Zigbee2MQTT), with backups and a way back.
-# Read zigbee.md "Radio firmware change" first. Start with the X8 (192.168.8.165) only.
+# Read zigbee.md "Radio firmware change" first. Test panel: the S20 (a spare, not the X8/P8 in daily use).
 #
 #   zigbee_fw.bat                       = -probe. READ ONLY on the radio: backs up the radio's Zigbee network again,
 #                                         identifies the radio (EZSP/stack version, board, IEEE, BOOTLOADER yes/no) and
@@ -12,16 +12,17 @@
 #                                         to give the radio back to the Judian gateway (zigbee_test.bat -off)
 #   zigbee_fw.bat -restorenet           WRITES the radio's network settings: puts the last zigbee_network.json back
 #                                         (keeps PAN/channel/key so paired devices stay on the network)
-#   -panel 192.168.8.165
+#   -panel <ip>   REQUIRED (no default, so a panel in daily use is never flashed by mistake)
 #   -baud 115200 -flow rtscts|none         how the radio talks NOW (default: Tuya firmware = 115200 + rtscts)
 #   -newbaud / -newflow                    how the NEW firmware talks after -flash/-revert (default: same as now)
 #
 # Before you start: the Judian gateway app must be off (zigbee_test.bat -on done) and Home Assistant must NOT use this
 # radio (disable ZHA / stop Zigbee2MQTT). Needs AJ Panel 0.9.7+ and Python 3 on this PC (tools\.zigpy-venv).
 # Output: tools\zigbee_backup\<ip>_fw_<date>\  (git-ignored; zigbee_network.json holds the network key - keep it private)
-param([string]$panel = "192.168.8.165", [string]$flash = "", [string]$revert = "", [switch]$restorenet, [switch]$probe,
+param([string]$panel = "", [string]$flash = "", [string]$revert = "", [switch]$restorenet, [switch]$probe,
       [int]$baud = 115200, [ValidateSet("rtscts", "none")][string]$flow = "rtscts",
       [int]$newbaud = 0, [string]$newflow = "")
+if (-not $panel) { Write-Host "Say which panel: zigbee_fw.bat -panel <ip of the S20>" -ForegroundColor Red; exit 1 }
 if ($newbaud -le 0) { $newbaud = $baud }
 if (-not $newflow) { $newflow = $flow }
 if ($newflow -notin @("rtscts", "none")) { Write-Host "-newflow must be rtscts or none"; exit 1 }
