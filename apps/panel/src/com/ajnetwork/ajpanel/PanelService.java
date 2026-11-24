@@ -479,11 +479,11 @@ public class PanelService extends Service implements SnapProcess.Listener {
 
     /** TEST: Zigbee radio -> TCP for Home Assistant ZHA (off unless zigbee_bridge is set) */
     private void applyZigbee() {
-        String want = cfg.zigbeeBridge() ? cfg.zigbeeTty() + cfg.zigbeePort() + cfg.zigbeeAllow() : "";
+        String want = cfg.zigbeeBridge() ? ZigbeeBridge.sig(cfg.zigbeeTty(), cfg.zigbeePort(), cfg.zigbeeAllow(), cfg.zigbeeBaud(), cfg.zigbeeRtsCts()) : "";
         String have = zigbee == null ? "" : zigbee.sig();
         if (want.equals(have)) return;
         if (zigbee != null) { zigbee.stop(); zigbee = null; Log.i("zigbee bridge stopped"); }
-        if (!want.isEmpty()) { ZigbeeBridge.nativeDir = getApplicationInfo().nativeLibraryDir; zigbee = new ZigbeeBridge(cfg.zigbeeTty(), cfg.zigbeePort(), cfg.zigbeeAllow()); zigbee.start(); }
+        if (!want.isEmpty()) { ZigbeeBridge.nativeDir = getApplicationInfo().nativeLibraryDir; zigbee = new ZigbeeBridge(cfg.zigbeeTty(), cfg.zigbeePort(), cfg.zigbeeAllow(), cfg.zigbeeBaud(), cfg.zigbeeRtsCts()); zigbee.start(); }
     }
 
     @Override public void onDestroy() {

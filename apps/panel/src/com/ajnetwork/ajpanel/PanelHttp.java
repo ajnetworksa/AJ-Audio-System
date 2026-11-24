@@ -303,7 +303,7 @@ public class PanelHttp {
                 .put("resample", cfg.resample()).put("sync_drops_5min", svc.snap == null ? 0 : svc.snap.syncFailures(5 * 60_000L))
                 .put("auto_update", cfg.autoUpdate()).put("update_window", cfg.updateWindow()).put("update_days", cfg.updateDays()).put("update_delay_h", cfg.updateDelayH())
                 .put("auto_update_state", Updater.state)
-                .put("zigbee_bridge", ZigbeeBridge.status).put("zigbee_rx", ZigbeeBridge.rx).put("zigbee_tx", ZigbeeBridge.tx)
+                .put("zigbee_bridge", ZigbeeBridge.status).put("zigbee_serial", ZigbeeBridge.serial).put("zigbee_rx", ZigbeeBridge.rx).put("zigbee_tx", ZigbeeBridge.tx)
                 .put("uptime_s", (System.currentTimeMillis() - started) / 1000)
                 // panel wall clock + zone: a wrong zone makes every log time look wrong (M20 showed 02:51 at 10:51)
                 .put("clock", new java.text.SimpleDateFormat("yyyy-MM-dd HH:mm Z", java.util.Locale.US).format(new java.util.Date()))

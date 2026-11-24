@@ -23,15 +23,24 @@ public class ZigbeeBridge {
     private final String tty, allow;
     private String serialProblem = "";
     private final int port;
+    /** serial speed and RTS/CTS. Normal: 115200 + rtscts (Tuya/EmberZNet NCP). "none" only while flashing new radio
+     *  firmware: the Gecko bootloader does not drive RTS/CTS, so with rtscts the panel would never send to it. */
+    private final int baud;
+    private final boolean rtscts;
+    public static volatile String serial = "";   // e.g. "115200 rtscts" – shown in /api/info
     private volatile boolean run;
     private ServerSocket server;
     private volatile Socket cur;
     private FileInputStream in;
     private FileOutputStream out;
 
-    public ZigbeeBridge(String tty, int port, String allow) { this.tty = tty; this.port = port; this.allow = allow; }
+    public ZigbeeBridge(String tty, int port, String allow) { this(tty, port, allow, 115200, true); }
+    public ZigbeeBridge(String tty, int port, String allow, int baud, boolean rtscts) {
+        this.tty = tty; this.port = port; this.allow = allow; this.baud = baud; this.rtscts = rtscts;
+    }
 
-    public String sig() { return tty + port + allow; }
+    public String sig() { return sig(tty, port, allow, baud, rtscts); }
+    static String sig(String tty, int port, String allow, int baud, boolean rtscts) { return tty + port + allow + "|" + baud + (rtscts ? "r" : "n"); }
 
     public void start() {
         run = true;
@@ -40,7 +49,7 @@ public class ZigbeeBridge {
 
     public void stop() {
         run = false;
-        status = "off"; client = "";
+        status = "off"; client = ""; serial = "";
         closeQuiet(cur);
         try { if (server != null) server.close(); } catch (Exception ignored) { }
         try { if (in != null) in.close(); } catch (Exception ignored) { }
@@ -51,7 +60,8 @@ public class ZigbeeBridge {
         try {
             in = new FileInputStream(tty);
             out = new FileOutputStream(tty);
-            serialProblem = configureTty(tty);
+            serialProblem = configureTty(tty, baud, rtscts);
+            serial = baud + (rtscts ? " rtscts" : " none");
             String bad = serialProblem;
             if (!bad.isEmpty()) Log.i("zigbee bridge: WARNING serial flags still wrong: " + bad);
         } catch (Exception e) {
@@ -169,27 +179,31 @@ public class ZigbeeBridge {
             "echo", "echoe", "echok", "echonl", "echoctl", "echoke"};
     static final String[] ON = {"cs8", "crtscts", "clocal", "cread"};
 
-    static String configureTty(String tty) {
+    static String configureTty(String tty) { return configureTty(tty, 115200, true); }
+    static String configureTty(String tty, int baud, boolean rtscts) {
+        String[] on = rtscts ? ON : new String[]{"cs8", "clocal", "cread"};
+        String[] off = OFF;
+        if (!rtscts) { off = java.util.Arrays.copyOf(OFF, OFF.length + 1); off[OFF.length] = "crtscts"; }
         // 1st choice (0.8.7): our own helper sets termios with the kernel ioctl directly – toybox stty on the X8
         // could not clear icrnl/ixon/ixoff/… (0x0D from the radio became 0x0A → broken frames, ZHA gave up after 15 s)
         String helper = nativeDir + "/libajtty.so";
         if (!nativeDir.isEmpty() && new java.io.File(helper).exists()) {
-            String r = sh(helper + " " + tty + " 115200 rtscts").trim();
+            String r = sh(helper + " " + tty + " " + baud + (rtscts ? " rtscts" : " none")).trim();
             Log.i("zigbee bridge: serial " + tty + " via ajtty: " + r.replace('\n', ' '));
             if (r.contains("\nok ") || r.startsWith("ok ")) return "";
         }
-        sh("stty -F " + tty + " 115200");
+        sh("stty -F " + tty + " " + baud);
         sh("stty -F " + tty + " min 1 time 0");
         // Android 10's toybox stty applies some flags INVERTED ("-iuclc" switched iuclc ON on the X8). So set each flag,
         // read it back, and if it is still wrong send the opposite spelling – whatever ends up correct is kept.
-        for (String f : ON) fix(tty, f, true);
-        for (String f : OFF) fix(tty, f, false);
+        for (String f : on) fix(tty, f, true);
+        for (String f : off) fix(tty, f, false);
         String all = flags(tty);
         StringBuilder bad = new StringBuilder();
-        if (!all.contains("115200")) bad.append("speed ");
-        for (String f : ON) if (!all.contains(" " + f + " ")) bad.append(f).append("=off ");
-        for (String f : OFF) if (all.contains(" " + f + " ")) bad.append(f).append("=on ");
-        Log.i("zigbee bridge: serial " + tty + (bad.length() == 0 ? " ok (115200 8N1 RTS/CTS, binary)" : " problems: " + bad)
+        if (!all.contains(String.valueOf(baud))) bad.append("speed ");
+        for (String f : on) if (!all.contains(" " + f + " ")) bad.append(f).append("=off ");
+        for (String f : off) if (all.contains(" " + f + " ")) bad.append(f).append("=on ");
+        Log.i("zigbee bridge: serial " + tty + (bad.length() == 0 ? " ok (" + baud + " 8N1 " + (rtscts ? "RTS/CTS" : "no flow control") + ", binary)" : " problems: " + bad)
                 + (inverted.length() == 0 ? "" : " – toybox stty inverted: " + inverted.toString().trim())
                 + (sttyErr.isEmpty() ? "" : " – stty said: " + sttyErr));
         return bad.toString().trim();

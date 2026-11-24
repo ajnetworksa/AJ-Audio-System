@@ -36,6 +36,9 @@ public class Cfg {
     public boolean zigbeeBridge() { return p.getBoolean("zigbee_bridge", false); }
     public int zigbeePort()     { return p.getInt("zigbee_port", 6638); }
     public String zigbeeTty()   { return p.getString("zigbee_tty", "/dev/ttyS3"); }
+    /** radio serial speed / flow control (radio firmware change only; normal = 115200 + rtscts) */
+    public int zigbeeBaud()     { int b = p.getInt("zigbee_baud", 115200); return b > 0 ? b : 115200; }
+    public boolean zigbeeRtsCts() { return !"none".equals(p.getString("zigbee_flow", "rtscts")); }
     /** only this address may connect (default: the music server = Home Assistant); "any" = everyone on the network, "ha"/empty = default */
     public String zigbeeAllow() { String a = p.getString("zigbee_allow", ""); return a.equals("any") ? "" : a.isEmpty() || a.equals("ha") ? host() : a; }
     /** floating Share button over other apps (YouTube …) */
