@@ -1,6 +1,6 @@
 # zigbee.md — using the panels' built-in Zigbee radio with Home Assistant (instead of Smart Life)
 
-Status: probe 1 done (logs30, 2026-11-16). Nothing changed on the panels yet.
+Status: ZHA test on the X8 through the AJ Panel bridge (D-022). Radio firmware change for Zigbee2MQTT prepared (D-029) – nothing flashed yet.
 
 ## What we know about our panels
 - **Judian P8** (and likely X8/M20): Tuya Zigbee gateway inside, module on **/dev/ttyS3** (`tuya-kdql3oqd1xupvuxq`), Android 10, no root via adb, SELinux permissive, a root `sshd` on :22 (key-only, key unknown).
@@ -56,6 +56,57 @@ AJ Panel has a **Zigbee bridge** (off by default): `/dev/ttyS3` (115200 8N1, RTS
 5. **`-status`**: bridge state and byte counters.
 
 `zigbee_backup\` and `.zigpy-venv\` are git-ignored – `zigbee_network.json` contains the Zigbee network key.
+
+## Radio firmware change for Zigbee2MQTT (D-029, 2026-11-24) – TEST, X8 (.165) only
+**Why:** Zigbee2MQTT's `ember` driver needs **EZSP v13+ (EmberZNet 7.4+)**; its old `ezsp` driver is deprecated. Our radios run
+**EZSP v7 / EmberZNet 6.5.0 build 188** (Tuya NCP 1.0.5) – fine for ZHA, not for Zigbee2MQTT. New radio firmware fixes that,
+and Zigbee2MQTT then talks to the panel over the same bridge: `tcp://<panel>:6638`.
+
+**Not known yet (the probe finds out):** the exact chip (EFR32MG1B? MG13? MG21? – decides which firmware), whether the radio has
+a **serial bootloader** (`bootloader version` ≠ 0xFFFF), and its pins. No Tuya radio-firmware file is stored on the panel
+(`.jd-tuya` only has `ncp_ver65_1_0_5_flag`; Tuya downloads the image from its cloud only when updating).
+
+### Backup plan – four levels of "going back"
+| Level | What it saves | How | Status |
+|---|---|---|---|
+| 1. Network | PAN, channel, network key, frame counter → paired devices stay on the network with ANY EmberZNet firmware | `zigbee_network.json` (zigpy); `zigbee_fw.bat` makes a fresh one before every write; `-restorenet` writes it back. Also HA → ZHA → Download backup | ✅ one from 2026-11-17 (`192.168.8.165_20261117_121838`) |
+| 2. Serial bootloader | flashing a `.gbl` never overwrites the bootloader; a wrong/failed image leaves the radio **in the bootloader** → flash another `.gbl` | `zigbee_fw.bat -flash` / `-revert` | probe shows if present |
+| 3. Back to Tuya / Smart Life | the Judian gateway only accepts **EZSP v7** (it checks the protocol version) | Tuya's own image if the probe finds one on the panel (`tuya_fw\`), otherwise a full SWD dump (level 4); a generic EmberZNet 6.x image works with ZHA but may not satisfy the Tuya app | ⚠️ no Tuya image yet |
+| 4. Full flash image | exact original incl. bootloader and tokens; the **only rescue** if a new firmware starts but cannot talk (wrong UART/RTS/CTS pins) | panel opened, SWD debugger (J-Link or ST-Link V2 clone) on SWDIO/SWCLK/GND/3V3, `commander readmem … --outfile original.bin` (Simplicity Commander) or OpenOCD; restore `commander flash original.bin` | optional, strongly recommended before the first flash |
+
+**Main brick risk:** an image built for other UART/RTS/CTS pins runs, but the panel cannot reach it → it cannot be told to enter the
+bootloader → only SWD helps. So: only an image built for this exact module (pins from the module's datasheet), one panel first,
+SWD dump first if a debugger is at hand. A wrong-chip image is less dangerous (it does not start → radio stays in the bootloader).
+
+### Steps (each script says what it changes)
+0. Done: `zigbee_test.bat -on` (gateway off, bridge on, network backup).
+1. HA: disable ZHA for this radio. Run **`zigbee_fw.bat`** (READ ONLY: fresh network backup, radio identity, bootloader yes/no,
+   copies any Tuya firmware file) → send `radio_probe.txt` (no secrets in it) + a **photo of the Zigbee module** (its marking,
+   e.g. TYZS4 / ZS3L / EFR32MG13P).
+2. Firmware choice (after step 1): EmberZNet **7.4 or newer NCP**, UART on the module's pins, RTS/CTS, 115200. Sources by chip:
+   MG21 – community builds of the Silicon Labs firmware builder; MG1B – the Lidl Silvercrest gateway project (EmberZNet 7.5.1 on
+   EFR32MG1B, flashed over a serial→TCP bridge exactly like ours); MG13 – likely our own build. No image without the chip + pins.
+3. Optional/recommended: SWD dump (level 4).
+4. **`zigbee_fw.bat -flash <file.gbl>`** (WRITES the radio): probe + backup again, asks to type FLASH, bridge without flow
+   control while the bootloader runs (it ignores RTS/CTS), universal-silabs-flasher over `socket://<panel>:6638`, then RTS/CTS
+   again and a probe of the new firmware (expect EZSP v13+). `-newbaud/-newflow` if the new image uses other settings.
+5. **`zigbee_fw.bat -restorenet`** (keep the old network) – or let Zigbee2MQTT form a new one.
+6. Zigbee2MQTT add-on: `serial: {port: "tcp://192.168.8.165:6638", adapter: ember}` (flow control is done by the panel's UART,
+   the TCP side has none). Remove the ZHA entry for this radio. The bridge only accepts Home Assistant's address.
+7. Way back: `zigbee_fw.bat -revert <EZSP v7 image>` then `zigbee_test.bat -off` (Smart Life), or level 4 (SWD restore).
+
+AJ Panel 0.9.7: bridge speed/flow control are settings (`--ei zigbee_baud`, `--es zigbee_flow rtscts|none`, adb CONFIG);
+`/api/info` → `zigbee_serial` ("115200 rtscts"). `none` is only for flashing.
+
+### Several panels in one Home Assistant
+- One Zigbee network = one coordinator = **one Zigbee2MQTT instance**. The official add-on runs once; each further panel-coordinator
+  needs another instance (a community multi-instance add-on or Docker on another machine) with its own `base_topic`, data
+  folder, frontend port and its own PAN / extended PAN / network key (never clone a network). ZHA takes only one coordinator.
+- Devices on different networks cannot bind to each other; automations between them go through HA.
+- **Recommended for one home:** ONE coordinator (one panel, or a dedicated LAN coordinator) and the other panels' radios as
+  **Zigbee routers** (router firmware runs on its own, no bridge/Z2M instance) → one mesh, the panels are the "amplifiers".
+  Separate coordinators only per building or above ~150 devices (the survey app's sizing rule).
+- A panel whose radio has new firmware is no longer a Tuya/Smart Life gateway.
 
 ## Site survey app – AJ Zigbee Survey (D-022, 2026-11-17)
 Phone app `apps/zigbee-survey` (com.ajnetwork.ajzigbee, Android 7+): answers "how many coordinators / routers do I need, and does this coordinator cover the area?" and makes a PDF report.

@@ -59,3 +59,7 @@ zigbee_backup/
 tools/panels.txt
 tools/inventory/
 tools/debloat/
+
+# radio firmware images (third-party, downloaded per test)
+*.gbl
+*.ebl
