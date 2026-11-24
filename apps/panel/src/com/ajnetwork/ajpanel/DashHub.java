@@ -61,7 +61,8 @@ public class DashHub implements Ha.Listener {
             case Ha.STATES: case Ha.REGISTRY: rebuildNow(); return;
             case Ha.DATA: takeData(h); rebuildNow(); fire(Ha.DATA, null); return;
             case Ha.STATE:
-                if (id != null && !dash.seen.contains(id) && id.indexOf('.') > 0) later();
+                // a new entity → rebuild (only once the full state list is in; before that every event looked "new")
+                if (h.connected && id != null && !dash.seen.contains(id) && id.indexOf('.') > 0) later();
                 if (Dash.ROOM_ACCESS.equals(id)) later();   // AJ Netweb Room Access changed what this panel may show
                 fire(what, id); return;
             default: fire(what, id);

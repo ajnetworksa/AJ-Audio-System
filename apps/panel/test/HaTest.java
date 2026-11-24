@@ -262,6 +262,22 @@ public class HaTest {
         check(bad.status.equals("token rejected") && !bad.connected, "bad token -> 'token rejected'");
         bad.stop();
 
+        // BUG-036: listeners run on Android's main thread; anything they send (save settings, tile taps, weather)
+        // must not be written there – the panel caught NetworkOnMainThreadException and dropped the connection
+        java.util.concurrent.ExecutorService main = java.util.concurrent.Executors.newSingleThreadExecutor(r -> { Thread t = new Thread(r, "main"); Ws.forbidden = t; return t; });
+        main.submit(() -> { }).get();
+        Ha hm = new Ha("http://127.0.0.1:" + mock.port(), "tok123", "ajpanel_main", main);
+        hm.addListener((w, id) -> {
+            if (Ha.DATA.equals(w)) hm.savePanelData(new JSONObject(), null);          // DashHub.takeData does this
+            if (Ha.STATES.equals(w)) { hm.call("light", "toggle", "light.kitchen", null); hm.refreshExtras(); }
+        });
+        int conn0 = mock.connections;
+        hm.start();
+        waitFor(() -> hm.connected, 6000);
+        Thread.sleep(1500);
+        check(hm.connected && mock.connections == conn0 + 1 && hm.status.equals("connected"), "sending from the UI thread keeps the connection (status " + hm.status + ", connections " + (mock.connections - conn0) + ")");
+        hm.stop(); main.shutdownNow(); Ws.forbidden = null;
+
         // panel sign-in with username + password -> long-lived token, old token of this panel removed
         HaLogin.Result lr = HaLogin.login("http://127.0.0.1:" + mock.port(), "kitchen", "secret", "Kitchen", "ajpanel_aabbcceeff00");
         Thread.sleep(200);

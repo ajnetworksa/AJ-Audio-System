@@ -167,6 +167,13 @@ Each section's id matches the bug in `bug.md` (FIX-001 ↔ BUG-001). Include: wh
 - **Logs:** panel log now = state JSON + app log (600 lines) + last crash (stack trace kept on disk) + the app's Android log (warnings); reachable from the scan list even before the panel is in MA.
 - **Spotify:** rooms and groups get a "Show in Spotify" switch (MA Spotify Connect plugin, same mechanism as the AirPlay switch); group edit also drops dead panel ids on save.
 
+## FIX-034
+**BUG-036 – dashboard never connects to Home Assistant after sign-in (Panel 0.9.5)**
+- `Ha.send()` only queues; one "ha-send" thread writes every message (never Android's main thread; ids stay in the order HA receives them). Only a real network error on that thread closes the connection; anything else is logged.
+- `DashHub`: new-entity rebuilds only after the full state list arrived (no rebuild storm while connecting).
+- Test: `HaTest` runs the listeners on a thread that may not write (like Android's main thread), saves settings and toggles a light from it – the connection must stay up (failed with 0.9.4's code: 4 connections, "Socket closed").
+- Verify on a panel: `/api/info` `ha` = connected, `dash_tiles` > 0; log "ha: connected (HA …, N entities)".
+
 ## FIX-033
 **BUG-035 – no way to sign a panel in to Home Assistant from the Installer (Panel 0.9.4, Installer 0.5.9)**
 - Panel: tap the "Connect Home Assistant" card (or the red header chip "Connect Home Assistant" / "token rejected") → owner PIN if set → **Sign in to Home Assistant** sheet on the dashboard: address (pre-filled `http://<music server>:8123`), username, password, "also Music Assistant". Shows the result ("Home: signed in as panel-majlis"), closes by itself on success. Settings → Smart home dashboard now starts with the same username/password + **Sign in** button; pasting a token moved down as "Advanced".

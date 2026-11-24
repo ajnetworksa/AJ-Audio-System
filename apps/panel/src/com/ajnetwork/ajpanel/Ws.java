@@ -107,8 +107,12 @@ public class Ws implements AutoCloseable {
     public void sendText(String t) throws IOException { send(0x1, t.getBytes(StandardCharsets.UTF_8)); }
     public void ping() throws IOException { send(0x9, new byte[0]); }
 
+    /** tests: a thread that must never write (stands in for Android's main thread, where network I/O throws) */
+    static volatile Thread forbidden;
+
     /** client frames are always masked */
     private synchronized void send(int op, byte[] p) throws IOException {
+        if (Thread.currentThread() == forbidden) throw new IllegalStateException("network I/O on the main thread");
         if (closed && op != 0x8) throw new IOException("closed");
         ByteArrayOutputStream f = new ByteArrayOutputStream(p.length + 14);
         f.write(0x80 | op);

@@ -32,6 +32,8 @@ public class Ha {
     private final CopyOnWriteArrayList<Listener> listeners = new CopyOnWriteArrayList<>();
     private final ConcurrentHashMap<Integer, Reply> pending = new ConcurrentHashMap<>();
     private final AtomicInteger ids = new AtomicInteger(1);
+    private final Object sendLock = new Object();
+    private final java.util.concurrent.ExecutorService sender = Executors.newSingleThreadExecutor(r -> { Thread t = new Thread(r, "ha-send"); t.setDaemon(true); return t; });
     private final ScheduledExecutorService timer = Executors.newSingleThreadScheduledExecutor(r -> { Thread t = new Thread(r, "ha-timer"); t.setDaemon(true); return t; });
     private volatile Ws ws;
     private volatile boolean run;
@@ -93,6 +95,7 @@ public class Ha {
         Ws w = ws; if (w != null) w.close();
         if (thread != null) thread.interrupt();
         timer.shutdownNow();
+        sender.shutdownNow();
         connected = false;
     }
 
@@ -221,18 +224,36 @@ public class Ha {
 
     // ------------------------------------------------------------------ sending
     /** sends a message with a new id; returns the id (-1 = not connected) */
+    /**
+     * Queues a message; it is written by the single "ha-send" thread, never by the caller. Callers include Android's
+     * main thread (tile taps, settings), where network I/O throws NetworkOnMainThreadException – 0.9.0–0.9.4 caught that
+     * and closed the connection ("connection lost: Stream closed", BUG-036). One writer thread also keeps the ids
+     * increasing in the order HA receives them, which HA requires.
+     */
     public int send(JSONObject msg, Reply r) {
         Ws w = ws;
         if (w == null) { if (r != null) r.done(false, null, "not connected"); return -1; }
-        int id = ids.getAndIncrement();
-        try {
-            msg.put("id", id);
+        final int id;
+        final String text;
+        synchronized (sendLock) {
+            id = ids.getAndIncrement();
+            try { msg.put("id", id); } catch (Exception e) { if (r != null) r.done(false, null, "bad message"); return -1; }
+            text = msg.toString();
             if (r != null) pending.put(id, r);
-            w.sendText(msg.toString());
-        } catch (Exception e) {
-            pending.remove(id);
-            if (r != null) r.done(false, null, shortMsg(e));
-            w.close();
+            sender.execute(() -> {
+                if (ws != w) { Reply x = pending.remove(id); if (x != null) x.done(false, null, "disconnected"); return; }
+                try { w.sendText(text); }
+                catch (java.io.IOException e) {
+                    Reply x = pending.remove(id);
+                    if (x != null) x.done(false, null, shortMsg(e));
+                    Log.i("ha: send failed (" + shortMsg(e) + ") – reconnecting");
+                    w.close();
+                } catch (Exception e) {   // never drop the connection for anything else
+                    Reply x = pending.remove(id);
+                    if (x != null) x.done(false, null, shortMsg(e));
+                    Log.e("ha: send", e);
+                }
+            });
         }
         return id;
     }
