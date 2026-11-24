@@ -172,10 +172,25 @@ public class SettingsActivity extends Activity implements PanelService.Listener 
         s.addView(Ui.text(this, "Smart home dashboard", 20, Ui.ACCENT, true));
         DashHub hub = PanelService.instance == null ? null : PanelService.instance.hub;
         String haState = hub == null || hub.ha == null ? "not set" : hub.ha.connected ? "connected" : hub.ha.status;
-        TextView st = Ui.text(this, "Home Assistant: " + haState, 15, Ui.SUB, false); st.setSingleLine(false);
+        TextView st = Ui.text(this, "Home Assistant: " + haState + (cfg.haUser().isEmpty() ? "" : " · signed in as " + cfg.haUser()), 15, Ui.SUB, false); st.setSingleLine(false);
         s.addView(st);
+        // sign in with this panel's HA user (also Music Assistant) – the normal way; the token field below is for experts
+        EditText su = field("Panel username in Home Assistant (e.g. panel-majlis)", cfg.haUser());
+        EditText sp = field("Password (not stored – the panel keeps only a token)", "");
+        sp.setInputType(InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_VARIATION_PASSWORD);
+        s.addView(su); s.addView(sp);
+        Button signIn = Ui.button(this, "Sign in (Home Assistant + Music Assistant)");
+        signIn.setOnClickListener(v -> {
+            PanelService sv = PanelService.instance;
+            String user = su.getText().toString().trim(), pw = sp.getText().toString();
+            if (sv == null || user.isEmpty() || pw.isEmpty()) { Toast.makeText(this, "Type username and password", Toast.LENGTH_SHORT).show(); return; }
+            signIn.setText("Signing in…");
+            sv.login(user, pw, "both", () -> { signIn.setText("Sign in (Home Assistant + Music Assistant)"); st.setText(sv.loginResult); Toast.makeText(this, sv.loginResult, Toast.LENGTH_LONG).show(); });
+            sp.setText("");
+        });
+        s.addView(signIn, topGap());
         EditText haUrl = field("Home Assistant address (empty = http://" + cfg.host() + ":8123)", cfg.haUrlRaw());
-        EditText haTok = field(cfg.haToken().isEmpty() ? "Home Assistant token (HA → Profile → Security → Long-lived tokens)" : "Home Assistant token: saved (paste a new one to replace)", "");
+        EditText haTok = field(cfg.haToken().isEmpty() ? "Advanced: paste a Home Assistant token instead of signing in" : "Home Assistant token: saved (paste a new one to replace)", "");
         haTok.setInputType(InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_VARIATION_PASSWORD);
         String[] looks = {"auto", "graphite", "pearl"}, lookNames = {"Auto (pearl by day, graphite at night)", "Graphite (dark)", "Pearl (light)"};
         final int[] look = {Math.max(0, java.util.Arrays.asList(looks).indexOf(cfg.look()))};

@@ -157,6 +157,55 @@ class _RoomDetailState extends State<RoomDetail> {
         }
       });
 
+  /// the panel's own Home Assistant user (e.g. panel-majlis) – the same name/password also signs in to Music Assistant
+  Future<void> signInPanel() async {
+    final user = TextEditingController(text: '${info?['ha_user'] ?? ''}');
+    final pass = TextEditingController();
+    var which = 'both';
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (c) => StatefulBuilder(
+        builder: (c, set) => AlertDialog(
+          title: Text('Sign in ${r.name}'),
+          content: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
+            const Text('Use this panel\'s own non-admin user (e.g. panel-majlis). The panel keeps only a token, never the password. '
+                'Which rooms it shows is set in Home Assistant → Room Access.',
+                style: TextStyle(color: C.sub, fontSize: 13)),
+            const SizedBox(height: 10),
+            TextField(controller: user, decoration: const InputDecoration(labelText: 'Username')),
+            TextField(controller: pass, obscureText: true, decoration: const InputDecoration(labelText: 'Password')),
+            const SizedBox(height: 8),
+            DropdownButton<String>(
+              value: which,
+              isExpanded: true,
+              items: const [
+                DropdownMenuItem(value: 'both', child: Text('Home Assistant + Music Assistant')),
+                DropdownMenuItem(value: 'home', child: Text('Home Assistant only (dashboard)')),
+                DropdownMenuItem(value: 'music', child: Text('Music Assistant only')),
+              ],
+              onChanged: (v) => set(() => which = v ?? 'both'),
+            ),
+          ]),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(c, false), child: const Text('Cancel')),
+            TextButton(onPressed: () => Navigator.pop(c, true), child: const Text('Sign in')),
+          ],
+        ),
+      ),
+    );
+    if (ok != true || user.text.trim().isEmpty || pass.text.isEmpty) return;
+    setState(() => busy = true);
+    try {
+      final res = await PanelApi.login(r.ip!, api.token, user.text.trim(), pass.text, which);
+      if (mounted) toast(context, res.isEmpty ? 'Sent' : res);
+      await load();
+    } catch (e) {
+      if (mounted) toast(context, '$e');
+    }
+    pass.clear();
+    if (mounted) setState(() => busy = false);
+  }
+
   String get wifi {
     if (pingMs == null) return '–';
     if (pingMs! < 30) return '$pingMs ms · good';
@@ -188,6 +237,8 @@ class _RoomDetailState extends State<RoomDetail> {
             _info('Network', panel ? wifi : '–'),
             if (info != null) _info('Sync player', info!['sync_connected'] == true ? 'connected' : 'not connected'),
             if (info != null) _info('Restarts', '${info!['sync_restarts']}'),
+            if (info != null && info!['ha'] != null)
+              _info('Home Assistant', '${info!['ha']}${'${info!['ha_user'] ?? ''}'.isEmpty ? '' : ' · ${info!['ha_user']}'}'),
           ]),
         ),
         Glass(
@@ -255,6 +306,11 @@ class _RoomDetailState extends State<RoomDetail> {
               label: 'Restart player',
               icon: Icons.restart_alt,
               onPressed: info == null ? null : () => run('Player restarting', () => PanelApi.post(r.ip!, api.token, '/api/restart')),
+            ),
+            OutlineBtn(
+              label: 'Sign in panel',
+              icon: Icons.login,
+              onPressed: info == null ? null : signInPanel,
             ),
             OutlineBtn(
               label: 'Panel log',

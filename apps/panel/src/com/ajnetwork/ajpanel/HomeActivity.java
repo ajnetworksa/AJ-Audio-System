@@ -80,6 +80,7 @@ public class HomeActivity extends Activity implements DashHub.L, PanelService.Li
         super.onCreate(b);
         cfg = new Cfg(this);
         getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON | WindowManager.LayoutParams.FLAG_FULLSCREEN);
+        getWindow().setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_ADJUST_PAN);
         immersive();
         PanelService.start(this);
         if (!cfg.dashboard()) { startActivity(new Intent(this, MainActivity.class)); finish(); return; }
@@ -225,8 +226,12 @@ public class HomeActivity extends Activity implements DashHub.L, PanelService.Li
         // chips: alarms / open doors / HA connection / Zigbee
         hChips.removeAllViews();
         DashHub hub = hub();
-        if (hub == null || hub.ha == null) addChip(Glyph.ALERT, Lang.s("connect_ha"), skin.dangerBg, skin.danger);
-        else if (!hub.ha.connected) addChip(Glyph.ALERT, hub.ha.status.startsWith("token") ? Lang.s("ha_token_bad") : Lang.s("ha_offline"), skin.dangerBg, skin.danger);
+        if (hub == null || hub.ha == null) addChip(Glyph.ALERT, Lang.s("connect_ha"), skin.dangerBg, skin.danger).setOnClickListener(v -> withPin(Cfg.OWNER, this::signIn));
+        else if (!hub.ha.connected) {
+            boolean bad = hub.ha.status.startsWith("token");
+            View c = addChip(Glyph.ALERT, bad ? Lang.s("ha_token_bad") : Lang.s("ha_offline"), skin.dangerBg, skin.danger);
+            if (bad) c.setOnClickListener(v -> withPin(Cfg.OWNER, this::signIn));
+        }
         else {
             List<String> al = d.alarmsNow(a), op = d.openNow(a);
             if (!al.isEmpty()) addChip(Glyph.ALERT, Lang.s("alarm_chip") + " · " + nameOf(a, al.get(0)), skin.dangerBg, skin.danger);
@@ -238,10 +243,11 @@ public class HomeActivity extends Activity implements DashHub.L, PanelService.Li
             addChip(Glyph.SIGNAL, "ZIGBEE", ok ? skin.chip : skin.dangerBg, ok ? skin.chipText : skin.danger);
         }
     }
-    private void addChip(int g, String t, int bg, int fg) {
+    private View addChip(int g, String t, int bg, int fg) {
         LinearLayout c = chip(this, g, t, bg, fg, 38);
         LinearLayout.LayoutParams p = new LinearLayout.LayoutParams(-2, u(38)); p.setMarginStart(u(10));
         hChips.addView(c, p);
+        return c;
     }
     private static String nameOf(Ha a, String id) { String n = a.attrs(id).optString("friendly_name", id); return n.length() > 22 ? n.substring(0, 21) + "…" : n; }
 
@@ -319,8 +325,55 @@ public class HomeActivity extends Activity implements DashHub.L, PanelService.Li
         c.addView(new Glyph.V(this, Glyph.HOME, skin.accent), new LinearLayout.LayoutParams(u(48), u(48)));
         TextView t = tv(this, Lang.s("connect_ha"), 26, skin.text, MED); t.setPadding(0, u(16), 0, 0); c.addView(t);
         TextView s = tv(this, Lang.s("connect_ha_sub"), 16, skin.sub, REG); s.setSingleLine(false); s.setMaxLines(3); s.setPadding(0, u(8), 0, 0); c.addView(s);
-        c.setOnClickListener(v -> withPin(Cfg.OWNER, () -> startActivity(new Intent(this, SettingsActivity.class))));
+        c.setOnClickListener(v -> withPin(Cfg.OWNER, this::signIn));
         return c;
+    }
+
+    /** sign-in right on the dashboard: this panel's HA user + password (also Music Assistant); only tokens are kept */
+    private void signIn() {
+        LinearLayout card = sheetCard(Lang.s("sign_in_title"));
+        TextView hint = tv(this, Lang.s("sign_in_hint"), 15, skin.sub, REG); hint.setSingleLine(false); hint.setMaxLines(4); hint.setPadding(0, u(4), 0, u(10));
+        card.addView(hint);
+        android.widget.EditText addr = field(Lang.s("ha_address"), cfg.haUrl(), false);
+        android.widget.EditText user = field(Lang.s("username"), cfg.haUser(), false);
+        android.widget.EditText pass = field(Lang.s("password"), "", true);
+        for (View f : new View[]{addr, user, pass}) { LinearLayout.LayoutParams p = new LinearLayout.LayoutParams(-1, u(56)); p.topMargin = u(8); card.addView(f, p); }
+        android.widget.CheckBox music = new android.widget.CheckBox(this);
+        music.setText(Lang.s("also_music")); music.setTextColor(skin.text); music.setChecked(true);
+        music.setTextSize(android.util.TypedValue.COMPLEX_UNIT_PX, uf(15));
+        card.addView(music);
+        TextView result = tv(this, "", 15, skin.sub, MED); result.setSingleLine(false); result.setMaxLines(3); result.setPadding(0, u(8), 0, 0);
+        card.addView(result);
+        View btns = buttons(new String[]{Lang.s("sign_in")}, i -> {
+            String u = user.getText().toString().trim(), pw = pass.getText().toString(), a = addr.getText().toString().trim();
+            PanelService s = PanelService.instance;
+            if (u.isEmpty() || pw.isEmpty() || s == null) return;
+            cfg.edit().putString("ha_url", a.equals("http://" + cfg.host() + ":8123") ? "" : a).commit();
+            result.setTextColor(skin.sub); result.setText(Lang.s("signing_in"));
+            s.login(u, pw, music.isChecked() ? "both" : "home", () -> {
+                String r = s.loginResult;
+                boolean ok = r.contains("Home: signed in");
+                result.setTextColor(ok ? skin.ok : skin.danger); result.setText(r);
+                if (ok) h.postDelayed(this::closeSheet, 1800);
+            });
+            pass.setText("");
+        });
+        card.addView(btns);
+        openSheet(card, null, true);
+        user.requestFocus();
+    }
+
+    private android.widget.EditText field(String hint, String value, boolean secret) {
+        android.widget.EditText e = new android.widget.EditText(this);
+        e.setHint(hint); e.setText(value); e.setSingleLine(true);
+        e.setTextColor(skin.text); e.setHintTextColor(skin.muted);
+        e.setTextSize(android.util.TypedValue.COMPLEX_UNIT_PX, uf(18));
+        e.setPadding(u(16), 0, u(16), 0);
+        GradientDrawable g = new GradientDrawable(); g.setColor(skin.dark ? 0xFF2A2D33 : 0xFFF1F3F6); g.setCornerRadius(uf(14)); e.setBackground(g);
+        e.setInputType(secret ? android.text.InputType.TYPE_CLASS_TEXT | android.text.InputType.TYPE_TEXT_VARIATION_PASSWORD
+                : android.text.InputType.TYPE_CLASS_TEXT | android.text.InputType.TYPE_TEXT_FLAG_NO_SUGGESTIONS);
+        e.setTextAlignment(View.TEXT_ALIGNMENT_VIEW_START);
+        return e;
     }
 
     private ScrollView scroll(View v) {
@@ -659,12 +712,16 @@ public class HomeActivity extends Activity implements DashHub.L, PanelService.Li
         return row;
     }
 
-    private void openSheet(View card, Runnable refresh) {
+    private void openSheet(View card, Runnable refresh) { openSheet(card, refresh, false); }
+    /** atTop = sheet with text fields: sits at the top so the on-screen keyboard does not cover it */
+    private void openSheet(View card, Runnable refresh, boolean atTop) {
         overlay.removeAllViews();
         FrameLayout scrim = new FrameLayout(this);
         scrim.setBackgroundColor(skin.scrim);
         scrim.setOnClickListener(v -> closeSheet());
-        scrim.addView(card, new FrameLayout.LayoutParams(Math.min(u(640), root.getWidth() - u(60)), -2, Gravity.CENTER));
+        FrameLayout.LayoutParams cp = new FrameLayout.LayoutParams(Math.min(u(640), root.getWidth() - u(60)), -2, atTop ? Gravity.TOP | Gravity.CENTER_HORIZONTAL : Gravity.CENTER);
+        if (atTop) cp.topMargin = u(24);
+        scrim.addView(card, cp);
         overlay.addView(scrim, new FrameLayout.LayoutParams(-1, -1));
         card.setAlpha(0f); card.setTranslationY(uf(30)); card.animate().alpha(1f).translationY(0).setDuration(160).start();
         sheetRefresh = refresh;

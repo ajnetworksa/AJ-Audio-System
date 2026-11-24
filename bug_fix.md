@@ -167,6 +167,13 @@ Each section's id matches the bug in `bug.md` (FIX-001 ↔ BUG-001). Include: wh
 - **Logs:** panel log now = state JSON + app log (600 lines) + last crash (stack trace kept on disk) + the app's Android log (warnings); reachable from the scan list even before the panel is in MA.
 - **Spotify:** rooms and groups get a "Show in Spotify" switch (MA Spotify Connect plugin, same mechanism as the AirPlay switch); group edit also drops dead panel ids on save.
 
+## FIX-033
+**BUG-035 – no way to sign a panel in to Home Assistant from the Installer (Panel 0.9.4, Installer 0.5.9)**
+- Panel: tap the "Connect Home Assistant" card (or the red header chip "Connect Home Assistant" / "token rejected") → owner PIN if set → **Sign in to Home Assistant** sheet on the dashboard: address (pre-filled `http://<music server>:8123`), username, password, "also Music Assistant". Shows the result ("Home: signed in as panel-majlis"), closes by itself on success. Settings → Smart home dashboard now starts with the same username/password + **Sign in** button; pasting a token moved down as "Advanced".
+- Installer: Rooms → a panel → **Sign in panel** (username, password, Home Assistant + Music Assistant / only one) → `POST /api/login`; the panel's info shows "Home Assistant: connected · panel-majlis".
+- Verify: sign in with a non-admin HA user → dashboard fills with rooms; `/api/info` `ha` = connected, `ha_user` = the user. Wrong password → "Home: wrong username or password".
+- Undo: Settings → paste a token or clear `ha_token` with the adb CONFIG broadcast.
+
 ## FIX-032
 **In-app updates for every app (Panel 0.6.1, Client 0.6.0, Installer 0.3.1)**
 - All three apps look at the newest GitHub release (`ajnetworksa/AJ-Audio-System`, `releases/latest`) and offer the newer APK of themselves: panel every 6 h (first check 1 min after start), phone apps at start and every 6 h.

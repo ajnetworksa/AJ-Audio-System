@@ -96,7 +96,15 @@ public final class Lang {
         t("no_devices", "No devices in this room yet", "لا توجد أجهزة في هذه الغرفة");
         t("no_scenes", "No scenes yet – create them in Home Assistant", "لا توجد مشاهد بعد – أنشئها في Home Assistant");
         t("connect_ha", "Connect Home Assistant", "اربط Home Assistant");
-        t("connect_ha_sub", "Open Settings → Home Assistant and paste a token, or set it from the AJ Installer.", "افتح الإعدادات ← Home Assistant والصق الرمز، أو اضبطه من تطبيق AJ Installer.");
+        t("connect_ha_sub", "Tap here and sign in with this panel's Home Assistant username and password.", "اضغط هنا وسجّل الدخول باسم المستخدم وكلمة المرور الخاصة بهذه الشاشة في Home Assistant.");
+        t("sign_in", "Sign in", "تسجيل الدخول");
+        t("sign_in_title", "Sign in to Home Assistant", "تسجيل الدخول إلى Home Assistant");
+        t("sign_in_hint", "Use this panel's own Home Assistant user (e.g. panel-majlis, not an admin). The password is not stored – the panel keeps only a token.", "استخدم مستخدم Home Assistant الخاص بهذه الشاشة (مثل panel-majlis وليس مديراً). لا تُحفظ كلمة المرور – تحتفظ الشاشة برمز فقط.");
+        t("ha_address", "Home Assistant address", "عنوان Home Assistant");
+        t("username", "Username", "اسم المستخدم");
+        t("password", "Password", "كلمة المرور");
+        t("also_music", "Also sign in to Music Assistant with the same user", "تسجيل الدخول أيضاً إلى Music Assistant بنفس المستخدم");
+        t("signing_in", "Signing in…", "جارٍ تسجيل الدخول…");
         t("ha_offline", "Home Assistant not reachable", "تعذر الوصول إلى Home Assistant");
         t("ha_token_bad", "Home Assistant token rejected", "رمز Home Assistant مرفوض");
         t("connecting", "Connecting…", "جارٍ الاتصال…");

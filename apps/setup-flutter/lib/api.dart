@@ -255,6 +255,20 @@ class PanelApi {
     if (r.statusCode != 200) throw ApiException(r.statusCode, 'Panel said ${r.statusCode}: ${r.body}');
   }
 
+  /// AJ Panel 0.9.1+: the panel signs in with ITS OWN user (Home Assistant and/or Music Assistant) and keeps only tokens.
+  /// which = both | home | music. Returns the panel's result line ("Music: signed in · Home: signed in as …").
+  static Future<String> login(String ip, String token, String user, String pass, String which) async {
+    final r = await http
+        .post(_u(ip, '/api/login'),
+            headers: {'Authorization': 'Bearer $token', 'Content-Type': 'application/json'},
+            body: jsonEncode({'user': user, 'pass': pass, 'which': which}))
+        .timeout(const Duration(seconds: 40));
+    if (r.statusCode == 404) throw ApiException(404, 'This panel needs AJ Panel 0.9.1 or newer – update it first');
+    if (r.statusCode != 200) throw ApiException(r.statusCode, 'Panel said ${r.statusCode}: ${r.body}');
+    final m = jsonDecode(utf8.decode(r.bodyBytes));
+    return m is Map ? '${m['result'] ?? ''}' : '';
+  }
+
   static String chimeUrl(String ip) => 'http://$ip:$port/chime.wav';
 
   /// "Locate": the panel flashes its screen with its name + beeps (AJ Panel 0.8.3+; no login needed). [off] ends it.
