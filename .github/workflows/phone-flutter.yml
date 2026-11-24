@@ -23,6 +23,9 @@ jobs:
       - uses: actions/checkout@v5
       - uses: actions/setup-java@v5
         with: { distribution: temurin, java-version: "17" }
+      # keeps Gradle's downloads (Kotlin, Android plugin …) between runs: fewer calls to Maven Central,
+      # which sometimes answers 429 "Too Many Requests" and fails the build
+      - uses: gradle/actions/setup-gradle@v4
       - uses: subosito/flutter-action@v2
         with: { channel: stable, cache: true }
       - name: Generate platform folder
@@ -40,7 +43,14 @@ jobs:
       - name: AJ Network Solutions app icon (Android)
         run: cp -r "$GITHUB_WORKSPACE/apps/branding/${{ matrix.art }}/android-res/." android/app/src/main/res/   # per-app icon (gear / play badge)
       - run: flutter pub get
-      - run: flutter build apk --release
+      - name: flutter build apk --release (retries when Maven/Gradle downloads are rate-limited)
+        run: |
+          for i in 1 2 3; do
+            flutter build apk --release && exit 0
+            echo "::warning::build try $i failed – often a temporary download limit (HTTP 429) at Maven Central; retrying in 90 s"
+            sleep 90
+          done
+          exit 1
       - name: Sign with our release key (if secrets set) - same key every build, so updates install over the old app
         env:
           KS_B64: ${{ secrets.ANDROID_KEYSTORE_B64 }}
