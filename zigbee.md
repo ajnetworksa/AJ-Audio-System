@@ -57,7 +57,7 @@ AJ Panel has a **Zigbee bridge** (off by default): `/dev/ttyS3` (115200 8N1, RTS
 
 `zigbee_backup\` and `.zigpy-venv\` are git-ignored – `zigbee_network.json` contains the Zigbee network key.
 
-## Radio firmware change for Zigbee2MQTT (D-029, 2026-11-24) – TEST on the S20 only (spare panel)
+## Radio firmware change for Zigbee2MQTT (D-029, 2026-11-24) – TEST on S10A_EN (192.168.8.60) only – spare panel
 **Why:** Zigbee2MQTT's `ember` driver needs **EZSP v13+ (EmberZNet 7.4+)**; its old `ezsp` driver is deprecated. Our radios run
 **EZSP v7 / EmberZNet 6.5.0 build 188** (Tuya NCP 1.0.5) – fine for ZHA, not for Zigbee2MQTT. New radio firmware fixes that,
 and Zigbee2MQTT then talks to the panel over the same bridge: `tcp://<panel>:6638`.
@@ -79,8 +79,8 @@ bootloader → only SWD helps. So: only an image built for this exact module (pi
 SWD dump first if a debugger is at hand. A wrong-chip image is less dangerous (it does not start → radio stays in the bootloader).
 
 ### Steps (each script says what it changes)
-0. S20 first: `zigbee_probe.bat -panels <S20 ip>` (read only: is there a radio on /dev/ttyS3, which gateway app), then
-   `zigbee_test.bat -panel <S20 ip>` (backup only) and `-panel <S20 ip> -on` (gateway off, bridge on, network backup).
+0. S10A_EN first: `zigbee_probe.bat -panels 192.168.8.60` (read only: is there a radio on /dev/ttyS3, which gateway app), then
+   `zigbee_test.bat -panel 192.168.8.60` (backup only) and `-panel 192.168.8.60 -on` (gateway off, bridge on, network backup).
    The X8 keeps its Tuya firmware (its 2026-11-17 backup stays as reference). `zigbee_fw.bat` has no default panel: always `-panel <ip>`.
 1. HA: disable ZHA for this radio. Run **`zigbee_fw.bat`** (READ ONLY: fresh network backup, radio identity, bootloader yes/no,
    copies any Tuya firmware file) → send `radio_probe.txt` (no secrets in it) + a **photo of the Zigbee module** (its marking,
@@ -93,7 +93,7 @@ SWD dump first if a debugger is at hand. A wrong-chip image is less dangerous (i
    control while the bootloader runs (it ignores RTS/CTS), universal-silabs-flasher over `socket://<panel>:6638`, then RTS/CTS
    again and a probe of the new firmware (expect EZSP v13+). `-newbaud/-newflow` if the new image uses other settings.
 5. **`zigbee_fw.bat -restorenet`** (keep the old network) – or let Zigbee2MQTT form a new one.
-6. Zigbee2MQTT add-on: `serial: {port: "tcp://<S20 ip>:6638", adapter: ember}` (flow control is done by the panel's UART,
+6. Zigbee2MQTT add-on: `serial: {port: "tcp://192.168.8.60:6638", adapter: ember}` (flow control is done by the panel's UART,
    the TCP side has none). Remove the ZHA entry for this radio. The bridge only accepts Home Assistant's address.
 7. Way back: `zigbee_fw.bat -revert <EZSP v7 image>` then `zigbee_test.bat -off` (Smart Life), or level 4 (SWD restore).
 

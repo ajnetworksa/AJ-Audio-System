@@ -1,5 +1,5 @@
 # zigbee_fw.ps1 - TEST: change the Zigbee radio firmware of ONE Judian panel (for Zigbee2MQTT), with backups and a way back.
-# Read zigbee.md "Radio firmware change" first. Test panel: the S20 (a spare, not the X8/P8 in daily use).
+# Read zigbee.md "Radio firmware change" first. Test panel: S10A_EN 192.168.8.60 (a spare, not the X8/P8 in daily use).
 #
 #   zigbee_fw.bat                       = -probe. READ ONLY on the radio: backs up the radio's Zigbee network again,
 #                                         identifies the radio (EZSP/stack version, board, IEEE, BOOTLOADER yes/no) and
@@ -22,7 +22,7 @@
 param([string]$panel = "", [string]$flash = "", [string]$revert = "", [switch]$restorenet, [switch]$probe,
       [int]$baud = 115200, [ValidateSet("rtscts", "none")][string]$flow = "rtscts",
       [int]$newbaud = 0, [string]$newflow = "")
-if (-not $panel) { Write-Host "Say which panel: zigbee_fw.bat -panel <ip of the S20>" -ForegroundColor Red; exit 1 }
+if (-not $panel) { Write-Host "Say which panel: zigbee_fw.bat -panel 192.168.8.60  (S10A_EN test panel)" -ForegroundColor Red; exit 1 }
 if ($newbaud -le 0) { $newbaud = $baud }
 if (-not $newflow) { $newflow = $flow }
 if ($newflow -notin @("rtscts", "none")) { Write-Host "-newflow must be rtscts or none"; exit 1 }
