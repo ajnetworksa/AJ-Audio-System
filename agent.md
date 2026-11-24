@@ -22,7 +22,10 @@ AJ-Audio-System/
 └── tools/               PowerShell/.bat helpers (install, logs, network tests)
 ```
 
-The older test scripts `1_…bat` … `25_…bat` and logs live in `D:\Devlopment\Smart Tuya\New folder\` (see troubleshoot.md §2).
+This repo lives in the AJ workspace `D:\Devlopment\AJ\aj-audio` (GitHub `ajnetworksa/AJ-Audio-System`), next to
+`aj-netweb-addon` (Home Assistant add-ons incl. the AJ Netweb dashboard and Room Access), `aj-netweb-platform`
+(control plane) and `vendor` (panel system APKs, stock backups, the older numbered test scripts `1_…bat` … `25_…bat`).
+Map: `..\README.md`. **Shared contracts: `..\INTEGRATION.md` – see §7.**
 
 ## 2. Devices (current lab)
 
@@ -75,3 +78,25 @@ See process.md §2. Cloud: `javac -source 8 -target 8` against `android.jar` + `
 - Owner prefers: short, direct status; scripts he can double-click (`.bat`) that save logs to `logsNN\`; then "check the logs".
 - Always say what a script changes vs. only reads.
 - Timezone Asia/Riyadh.
+
+## 7. Working together with AJ Netweb (add-ons, dashboard, control plane)
+
+AJ Panel and the AJ Netweb add-ons run on the same Home Assistant and must agree. **`..\INTEGRATION.md` is the source of
+truth** (name registry, contracts C1–C11, ports, debug table, open items). Before changing any of these, read the
+contract and update that file in the same commit (contract text + change-log row + open items):
+
+| If you change … | Contract | The other side |
+|---|---|---|
+| `/api/info` fields or admin endpoints (`PanelHttp.java`) | C1 | AJ Netweb agent `ajnetweb_tunnel/audio.py` whitelist, Installer |
+| Room Access reading (`Dash.roomAccess`) | C2 | `ajnetweb_sharing` publishes `sensor.ajnetweb_room_access`; dashboard strategy reads it too |
+| Device classification (`Dash.kindOf`, `isNoise`, word lists) | C3 | master is `aj-netweb-addon/ajnetweb-ui/src/core/model.js` – keep identical |
+| Room names / order / "General" | C4 | dashboard `buildModel()` |
+| Panel sign-in, HA user per panel, token names | C5 | Room Access matrix "Device room", wall-panel docs |
+| HA storage keys `aj_panel_*`, labels `aj_*` | C6, registry | add-ons must not write them |
+| Ports (8766, 6638, MA, Snapcast, AJ Cast) | Ports | Room Access guest portal 8097 = MA stream 8097 (O8) |
+| Look / Arabic terms | C9 | AJ Netweb themes and i18n |
+
+Rules: additive changes only (new optional fields, never rename/remove), one owner per name, both sides tolerate
+missing fields; panel and dashboard must show the same rooms and devices for the same user. Work for the AJ Netweb
+repos is done there (its own AGENTS.md: no model/AI names in commits or docs there); hand requests over through
+`..\INTEGRATION.md` open items and the project docs `claude/ajnetweb-*.md`.

@@ -43,7 +43,8 @@ import java.util.Set;
 public class Dash {
     public static final String LIGHT = "light", DIMMER = "dimmer", SWITCH = "switch", FAN = "fan", COVER = "cover", CLIMATE = "climate",
             LOCK = "lock", SCENE = "scene", SCRIPT = "script", SENSOR = "sensor", ALARM = "alarm", MEDIA = "media", BUTTON = "button",
-            VACUUM = "vacuum", OPENING = "opening", MOTION = "motion", SAFETY = "safety", VALVE = "valve", HEATER = "heater";
+            VACUUM = "vacuum", OPENING = "opening", MOTION = "motion", SAFETY = "safety", VALVE = "valve", HEATER = "heater",
+            GATE = "gate";
 
     public static class Tile {
         public final String id, kind;
@@ -120,10 +121,34 @@ public class Dash {
         return contains;
     }
 
+    // ---- same rules as the AJ Netweb dashboard (aj-netweb-addon/ajnetweb-ui/src/core/model.js: ACCESS_WORDS,
+    //      LIGHT_WORDS, NOISE, classify()) – see AJ/INTEGRATION.md C3. Change both together.
+    static final String[] ACCESS_WORDS = {"gate", "door_relay", "door relay", "strike", "barrier", "door_lock", "door lock", "unlock", "doorbell_door", "turnstile"};
+    static final String[] LIGHT_WORDS = {"light", "lamp", "spot", "led", "chandelier", "sconce", "bulb", "downlight", "strip", "pendant", "lighting"};
+    static final String[] NOISE = {"backlight", "motor_reversal", "calibration", "permit_join", "learn_ir", "ir_code", "child_lock", "countdown",
+            "power_on_behavior", "indicator", "switch_mode", "switch_type", "isapi_request", "bridge_state", "identify", "do_not_disturb", "led_enable",
+            "firmware", "restart", "reboot", "ping", "rssi", "linkquality", "last_seen", "uptime", "_ip_address", "wifi_signal"};
+    private static boolean any(String low, String[] words) { for (String w : words) if (low.contains(w)) return true; return false; }
+    /** config-ish entities nobody wants as a tile ("LED indicator", zigbee "0x00158d…" names) */
+    static boolean isNoise(String id, String name) {
+        String low = (id + " " + name).toLowerCase(Locale.ROOT);
+        return low.matches("(?s).*0x[0-9a-f]{8,}.*") || any(low, NOISE);
+    }
+
     /** tile kind for one entity, "" = not a tile (sensors etc. are used elsewhere) */
-    static String kindOf(String id, JSONObject attrs) {
+    static String kindOf(String id, JSONObject attrs) { return kindOf(id, attrs, s(attrs, "friendly_name")); }
+    static String kindOf(String id, JSONObject attrs, String name) {
         String d = id.substring(0, id.indexOf('.'));
         String dc = s(attrs, "device_class");
+        String low = (id + " " + name).toLowerCase(Locale.ROOT);
+        switch (d) {
+            case "cover": return dc.equals("gate") || dc.equals("garage") || low.contains("gate") || low.contains("garage") ? GATE : COVER;
+            case "switch": case "button":
+                if (any(low, ACCESS_WORDS)) return GATE;
+                if (d.equals("button")) return "";
+                if (!dc.equals("outlet") && any(low, LIGHT_WORDS)) return LIGHT;
+                return SWITCH;
+        }
         switch (d) {
             case "light": {
                 JSONArray m = attrs.optJSONArray("supported_color_modes");
@@ -131,9 +156,8 @@ public class Dash {
                 if (attrs.has("brightness")) return DIMMER;
                 return LIGHT;
             }
-            case "switch": case "input_boolean": return dc.equals("outlet") ? SWITCH : SWITCH;
+            case "input_boolean": return SWITCH;
             case "fan": return FAN;
-            case "cover": return COVER;
             case "climate": return CLIMATE;
             case "water_heater": return HEATER;
             case "humidifier": return FAN;
@@ -143,7 +167,7 @@ public class Dash {
             case "alarm_control_panel": return ALARM;
             case "vacuum": case "lawn_mower": return VACUUM;
             case "valve": return VALVE;
-            case "button": case "input_button": return BUTTON;
+            case "input_button": return "";
             case "media_player": return MEDIA;
             default: return "";
         }
@@ -173,7 +197,10 @@ public class Dash {
     static JSONObject roomAccess(Ha ha) {
         if (ha.userId.isEmpty() || ha.userAdmin) return null;
         JSONObject u = ha.attrs(ROOM_ACCESS).optJSONObject("users");
+        // keyed by HA user id; the dashboard strategy also accepts the display name – so do we
         JSONObject me = u == null ? null : u.optJSONObject(ha.userId);
+        if (me == null && u != null && !ha.userName.isEmpty())
+            for (java.util.Iterator<String> it = u.keys(); it.hasNext(); ) { String k = it.next(); if (k.trim().equalsIgnoreCase(ha.userName.trim())) { me = u.optJSONObject(k); break; } }
         JSONArray a = me == null ? null : me.optJSONArray("areas");
         return a == null || a.length() == 0 ? null : me;
     }
@@ -261,6 +288,7 @@ public class Dash {
                 else if (domain.equals("binary_sensor") && isSafety(dc)) d.safety.add(id);
                 continue;
             }
+            if (isNoise(id, s(attrs, "friendly_name"))) continue;
             String kind = map(ov, "kinds", id);
             if (kind.isEmpty()) kind = kindOf(id, attrs);
             if (kind.isEmpty()) continue;
@@ -273,7 +301,7 @@ public class Dash {
             d.tiles.put(id, t);
             if (kind.equals(SCENE) || kind.equals(SCRIPT)) d.scenes.add(t);
             if (kind.equals(CLIMATE) || kind.equals(HEATER)) d.climate.add(t);
-            if (kind.equals(LOCK) || kind.equals(ALARM)) d.security.add(t);
+            if (kind.equals(LOCK) || kind.equals(ALARM) || kind.equals(GATE)) d.security.add(t);
             if (area.isEmpty() || roomsHide.contains(area)) { if (!kind.equals(SCENE) && !kind.equals(SCRIPT)) d.room("", "").tiles.add(t); continue; }
             d.room(area, areaName.get(area)).tiles.add(t);
         }
@@ -289,14 +317,18 @@ public class Dash {
                 return ka != kb ? ka - kb : a.name.compareToIgnoreCase(b.name);
             });
         }
-        // rooms in HA order (= the order the user sorted them in HA), unknown "Other" last; empty rooms dropped
+        // room order like the AJ Netweb dashboard: by floor (level), then name; "General" (no room) last;
+        // the owner's rooms_order wins. Empty rooms dropped.
         List<String> ro = list(ov, "rooms_order");
-        List<String> haOrder = new ArrayList<>(areaName.keySet());
+        Map<String, Integer> floorLevel = new HashMap<>();
+        for (int i = 0; i < ha.floors.length(); i++) { JSONObject f = ha.floors.optJSONObject(i); if (f != null) floorLevel.put(s(f, "floor_id"), f.isNull("level") ? 99 : f.optInt("level", 99)); }
         Collections.sort(d.rooms, (a, b) -> {
             if (a.id.isEmpty() != b.id.isEmpty()) return a.id.isEmpty() ? 1 : -1;
             int ia = ro.indexOf(a.id), ib = ro.indexOf(b.id);
             if (ia >= 0 || ib >= 0) return ia < 0 ? 1 : ib < 0 ? -1 : ia - ib;
-            return haOrder.indexOf(a.id) - haOrder.indexOf(b.id);
+            Integer fa = floorLevel.get(s(areaObj.get(a.id), "floor_id")), fb = floorLevel.get(s(areaObj.get(b.id), "floor_id"));
+            int la = fa == null ? 999 : fa, lb = fb == null ? 999 : fb;
+            return la != lb ? la - lb : a.name.compareToIgnoreCase(b.name);
         });
         for (java.util.Iterator<Room> it = d.rooms.iterator(); it.hasNext(); ) {
             Room r = it.next();

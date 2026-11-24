@@ -44,7 +44,7 @@ public class Ha {
     public volatile boolean connected;
     public volatile String status = "starting", haVersion = "";
     public final ConcurrentHashMap<String, JSONObject> states = new ConcurrentHashMap<>();
-    public volatile JSONArray areas = new JSONArray(), devices = new JSONArray(), entities = new JSONArray();
+    public volatile JSONArray areas = new JSONArray(), devices = new JSONArray(), entities = new JSONArray(), floors = new JSONArray();
     public volatile JSONObject config = new JSONObject();
     /** the HA user this panel is signed in as (auth/current_user) – AJ Netweb Room Access limits it by this id */
     public volatile String userId = "", userName = "";
@@ -126,7 +126,7 @@ public class Ha {
                 // start the reader before asking for anything
                 Thread rd = new Thread(() -> readLoop(w), "ha-read"); rd.setDaemon(true); rd.start();
                 stateSub = send(new JSONObjectX().put("type", "subscribe_events").put("event_type", "state_changed").o, null);
-                for (String ev : new String[]{"area_registry_updated", "device_registry_updated", "entity_registry_updated"})
+                for (String ev : new String[]{"area_registry_updated", "device_registry_updated", "entity_registry_updated", "floor_registry_updated"})
                     regSubs.add(send(new JSONObjectX().put("type", "subscribe_events").put("event_type", ev).o, null));
                 send(new JSONObjectX().put("type", "get_config").o, (ok, r, e) -> { if (ok && r instanceof JSONObject) config = (JSONObject) r; });
                 send(new JSONObjectX().put("type", "auth/current_user").o, (ok, r, e) -> {
@@ -211,6 +211,7 @@ public class Ha {
     }
 
     private void loadRegistries() {
+        send(new JSONObjectX().put("type", "config/floor_registry/list").o, (ok, r, e) -> { if (ok && r instanceof JSONArray) floors = (JSONArray) r; });   // HA 2024.4+
         send(new JSONObjectX().put("type", "config/area_registry/list").o, (ok, r, e) -> { if (ok && r instanceof JSONArray) areas = (JSONArray) r; });
         send(new JSONObjectX().put("type", "config/device_registry/list").o, (ok, r, e) -> { if (ok && r instanceof JSONArray) devices = (JSONArray) r; });
         send(new JSONObjectX().put("type", "config/entity_registry/list").o, (ok, r, e) -> {

@@ -64,6 +64,11 @@ public class HaTest {
                 st("media_player.ajpanel_aabbccddeeff", "playing", o("friendly_name", "Panel")),
                 st("weather.home", "sunny", o("friendly_name", "Home", "temperature", 31, "humidity", 22)),
                 st("sun.sun", "above_horizon", o()),
+                st("switch.garden_gate", "off", o("friendly_name", "Garden Gate")),
+                st("switch.spot_lights", "off", o("friendly_name", "Spots")),
+                st("switch.0x00158d0001a2b3c4_led", "on", o("friendly_name", "0x00158d0001a2b3c4 LED")),
+                st("button.panel_restart", "unknown", o("friendly_name", "Panel restart")),
+                st("cover.garage", "closed", o("friendly_name", "Garage", "device_class", "garage")),
                 st("sensor.energy_total", "1234.5", o("device_class", "energy", "state_class", "total_increasing")));
             // filler: make get_states > 64 KB (127-length frames)
             StringBuilder pad = new StringBuilder(); for (int i = 0; i < 300; i++) pad.append("x");
@@ -187,7 +192,7 @@ public class HaTest {
         waitFor(() -> ha.connected && ha.entities.length() > 0 && ha.dataLoaded, 6000);
         Thread.sleep(300);
         check(ha.connected, "connects + authenticates");
-        check(ha.states.size() == 421, "get_states (fragmented, >64 KB, ping between fragments): " + ha.states.size());
+        check(ha.states.size() == 426, "get_states (fragmented, >64 KB, ping between fragments): " + ha.states.size());
         check(ha.areas.length() == 4 && ha.devices.length() == 2 && ha.entities.length() == 13, "registries loaded");
         check("Riyadh".equals(ha.config.optString("location_name")), "get_config");
         check(ha.attrs("sensor.filler_3").optString("note").endsWith("ü"), "UTF-8 across frames");
@@ -195,7 +200,10 @@ public class HaTest {
 
         Dash d = Dash.build(ha, Dash.merge(null, null), "Living room", "ajpanel_aabbccddeeff");
         List<String> roomIds = new ArrayList<>(); for (Dash.Room r : d.rooms) roomIds.add(r.id);
-        check(roomIds.equals(Arrays.asList("living_room", "kitchen", "")), "rooms in HA order, empty dropped, Other last: " + roomIds);
+        check(roomIds.equals(Arrays.asList("kitchen", "living_room", "")), "rooms by floor then name (like the AJ Netweb dashboard), empty dropped, General last: " + roomIds);
+        check(Dash.GATE.equals(d.tiles.get("switch.garden_gate").kind) && Dash.GATE.equals(d.tiles.get("cover.garage").kind) && d.security.contains(d.tiles.get("cover.garage")), "gates (relay switch, garage cover) = GATE, on the Security page");
+        check(Dash.LIGHT.equals(d.tiles.get("switch.spot_lights").kind), "switch named like a light = LIGHT");
+        check(!d.tiles.containsKey("switch.0x00158d0001a2b3c4_led") && !d.tiles.containsKey("button.panel_restart"), "noise + non-gate buttons skipped (same rules as model.js)");
         check(d.mine != null && d.mine.id.equals("living_room"), "panel room matched by name");
         List<String> lt = new ArrayList<>(); for (Dash.Tile t : d.byId.get("living_room").tiles) lt.add(t.kind + ":" + t.name);
         check(lt.equals(Arrays.asList("dimmer:Ceiling", "cover:Curtain", "climate:AC", "scene:Movie")), "living room tiles (device area, kind order, names cleaned): " + lt);
@@ -279,6 +287,11 @@ public class HaTest {
         ha.entities.optJSONObject(1).put("labels", Mock.a());
         Dash ra = Dash.build(ha, null, "Living room", "x", "");
         List<String> rr = new ArrayList<>(); for (Dash.Room r : ra.rooms) rr.add(r.id);
+        JSONObject byName = Mock.o("users", Mock.o("kitchen panel", Mock.o("areas", Mock.a("living_room"))));
+        ha.states.put("sensor.ajnetweb_room_access", Mock.st("sensor.ajnetweb_room_access", "1", byName));
+        Dash rn = Dash.build(ha, null, "x", "x", "");
+        check(rn.allowedRooms != null && rn.allowedRooms.contains("living_room"), "room access keyed by display name works too (like the dashboard strategy)");
+        ha.states.put("sensor.ajnetweb_room_access", Mock.st("sensor.ajnetweb_room_access", "1", Mock.o("users", Mock.o("u1", Mock.o("areas", Mock.a("kitchen", "garage"), "home", "kitchen")))));
         check(ra.allowedRooms != null && rr.equals(Collections.singletonList("kitchen")) && ra.mine != null && ra.mine.id.equals("kitchen"), "room access: only kitchen (+garage sensors), opens on kitchen: " + rr);
         check(!ra.tiles.containsKey("lock.front_door") && !ra.tiles.containsKey("scene.welcome") && ra.openNow(ha).contains("binary_sensor.garage_door") && ra.safety.contains("binary_sensor.smoke"), "other rooms / no-room items hidden, garage alert kept (allowed), smoke kept");
         ha.userAdmin = true;

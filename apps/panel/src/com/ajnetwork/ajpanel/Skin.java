@@ -76,6 +76,7 @@ public final class Skin {
             case Dash.COVER: return dark ? G_COVER : P_COVER;
             case Dash.SCENE: case Dash.SCRIPT: case Dash.BUTTON: return dark ? G_SCENE : P_SCENE;
             case Dash.LOCK: case Dash.ALARM: return on ? (dark ? G_LOCK : P_LOCK) : (dark ? G_UNLOCK : P_UNLOCK);
+            case Dash.GATE: return dark ? G_LOCK : P_LOCK;
             default: return off();
         }
     }

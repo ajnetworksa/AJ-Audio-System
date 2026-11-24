@@ -16,7 +16,7 @@ Start at §1 (symptom → first check). Collect logs with §2. Read them with §
 | App opens and closes immediately | `adb logcat -d \| findstr "FATAL UnsatisfiedLink"` | BUG-001, BUG-004 |
 | AirPlay connects but group silent | Duplicate protocol players in MA | BUG-011 |
 
-## 2. Collecting logs (scripts in `D:\Devlopment\Smart Tuya\New folder\`)
+## 2. Collecting logs (old numbered scripts: `D:\Devlopment\AJ\vendor\panel-system-apks\`; current: `tools\collect_logs.bat`)
 
 | Script | What it collects | Output |
 |---|---|---|

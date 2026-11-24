@@ -2,7 +2,7 @@
 
 Owner's wishes collected 2026-11-18. Not started unless marked.
 
-## 1. Central portal + alerts → build it INTO AJ Netweb (decided 2026-11-18 after reading D:\Devlopment\HA\AJ Netweb)
+## 1. Central portal + alerts → build it INTO AJ Netweb (decided 2026-11-18; AJ Netweb now lives in D:\Devlopment\AJ\aj-netweb-addon + aj-netweb-platform, contracts in ..\INTEGRATION.md)
 AJ Netweb already is the fleet portal: FastAPI control plane + React dashboard (Sites, Map, Alerts, Tickets,
 Campaigns, Billing), the `ajnetweb_tunnel` HA add-on as edge agent (heartbeat + telemetry every 60 s, remote
 commands, owner consent), notification rules (Telegram, WhatsApp, e-mail, webhooks), health issues → alerts,

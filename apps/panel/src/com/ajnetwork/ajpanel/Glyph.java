@@ -37,6 +37,7 @@ public final class Glyph {
             case Dash.VACUUM: return VACUUM;
             case Dash.VALVE: return VALVE;
             case Dash.BUTTON: return TAP;
+            case Dash.GATE: return DOOR;
             default: return POWER;
         }
     }

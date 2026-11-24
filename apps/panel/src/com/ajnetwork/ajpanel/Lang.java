@@ -76,6 +76,8 @@ public final class Lang {
         t("k_vacuum", "Vacuum", "مكنسة");
         t("k_valve", "Valve", "صمام");
         t("k_button", "Button", "زر");
+        t("k_gate", "Gate", "بوابة");
+        t("open_gate", "OPEN", "فتح");
         // home
         t("now_playing", "NOW PLAYING", "يعمل الآن");
         t("nothing_playing", "Nothing playing", "لا يوجد تشغيل");
@@ -90,7 +92,7 @@ public final class Lang {
         t("alarm_chip", "Alarm", "إنذار");
         t("whole_home", "Whole home", "كل المنزل");
         t("this_room", "This room", "هذه الغرفة");
-        t("other", "Other", "أخرى");
+        t("other", "General", "عام");
         t("no_devices", "No devices in this room yet", "لا توجد أجهزة في هذه الغرفة");
         t("no_scenes", "No scenes yet – create them in Home Assistant", "لا توجد مشاهد بعد – أنشئها في Home Assistant");
         t("connect_ha", "Connect Home Assistant", "اربط Home Assistant");

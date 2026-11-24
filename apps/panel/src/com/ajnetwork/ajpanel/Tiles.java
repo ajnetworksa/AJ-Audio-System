@@ -93,7 +93,12 @@ public final class Tiles {
         private final Paint p = new Paint(Paint.ANTI_ALIAS_FLAG);
         private final RectF r = new RectF();
 
-        public TileView(Context c, Dash.Tile t, Host host) { super(c); this.t = t; this.host = host; setContentDescription(t.name); }
+        /** how the tile works: a gate is drawn like a curtain (cover) or a push button (relay switch / button) */
+        private final String k;
+        public TileView(Context c, Dash.Tile t, Host host) {
+            super(c); this.t = t; this.host = host; setContentDescription(t.name);
+            k = t.kind.equals(Dash.GATE) ? (t.domain().equals("cover") ? Dash.COVER : Dash.BUTTON) : t.kind;
+        }
 
         /** HA state of this tile changed */
         public void refresh() { optUntil = 0; invalidate(); }
@@ -108,7 +113,7 @@ public final class Tiles {
                 if (a.equals("toggle")) { optimistic(!on()); host.act(t, "toggle", 0); return; }
                 host.act(t, a, v); invalidate(); return;
             }
-            switch (t.kind) {
+            switch (k) {
                 case Dash.SCENE: case Dash.SCRIPT: case Dash.BUTTON: ranAt = System.currentTimeMillis(); invalidate(); postInvalidateDelayed(1600); host.act(t, "run", 0); return;
                 case Dash.LOCK: if (on()) host.detail(t); else host.act(t, "lock", 0); return;   // never unlock with one tap
                 case Dash.CLIMATE: case Dash.HEATER: case Dash.ALARM: host.detail(t); return;
@@ -133,12 +138,12 @@ public final class Tiles {
             String subText = un ? Lang.s("unavailable") : subLine(a, st, on);
             // ----- end of the top row (value / switch / RUN)
             float topEnd = 0;
-            if (!un) switch (t.kind) {
+            if (!un) switch (k) {
                 case Dash.DIMMER: if (on) { int b = pct(a, "brightness", 255); topEnd = textEnd(c, (b < 0 ? 100 : Math.max(1, b)) + "%", W, pad, pad + uf(18), value); } break;
                 case Dash.COVER: { int pos = a.optInt("current_position", -1); topEnd = textEnd(c, pos >= 0 ? pos + "%" : Lang.state(st), W, pad, pad + uf(18), value); break; }
                 case Dash.SCENE: case Dash.SCRIPT: case Dash.BUTTON: {
                     boolean done = System.currentTimeMillis() - ranAt < 1500;
-                    String s = done ? Lang.s("done") : Lang.s("run");
+                    String s = done ? Lang.s("done") : Lang.s(t.kind.equals(Dash.GATE) ? "open_gate" : "run");
                     small.setColor(tn.dark()); float tw = small.measureText(s) + uf(20), h = uf(24);
                     p.setColor(done ? 0xFF3BB273 : tn.value); r.set(Kit.x(W, W - pad - tw, tw), pad, Kit.x(W, W - pad - tw, tw) + tw, pad + h);
                     c.drawRoundRect(r, h / 2, h / 2, p);
@@ -162,7 +167,7 @@ public final class Tiles {
             // ----- body
             float top = pad + uf(46), bottom = H - pad;
             if (un) { Glyph.draw(c, Glyph.forKind(t.kind, false), Kit.x(W, pad, uf(40)), bottom - uf(40), uf(40), tn.sub); return; }
-            switch (t.kind) {
+            switch (k) {
                 case Dash.DIMMER: case Dash.LIGHT: drawLamp(c, W, top, bottom - (t.kind.equals(Dash.DIMMER) ? uf(20) : 0), on, tn);
                     if (t.kind.equals(Dash.DIMMER)) {
                         int b = on ? Math.max(1, pct(a, "brightness", 255)) : 0;
@@ -236,7 +241,7 @@ public final class Tiles {
         }
 
         private String subLine(JSONObject a, String st, boolean on) {
-            switch (t.kind) {
+            switch (k) {
                 case Dash.CLIMATE: case Dash.HEATER: {
                     String act = a.optString("hvac_action", "");
                     double cur = a.optDouble("current_temperature", Double.NaN);
