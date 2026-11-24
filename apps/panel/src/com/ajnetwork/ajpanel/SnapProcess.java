@@ -137,7 +137,8 @@ public class SnapProcess {
                     if (line.contains("Connected to") || line.contains("ServerSettings")) connected = true;
                     if (line.contains("onError") || line.contains("Failed to connect") || line.contains("Connection refused")) connected = false;
                     if (line.contains("Time sync request failed") || line.contains("Operation Canceled") || line.contains("Failed to send hello")) lastDrop = System.currentTimeMillis();
-                    if (line.contains("Time sync request failed")) synchronized (syncFails) { syncFails.add(System.currentTimeMillis()); }
+                    // a dropped sync connection (not a server restart = "End of file"): time-sync timeout or the socket aborted under load
+                    if (line.contains("Time sync request failed") || line.contains("Software caused connection abort")) synchronized (syncFails) { syncFails.add(System.currentTimeMillis()); }
                     // while the music server restarts the player retries every second: log that once, not 5 lines per try
                     boolean retryNoise = line.contains("Connection refused") || line.contains("Failed to connect") || line.contains("Error in socket shutdown")
                             || line.contains("Resolving host IP") || line.contains("Connecting to ");

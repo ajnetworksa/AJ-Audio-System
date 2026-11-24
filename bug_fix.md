@@ -167,6 +167,12 @@ Each section's id matches the bug in `bug.md` (FIX-001 ↔ BUG-001). Include: wh
 - **Logs:** panel log now = state JSON + app log (600 lines) + last crash (stack trace kept on disk) + the app's Android log (warnings); reachable from the scan list even before the panel is in MA.
 - **Spotify:** rooms and groups get a "Show in Spotify" switch (MA Spotify Connect plugin, same mechanism as the AirPlay switch); group edit also drops dead panel ids on save.
 
+## FIX-035
+**BUG-037 – texts not centred (Panel 0.9.6)**
+- `Kit.tv()` uses textAlignment GRAVITY: `Gravity.CENTER` centres, default START still follows Arabic RTL.
+- Empty pages: while Home Assistant is not connected, Rooms / Scenes show the tappable "Connect Home Assistant" sign-in card in the middle (was a plain line at the left); otherwise a centred line.
+- Also: the "connection drops → stop converting 48→44.1 kHz" fallback (0.8.4) now also counts "Software caused connection abort" (px30 at .115 had 2 time-sync timeouts + 1 abort in 3 min and never switched).
+
 ## FIX-034
 **BUG-036 – dashboard never connects to Home Assistant after sign-in (Panel 0.9.5)**
 - `Ha.send()` only queues; one "ha-send" thread writes every message (never Android's main thread; ids stay in the order HA receives them). Only a real network error on that thread closes the connection; anything else is logged.

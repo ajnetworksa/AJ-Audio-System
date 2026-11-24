@@ -380,11 +380,19 @@ public class HomeActivity extends Activity implements DashHub.L, PanelService.Li
         ScrollView s = new ScrollView(this); s.setVerticalScrollBarEnabled(false); s.setOverScrollMode(View.OVER_SCROLL_NEVER);
         s.setClipToPadding(false); s.addView(v); return s;
     }
-    private TextView empty(String key) { TextView t = tv(this, Lang.s(key), 18, skin.sub, REG); t.setGravity(Gravity.CENTER); t.setSingleLine(false); return t; }
+    private TextView emptyText(String key) { TextView t = tv(this, Lang.s(key), 18, skin.sub, REG); t.setGravity(Gravity.CENTER); t.setSingleLine(false); return t; }
+    private boolean haMissing() { DashHub d = hub(); return d == null || d.ha == null || (!d.ha.connected && d.dash.tiles.isEmpty()); }
+    /** an empty page: the sign-in card (centred) while Home Assistant is not connected, else a centred line */
+    private void showEmpty(String key) {
+        if (haMissing()) {
+            View c = setupCard();
+            content.addView(c, new FrameLayout.LayoutParams(Math.min(u(680), content.getWidth() > 0 ? content.getWidth() : u(680)), -2, Gravity.CENTER));
+        } else content.addView(emptyText(key), new FrameLayout.LayoutParams(-1, -1, Gravity.CENTER));
+    }
 
     private void buildRooms() {
         Dash d = dash();
-        if (d.rooms.isEmpty()) { content.addView(empty(hub() == null || hub().ha == null ? "connect_ha" : "no_devices")); return; }
+        if (d.rooms.isEmpty()) { showEmpty("no_devices"); return; }
         int cols = wide() ? 3 : 2;
         Flow f = new Flow(this, cols, 180, 14);
         for (Dash.Room r : d.rooms) {
@@ -407,7 +415,7 @@ public class HomeActivity extends Activity implements DashHub.L, PanelService.Li
         int cols = wide() ? 4 : 3;
         Flow f = new Flow(this, cols, 210, 14);
         for (Dash.Tile t : r.tiles) f.addView(tile(t), new Flow.Span(t.kind.equals(Dash.CLIMATE) && cols >= 4 ? 1 : 1));
-        if (r.tiles.isEmpty()) { col.addView(empty("no_devices"), new LinearLayout.LayoutParams(-1, -1)); content.addView(col); return; }
+        if (r.tiles.isEmpty()) { col.addView(emptyText("no_devices"), new LinearLayout.LayoutParams(-1, -1)); content.addView(col); return; }
         LinearLayout.LayoutParams fp = new LinearLayout.LayoutParams(-1, 0, 1); fp.topMargin = u(14);
         col.addView(scroll(f), fp);
         content.addView(col);
@@ -431,7 +439,7 @@ public class HomeActivity extends Activity implements DashHub.L, PanelService.Li
         Flow f = new Flow(this, wide() ? 4 : 3, 200, 14);
         int n = 0;
         for (Dash.Tile t : d.scenes) if (all || d.mine.id.equals(t.area)) { f.addView(tile(t), new Flow.Span(1)); n++; }
-        if (n == 0) { content.addView(empty("no_scenes")); return; }
+        if (n == 0) { showEmpty("no_scenes"); return; }
         LinearLayout.LayoutParams fp = new LinearLayout.LayoutParams(-1, 0, 1); if (hasMine) fp.topMargin = u(14);
         col.addView(scroll(f), fp);
         content.addView(col);
@@ -483,7 +491,7 @@ public class HomeActivity extends Activity implements DashHub.L, PanelService.Li
 
     private void buildApps() {
         List<ResolveInfo> l = Nav.launchable(this);
-        if (l.isEmpty()) { content.addView(empty("no_apps")); return; }
+        if (l.isEmpty()) { content.addView(emptyText("no_apps"), new FrameLayout.LayoutParams(-1, -1, Gravity.CENTER)); return; }
         Flow f = new Flow(this, wide() ? 5 : 3, 190, 14);
         PackageManager pm = getPackageManager();
         for (ResolveInfo r : l) {

@@ -88,7 +88,8 @@ public final class Kit {
         TextView t = new TextView(c);
         t.setText(s); t.setTextSize(TypedValue.COMPLEX_UNIT_PX, uf(sizeU)); t.setTextColor(color); t.setTypeface(tf);
         t.setSingleLine(true); t.setEllipsize(TextUtils.TruncateAt.END); t.setIncludeFontPadding(false);
-        t.setTextAlignment(View.TEXT_ALIGNMENT_VIEW_START);
+        // follow the gravity: Gravity.CENTER really centres (VIEW_START overrode it – BUG-037); default START follows RTL
+        t.setTextAlignment(View.TEXT_ALIGNMENT_GRAVITY);
         return t;
     }
 
