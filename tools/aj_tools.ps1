@@ -35,6 +35,7 @@ while ($true) {
   Write-Host " w) Wi-Fi panels: fewer background scans, Wi-Fi never sleeps (DSPPA drops)"
   Write-Host " i) Inventory: complete hardware + software info of panels (read only)"
   Write-Host " d) Remove apps panels don't need (dry run first; u = undo)"
+  Write-Host " h) Smart-home dashboard: Home Assistant token, look, language, owner name, PIN"
   Write-Host " 9) Edit panel list (panels.txt)"
   Write-Host " 0) Exit"
   switch (Read-Host "Choose") {
@@ -42,7 +43,7 @@ while ($true) {
       foreach ($p in Panels) {
         try {
           $i = Invoke-RestMethod "http://$($p.ip):8766/api/info" -TimeoutSec 4
-          "{0,-12} {1,-15} v{2,-7} server {3,-13} sync {4,-5} silent-upd {5,-5} auto-upd {6} {7}  clock {9}  zigbee: {8}" -f $p.name, $p.ip, $i.version, $i.server, $i.sync_connected, $i.silent_update, $i.auto_update, $i.update_window, $i.zigbee_bridge, $i.clock | Write-Host
+          "{0,-12} {1,-15} v{2,-7} server {3,-13} sync {4,-5} silent-upd {5,-5} auto-upd {6} {7}  clock {9}  HA: {10}  zigbee: {8}" -f $p.name, $p.ip, $i.version, $i.server, $i.sync_connected, $i.silent_update, $i.auto_update, $i.update_window, $i.zigbee_bridge, $i.clock, $(if ($i.ha) { $i.ha } else { "-" }) | Write-Host
         } catch { "{0,-12} {1,-15} not reachable (off, other network, or no AJ Panel)" -f $p.name, $p.ip | Write-Host -ForegroundColor Yellow }
       }
     }
@@ -91,8 +92,38 @@ while ($true) {
         $ips = ($ps | ForEach-Object { $_.ip }) -join ","
         $m = Read-Host "Enter = dry run (shows the list), a = remove stage 1, 2 = stage 2 (vendor home screen - only when our app is ready), u = undo"
         $args2 = switch ($m) { "a" { "-apply" } "2" { "-apply -stage 2" } "u" { "-restore" } default { "" } }
+        if ($m -ne "u" -and (Read-Host "Keep YouTube? (needs Google services, ~400 MB RAM)  Enter = keep, n = remove") -eq "n") { $args2 += " -noYoutube" }
         Run "panel_debloat.bat" ("-panels `"$ips`" " + $args2)
       }
+    }
+    "h" {
+      # CHANGES: AJ Panel settings only (Home Assistant address/token, look, language, owner name, PIN) via adb broadcast.
+      # The token is typed here by you, sent to the panel and stored there - this script does not save or print it.
+      $ps = Pick "Dashboard settings for:"; if (-not $ps.Count) { continue }
+      $x = @()
+      $url = Read-Host "Home Assistant address (Enter = same Pi as Music Assistant, port 8123)"; if ($url) { $x += "--es ha_url $url" }
+      $sec = Read-Host "Home Assistant long-lived token (HA > Profile > Security; Enter = keep the panel's)" -AsSecureString
+      $tok = [Runtime.InteropServices.Marshal]::PtrToStringAuto([Runtime.InteropServices.Marshal]::SecureStringToBSTR($sec))
+      if ($tok) { $x += "--es ha_token $tok" }
+      $look = Read-Host "Look: a = auto (pearl by day), g = graphite, p = pearl (Enter = keep)"
+      $lk = @{ a = "auto"; g = "graphite"; p = "pearl" }[$look]; if ($lk) { $x += "--es look $lk" }
+      $lang = Read-Host "Language: e = English, r = Arabic (Enter = keep)"
+      if ($lang -eq "e") { $x += "--es lang en" } elseif ($lang -eq "r") { $x += "--es lang ar" }
+      $own = Read-Host "Owner name in English, e.g. Al Rashid Residence (Enter = keep; Arabic name: set it on the panel)"
+      if ($own) { $x += "--es owner_en '" + ($own -replace "'", "") + "'" }
+      $show = Read-Host "Show the owner name on these panels? y/n (Enter = keep)"
+      if ($show -eq "y") { $x += "--ez owner_show true" } elseif ($show -eq "n") { $x += "--ez owner_show false" }
+      $pin = Read-Host "Owner PIN, 4-8 digits (Enter = keep, 0 = remove)"
+      if ($pin -match '^\d{4,8}$') { $x += "--es pin_owner $pin" } elseif ($pin -eq "0") { $x += "--es pin_owner ''" }
+      if (-not $x.Count) { Write-Host "  nothing to change"; continue }
+      foreach ($p in $ps) {
+        $d = "$($p.ip):5555"; & $ADB connect $d | Out-Null
+        & $ADB -s $d shell ("am broadcast -f 32 -n com.ajnetwork.ajpanel/.BootReceiver -a com.ajnetwork.ajpanel.CONFIG " + ($x -join " ")) | Out-Null
+        Start-Sleep 2
+        try { $i = Invoke-RestMethod "http://$($p.ip):8766/api/info" -TimeoutSec 4; Write-Host ("  {0}: Home Assistant {1}, look {2}, language {3}, {4} tiles" -f $p.name, $i.ha, $i.look, $i.lang, $i.dash_tiles) }
+        catch { Write-Host "  $($p.name): sent (panel did not answer /api/info)" -ForegroundColor Yellow }
+      }
+      $tok = $null; $x = $null
     }
     "9" { notepad $list }
     "0" { return }

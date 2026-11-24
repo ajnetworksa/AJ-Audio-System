@@ -53,6 +53,58 @@ public class Cfg {
 
     public String maBase() { return "http://" + host() + ":" + maPort(); }
 
+    // ------------------------------------------------------------------ smart-home dashboard (HomeActivity)
+    /** Home Assistant address; default = the music server (same Pi) on 8123 */
+    public String haUrl()   { String u = p.getString("ha_url", ""); return u.isEmpty() ? "http://" + host() + ":8123" : u; }
+    /** HA long-lived access token (typed/pasted on the panel or sent by the Installer) – never logged */
+    public String haUrlRaw() { return p.getString("ha_url", ""); }
+    public String haToken() { return p.getString("ha_token", ""); }
+    private JSONObjectSafe json(String k) { return new JSONObjectSafe(p.getString(k, "")); }
+    /** this panel's dashboard settings (see Dash) – a fresh copy every call */
+    public org.json.JSONObject panelData() { return json("dash_panel").o; }
+    /** site-wide settings: owner name, defaults */
+    public org.json.JSONObject siteData()  { return json("dash_site").o; }
+    private String pick(String key, String def) {
+        String v = panelData().optString(key, ""); if (!v.isEmpty()) return v;
+        v = siteData().optString(key, ""); return v.isEmpty() ? def : v;
+    }
+    /** en | ar */
+    public String lang()  { return pick("lang", "en"); }
+    /** auto | graphite | pearl */
+    public String look()  { return pick("look", "auto"); }
+    public String ownerEn() { return siteData().optString("owner_en", ""); }
+    public String ownerAr() { return siteData().optString("owner_ar", ""); }
+    /** show the owner's name on this panel (header, splash, screensaver) */
+    public boolean ownerShow() { return panelData().optBoolean("owner_show", false); }
+    /** owner name in the panel's language (falls back to the other one) */
+    public String owner() { String a = ownerAr(), e = ownerEn(); return "ar".equals(lang()) ? (a.isEmpty() ? e : a) : (e.isEmpty() ? a : e); }
+    /** minutes without touch before the screensaver; 0 = never */
+    public int saverMin() { return panelData().optInt("saver_min", 3); }
+    /** AJ Panel is the home screen with the dashboard (false = old music screen only) */
+    public boolean dashboard() { return p.getBoolean("dashboard", true); }
+
+    // ------------------------------------------------------------------ PINs (stored as salted SHA-256, never in clear)
+    public static final String OWNER = "pin_owner", INSTALLER = "pin_installer";
+    public boolean hasPin(String which) { return !p.getString(which, "").isEmpty(); }
+    public void setPin(String which, String pin) { p.edit().putString(which, pin == null || pin.isEmpty() ? "" : hash(pin)).apply(); }
+    /** installer PIN opens everything; owner PIN opens owner things */
+    public boolean checkPin(String which, String pin) {
+        String h = hash(pin);
+        if (h.equals(p.getString(INSTALLER, ""))) return true;
+        return which.equals(OWNER) && h.equals(p.getString(OWNER, ""));
+    }
+    private String hash(String pin) {
+        try {
+            byte[] d = java.security.MessageDigest.getInstance("SHA-256").digest((hostId() + ":" + pin).getBytes(java.nio.charset.StandardCharsets.UTF_8));
+            StringBuilder b = new StringBuilder(); for (byte x : d) b.append(String.format("%02x", x)); return b.toString();
+        } catch (Exception e) { return ""; }
+    }
+
+    static final class JSONObjectSafe {
+        final org.json.JSONObject o;
+        JSONObjectSafe(String s) { org.json.JSONObject x; try { x = s == null || s.isEmpty() ? new org.json.JSONObject() : new org.json.JSONObject(s); } catch (Exception e) { x = new org.json.JSONObject(); } o = x; }
+    }
+
     /** stable id sent to the server as snapclient --hostID; MA turns it into player id "ma_" + id */
     public String hostId() {
         String id = p.getString("host_id", null);

@@ -31,6 +31,10 @@ import java.util.Map;
  *  POST /api/update?url=       admin: download an APK and ask to install it (one tap on the panel)
  *  POST /api/install           admin: body = APK file (picked in the Installer app), same confirm on the panel
  *  POST /api/settings?host=&token=…  also from an admin of the NEW server while the panel is not connected anywhere (first set-up)
+ *  POST /api/settings?ha_url=&ha_token=&look=auto|graphite|pearl&lang=en|ar&owner_en=&owner_ar=&owner_show=&saver_min=&area=
+ *                     &pin_owner=&pin_installer=&dashboard=true|false     admin: smart-home dashboard (values never logged)
+ *  GET  /api/dashboard           admin: generated layout + this panel's and the site's dashboard settings (Installer editor)
+ *  POST /api/dashboard           admin: body {"panel":{…},"site":{…}} replaces those settings (saved in Home Assistant too)
  * "admin" = header "Authorization: Bearer <Music Assistant token>" of an MA user with role admin;
  * the panel checks the token with MA (auth/me) – no extra passwords.
  */
@@ -170,6 +174,31 @@ public class PanelHttp {
                     if (err == null) ok(o); else reply(o, 500, "text/plain", err.getBytes(StandardCharsets.UTF_8));
                     return;
                 }
+                case "/api/dashboard": {
+                    DashHub hub = svc.hub;
+                    if (hub == null) { reply(o, 503, "text/plain", "starting".getBytes()); return; }
+                    if (method.equals("POST")) {
+                        long len = 0;
+                        for (String l : lines) if (l.toLowerCase().startsWith("content-length:")) len = Long.parseLong(l.substring(15).trim());
+                        if (len <= 0 || len > 2_000_000) { reply(o, 400, "text/plain", "JSON body missing".getBytes()); return; }
+                        byte[] body = new byte[(int) len]; int got = 0;
+                        while (got < len) { int n = in.read(body, got, (int) len - got); if (n < 0) break; got += n; }
+                        JSONObject b = new JSONObject(new String(body, 0, got, StandardCharsets.UTF_8));
+                        svc.main().post(() -> {
+                            if (b.optJSONObject("panel") != null) hub.replacePanel(b.optJSONObject("panel"));
+                            if (b.optJSONObject("site") != null) hub.replaceSite(b.optJSONObject("site"));
+                        });
+                        Log.i("setup: dashboard settings replaced (" + (b.has("panel") ? "panel " : "") + (b.has("site") ? "site" : "") + ")");
+                        ok(o); return;
+                    }
+                    Ha ha = hub.ha;
+                    JSONObject r = new JSONObject().put("layout", ha == null ? new JSONObject() : hub.dash.toJson(ha))
+                            .put("panel", cfg.panelData()).put("site", cfg.siteData())
+                            .put("areas", ha == null ? new org.json.JSONArray() : ha.areas)
+                            .put("ha", ha == null ? "not set" : ha.connected ? "connected" : ha.status);
+                    reply(o, 200, "application/json; charset=utf-8", r.toString().getBytes(StandardCharsets.UTF_8));
+                    return;
+                }
                 case "/api/adb_pair":
                     // Judian panels can't use device owner: ask for "Allow debugging" once (tap on the panel)
                     LocalAdb.pair(svc);
@@ -202,11 +231,40 @@ public class PanelHttp {
         if (args.containsKey("update_window") && args.get("update_window").matches("any|([01]?\\d|2[0-3])-([01]?\\d|2[0-4])")) ed.putString("update_window", args.get("update_window"));
         if (args.containsKey("update_delay_h")) ed.putInt("update_delay_h", Math.max(0, Math.min(720, Integer.parseInt(args.get("update_delay_h")))));
         if (args.containsKey("update_days") && args.get("update_days").matches("[1-7]{1,7}")) ed.putString("update_days", args.get("update_days"));
+        if (args.containsKey("ha_url")) ed.putString("ha_url", args.get("ha_url").trim());
+        if (args.containsKey("ha_token") && !args.get("ha_token").isEmpty()) ed.putString("ha_token", args.get("ha_token").trim());
+        if (args.containsKey("dashboard")) ed.putBoolean("dashboard", Boolean.parseBoolean(args.get("dashboard")));
         ed.commit();
+        if (args.containsKey("pin_owner")) cfg.setPin(Cfg.OWNER, args.get("pin_owner").replaceAll("\\D", ""));
+        if (args.containsKey("pin_installer")) cfg.setPin(Cfg.INSTALLER, args.get("pin_installer").replaceAll("\\D", ""));
+        dashSettings(svc, cfg, args);
         java.util.Set<String> keys = new java.util.TreeSet<>(args.keySet());
         Log.i("setup: settings " + keys);          // names only – never values (token)
         synchronized (okTokens) { okTokens.clear(); }
         svc.reloadFromAnyThread();
+    }
+
+    /** dashboard keys (panel: look, lang, owner_show, saver_min, area – site: owner_en, owner_ar), shared with BootReceiver */
+    static void dashSettings(PanelService svc, Cfg cfg, Map<String, String> args) {
+        String[][] keys = {{"look", "p"}, {"lang", "p"}, {"area", "p"}, {"owner_show", "pb"}, {"saver_min", "pi"}, {"owner_en", "s"}, {"owner_ar", "s"}};
+        java.util.Map<String, Object> sitePatch = new java.util.HashMap<>(), panelPatch = new java.util.HashMap<>();
+        DashHub hub = svc == null ? null : svc.hub;
+        for (String[] k : keys) {
+            if (!args.containsKey(k[0])) continue;
+            String v = args.get(k[0]);
+            Object val = k[1].equals("pb") ? (Object) Boolean.parseBoolean(v) : k[1].equals("pi") ? (Object) Integer.valueOf(v.replaceAll("\\D", "").isEmpty() ? "0" : v.replaceAll("\\D", "")) : v.trim();
+            if (k[0].equals("look") && !v.matches("auto|graphite|pearl")) continue;
+            if (k[0].equals("lang") && !v.matches("en|ar")) continue;
+            boolean site = k[1].equals("s");
+            Object store = val instanceof String && ((String) val).isEmpty() ? null : val;
+            if (hub != null) (site ? sitePatch : panelPatch).put(k[0], store);
+            else {
+                org.json.JSONObject o = site ? cfg.siteData() : cfg.panelData();
+                try { if (store == null) o.remove(k[0]); else o.put(k[0], store); } catch (Exception ignored) { }
+                cfg.edit().putString(site ? "dash_site" : "dash_panel", o.toString()).commit();
+            }
+        }
+        if (hub != null && (!sitePatch.isEmpty() || !panelPatch.isEmpty())) svc.main().post(() -> hub.setAll(sitePatch, panelPatch));
     }
 
     private JSONObject info() throws Exception {
@@ -233,7 +291,11 @@ public class PanelHttp {
                 .put("uptime_s", (System.currentTimeMillis() - started) / 1000)
                 // panel wall clock + zone: a wrong zone makes every log time look wrong (M20 showed 02:51 at 10:51)
                 .put("clock", new java.text.SimpleDateFormat("yyyy-MM-dd HH:mm Z", java.util.Locale.US).format(new java.util.Date()))
-                .put("time_zone", java.util.TimeZone.getDefault().getID());
+                .put("time_zone", java.util.TimeZone.getDefault().getID())
+                .put("dashboard", cfg.dashboard()).put("ha", svc.hub == null || svc.hub.ha == null ? "not set" : svc.hub.ha.connected ? "connected" : svc.hub.ha.status)
+                .put("ha_url", cfg.haUrl()).put("look", cfg.look()).put("lang", cfg.lang()).put("owner_show", cfg.ownerShow())
+                .put("pins", new JSONObject().put("owner", cfg.hasPin(Cfg.OWNER)).put("installer", cfg.hasPin(Cfg.INSTALLER)))
+                .put("dash_tiles", svc.hub == null ? 0 : svc.hub.dash.tiles.size());
     }
 
     private String version() {

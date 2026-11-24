@@ -112,7 +112,11 @@ public class MainActivity extends Activity implements PanelService.Listener {
         LinearLayout r = new LinearLayout(this); r.setOrientation(LinearLayout.VERTICAL);
         r.setGravity(Gravity.CENTER_HORIZONTAL); r.setPadding(0, dp(26), 0, dp(22));
         r.setBackgroundColor(0x66000000);
-        r.addView(logoView(this), new LinearLayout.LayoutParams(dp(30), dp(42)));
+        View logo = logoView(this);
+        // back to the smart-home dashboard (HomeActivity) when it is on
+        logo.setOnClickListener(v -> { if (cfg.dashboard()) startActivity(new Intent(this, HomeActivity.class)); });
+        logo.setContentDescription("Home");
+        r.addView(logo, new LinearLayout.LayoutParams(dp(30), dp(42)));
         railClock = Theme.text(this, "", 21, TEXT, MEDIUM); railClock.setGravity(Gravity.CENTER);
         LinearLayout.LayoutParams cl = new LinearLayout.LayoutParams(-1, -2); cl.topMargin = dp(12);
         r.addView(railClock, cl);

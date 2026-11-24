@@ -5,12 +5,14 @@
 #                                                            (AJ Panel becomes the home screen first) - ONLY when our
 #                                                            smart-home UI is ready
 #   panel_debloat.bat -panels 192.168.8.194 -restore        puts every app this script removed back
+#   ... -noYoutube                                           also remove YouTube + Google services + Play Store
+#                                                            (default: KEPT - YouTube needs Google services; ~400 MB RAM)
 # How: "pm uninstall -k --user 0" (no root). System/vendor apps stay in the firmware and come back with
 # "cmd package install-existing" (-restore). Downloaded apps (YouTube, Spotify...) need reinstalling if wanted again.
 # Never touched: Android core, Settings, keyboard in use, the WebView provider, the current home app (stage 1),
 # hardware services (Judian jdservice, DSPPA yjyservice/smatek, sznaner relay/knob/485), AJ apps.
 # Log + list of removed apps: tools\debloat\<ip>\
-param([string]$panels = "", [switch]$apply, [int]$stage = 1, [switch]$restore)
+param([string]$panels = "", [switch]$apply, [int]$stage = 1, [switch]$restore, [switch]$noYoutube)
 [Console]::OutputEncoding = [Text.Encoding]::UTF8
 $ADB = Join-Path $env:LOCALAPPDATA "Android\Sdk\platform-tools\adb.exe"
 if (-not (Test-Path $ADB)) { $ADB = "adb" }
@@ -28,18 +30,22 @@ $stage1 = @(
   "acr.browser.barebones", "org.chromium.webview_shell",
   # factory / test tools
   "com.ayst.factorytest", "com.cghs.stresstest", "com.DeviceTest", "com.rockchip.devicetest", "com.softwinner.awlogsettings",
-  # downloaded media apps (phones play to the panels instead)
-  "com.google.android.youtube", "com.spotify.music", "com.pandora.android", "com.appgeneration.itunerfree", "de.yaacc",
+  # downloaded media apps (phones play to the panels instead) - YouTube is kept, see $youtube
+  "com.spotify.music", "com.pandora.android", "com.appgeneration.itunerfree", "de.yaacc",
   "io.github.jqssun.airplay", "com.amazon.dee.app", "com.ajnetwork.cxbridge",
-  # Google services + Play Store (biggest RAM user on the DSPPA: ~460 MB) - nothing of ours needs them
-  "com.android.vending", "com.google.android.gms", "com.google.android.gsf", "com.google.android.partnersetup",
-  "com.google.android.syncadapters.calendar", "com.google.android.syncadapters.contacts", "com.google.android.backuptransport",
-  "com.google.android.configupdater", "com.android.chrome",
+  # Google extras nobody uses on a wall panel
+  "com.google.android.syncadapters.calendar", "com.google.android.syncadapters.contacts", "com.android.chrome",
   # screen-mirroring receiver (showed up in Music Assistant as a flapping "EShare" player)
   "com.eshare.receiver.tv", "com.eshare.sdk.server",
   # vendor extras: Judian gallery, intercom, vendor OTA updater; DSPPA alarm clock; px30 demo/test
   "com.judian.gallery", "com.judian.indoor", "com.judian.indoorv2", "com.judian.jdupdate",
   "com.yijiayin.alarmclock", "com.sznaner.testdemo"
+)
+# YouTube stays on the panels (opened from AJ Panel's Apps page). It does not run without Google services + Play Store
+# (updates; an old YouTube shows "update required"), so those stay with it. -noYoutube removes all of them (frees ~400 MB).
+$youtube = @(
+  "com.google.android.youtube", "com.android.vending", "com.google.android.gms", "com.google.android.gsf",
+  "com.google.android.partnersetup", "com.google.android.backuptransport", "com.google.android.configupdater"
 )
 $stage2 = @(
   # vendor home screens + their smart-home / music / Tuya apps - replaced by AJ Panel
@@ -78,6 +84,7 @@ foreach ($ip in $panels.Split(",")) {
   $ime = (Sh $dev "settings get secure default_input_method").Split("/")[0]
   Write-Host "  home: $homeApp   webview: $webview   keyboard: $ime   free RAM: $(FreeMB $dev) MB"
   $want = if ($stage -ge 2) { $stage2 } else { $stage1 }
+  if ($noYoutube -and $stage -lt 2) { $want = @($want) + $youtube } elseif ($stage -lt 2) { foreach ($y in $youtube) { if ($installed -contains $y) { Write-Host "  keep   $y (YouTube + Google services - add -noYoutube to remove)" -ForegroundColor DarkGray } } }
   $go = @()
   foreach ($p in $want) {
     if ($installed -notcontains $p) { continue }

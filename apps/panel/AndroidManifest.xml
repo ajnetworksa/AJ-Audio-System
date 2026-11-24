@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
-    package="com.ajnetwork.ajpanel" android:versionCode="39" android:versionName="0.8.11">
+    package="com.ajnetwork.ajpanel" android:versionCode="40" android:versionName="0.9.0">
     <uses-sdk android:minSdkVersion="26" android:targetSdkVersion="29"/>
     <uses-permission android:name="android.permission.INTERNET"/>
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE"/>
@@ -14,19 +14,23 @@
     <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES"/>
     <uses-permission android:name="android.permission.RECORD_AUDIO"/>
     <application android:label="AJ Panel" android:icon="@mipmap/ic_launcher"
-        android:usesCleartextTraffic="true" android:allowBackup="false" android:extractNativeLibs="true"
+        android:usesCleartextTraffic="true" android:allowBackup="false" android:extractNativeLibs="true" android:supportsRtl="true"
         android:theme="@android:style/Theme.Material.NoActionBar.Fullscreen">
-        <activity android:name=".MainActivity" android:exported="true" android:launchMode="singleTask"
-            android:configChanges="orientation|screenSize|keyboardHidden">
+        <!-- the smart-home dashboard (0.9.0): app icon + (with HomeAlias) the panel's home screen -->
+        <activity android:name=".HomeActivity" android:exported="true" android:launchMode="singleTask" android:label="AJ Panel"
+            android:configChanges="orientation|screenSize|keyboardHidden|locale|layoutDirection|uiMode" android:resizeableActivity="false">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN"/>
                 <category android:name="android.intent.category.LAUNCHER"/>
             </intent-filter>
         </activity>
+        <!-- music screen (Playing · Music · Rooms), opened from the dashboard's Music button -->
+        <activity android:name=".MainActivity" android:exported="true" android:launchMode="singleTask"
+            android:configChanges="orientation|screenSize|keyboardHidden"/>
         <activity android:name=".SettingsActivity" android:exported="false" android:label="AJ Panel settings"
             android:configChanges="orientation|screenSize|keyboardHidden"/>
-        <!-- optional: AJ Panel as the panel's home screen (DSPPA). Off by default; deploy_ajpanel.bat -asHome turns it on -->
-        <activity-alias android:name=".HomeAlias" android:targetActivity=".MainActivity" android:enabled="false" android:exported="true">
+        <!-- AJ Panel dashboard as the panel's home screen. Off by default; panel_debloat stage 2 / deploy_ajpanel.bat -asHome turn it on -->
+        <activity-alias android:name=".HomeAlias" android:targetActivity=".HomeActivity" android:enabled="false" android:exported="true">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN"/>
                 <category android:name="android.intent.category.HOME"/>

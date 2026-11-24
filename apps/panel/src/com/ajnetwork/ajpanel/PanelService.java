@@ -53,6 +53,7 @@ public class PanelService extends Service implements SnapProcess.Listener {
     volatile Site site;
     private long lastSite;
     private final Handler main = new Handler(Looper.getMainLooper());
+    Handler main() { return main; }
     private final ExecutorService io = Executors.newSingleThreadExecutor();
     private final ExecutorService actions = Executors.newSingleThreadExecutor();
     private volatile boolean running;
@@ -99,6 +100,7 @@ public class PanelService extends Service implements SnapProcess.Listener {
         shareBubble = new ShareBubble(this, cfg);
         volume = new VolumeSync(this, ma, cfg);
         breaks = new Breaks(this, ma, cfg);
+        hub = new DashHub(this, cfg);
         http = new PanelHttp(this, cfg);
         http.start();
         bridge = new DlnaMetaBridge(this, paused -> {
@@ -129,6 +131,7 @@ public class PanelService extends Service implements SnapProcess.Listener {
             if (cfg.player()) snap.start();
         }
         applyZigbee();
+        if (hub != null) hub.sync();
         if (!running) {
             running = true;
             poller = new Thread(this::pollLoop, "ma-poll");
@@ -199,7 +202,7 @@ public class PanelService extends Service implements SnapProcess.Listener {
     }
 
     private Notification buildNotification(NowPlaying n) {
-        PendingIntent open = PendingIntent.getActivity(this, 0, new Intent(this, MainActivity.class),
+        PendingIntent open = PendingIntent.getActivity(this, 0, new Intent(this, cfg.dashboard() ? HomeActivity.class : MainActivity.class),
                 PendingIntent.FLAG_UPDATE_CURRENT | (Build.VERSION.SDK_INT >= 23 ? PendingIntent.FLAG_IMMUTABLE : 0));
         Notification.Builder b = Build.VERSION.SDK_INT >= 26 ? new Notification.Builder(this, CH) : new Notification.Builder(this);
         b.setSmallIcon(android.R.drawable.ic_media_play).setContentIntent(open).setOngoing(true).setShowWhen(false);
@@ -443,6 +446,8 @@ public class PanelService extends Service implements SnapProcess.Listener {
     }
 
     ZigbeeBridge zigbee;
+    /** Home Assistant connection + generated dashboard (HomeActivity, /api/dashboard) */
+    public DashHub hub;
     ShareBubble shareBubble;
 
     /** TEST: Zigbee radio -> TCP for Home Assistant ZHA (off unless zigbee_bridge is set) */
@@ -457,6 +462,7 @@ public class PanelService extends Service implements SnapProcess.Listener {
     @Override public void onDestroy() {
         running = false;
         if (zigbee != null) zigbee.stop();
+        if (hub != null) hub.stop();
         if (poller != null) poller.interrupt();
         snap.stop();
         overlay.remove();

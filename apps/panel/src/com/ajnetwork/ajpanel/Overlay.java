@@ -131,7 +131,7 @@ public class Overlay {
 
     /** called every poll; changed = something visible changed (new song, group, user…) */
     void update(NowPlaying n, Bitmap a, boolean changed) {
-        if (!n.active()) { remove(); return; }
+        if (!n.active() || HomeActivity.visible) { remove(); return; }
         if (card == null) build();
         if (!shown) {
             try { wm.addView(chip, lp(WindowManager.LayoutParams.WRAP_CONTENT, Gravity.BOTTOM | Gravity.END)); shown = true; expanded = false; }

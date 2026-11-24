@@ -52,7 +52,7 @@ public class ShareBubble {
     void update() {
         boolean allowed = cfg.shareBubble() && Build.VERSION.SDK_INT >= 29 && Settings.canDrawOverlays(svc);
         MediaListener.Local l = allowed && !ShareService.running ? MediaListener.playing(svc) : null;
-        boolean want = allowed && !MainActivity.visible && (ShareService.running || l != null);
+        boolean want = allowed && !MainActivity.visible && !HomeActivity.visible && (ShareService.running || l != null);
         if (!want) { remove(); return; }
         if (bubble == null) addBubble();
         String label = ShareService.running ? "● Sharing" : "Share";

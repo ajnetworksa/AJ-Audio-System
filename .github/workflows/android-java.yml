@@ -31,6 +31,11 @@ jobs:
           mkdir -p "$RUNNER_TEMP/zt"
           javac -encoding UTF-8 -d "$RUNNER_TEMP/zt" apps/zigbee-survey/src/com/ajnetwork/ajzigbee/radio/*.java apps/zigbee-survey/test/RadioTest.java
           java -cp "$RUNNER_TEMP/zt" RadioTest
+      - name: AJ Panel – Home Assistant client + dashboard tests (mock HA over WebSocket)
+        run: |
+          mkdir -p "$RUNNER_TEMP/pt"; S=apps/panel/src/com/ajnetwork/ajpanel
+          javac -encoding UTF-8 -d "$RUNNER_TEMP/pt" $(find apps/panel/test/stub -name '*.java') $S/Ws.java $S/Ha.java $S/Dash.java $S/Skin.java $S/Lang.java apps/panel/test/HaTest.java
+          java -cp "$RUNNER_TEMP/pt" com.ajnetwork.ajpanel.HaTest
       - name: Build
         env:
           KEYSTORE_PASS: ${{ secrets.ANDROID_KEYSTORE_PASS }}

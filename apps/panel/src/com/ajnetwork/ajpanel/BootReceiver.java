@@ -12,6 +12,9 @@ import android.content.SharedPreferences;
  *      [--es engine oboe|opensl] [--ei latency 0] [--ez overlay true] [--ez player true] [--es ma_player_id <id>]
  *      [--es host_id_default ajpanel_<mac>]   (player id, only if the panel has none yet)
  *      [--ez zigbee_bridge true|false] [--ei zigbee_port 6638] [--es zigbee_allow <HA ip>|any|ha]   (TEST, see zigbee.md)
+ *      [--es ha_url http://192.168.8.5:8123] [--es ha_token <HA long-lived token>] [--ez dashboard true]
+ *      [--es look auto|graphite|pearl] [--es lang en|ar] [--es owner_en "Al Rashid"] [--ez owner_show true] [--ei saver_min 3]
+ *      [--es area living_room] [--es pin_owner 1234] [--es pin_installer 987654]   (dashboard, see HomeActivity)
  *   ... -a com.ajnetwork.ajpanel.LOGIN --es user panels --es pass <password>
  *       (logs in once, keeps only a long-lived token; the password is not stored)
  *   ... -a com.ajnetwork.ajpanel.STOP   (stop service + player)
@@ -45,7 +48,17 @@ public class BootReceiver extends BroadcastReceiver {
                 e.putString("host_id", hid);
             for (String k : new String[]{"latency", "ma_port", "snap_port", "zigbee_port", "update_delay_h"}) if (i.hasExtra(k)) e.putInt(k, i.getIntExtra(k, 0));
             for (String k : new String[]{"overlay", "player", "resample", "vendor_bridge", "system_volume", "zigbee_bridge", "share_bubble", "auto_update"}) if (i.hasExtra(k)) e.putBoolean(k, i.getBooleanExtra(k, true));
+            for (String k : new String[]{"ha_url", "ha_token"}) if (i.hasExtra(k)) e.putString(k, i.getStringExtra(k).trim());
+            if (i.hasExtra("dashboard")) e.putBoolean("dashboard", i.getBooleanExtra("dashboard", true));
             e.commit();
+            Cfg cfg = new Cfg(c);
+            if (i.hasExtra("pin_owner")) cfg.setPin(Cfg.OWNER, i.getStringExtra("pin_owner").replaceAll("\\D", ""));
+            if (i.hasExtra("pin_installer")) cfg.setPin(Cfg.INSTALLER, i.getStringExtra("pin_installer").replaceAll("\\D", ""));
+            java.util.Map<String, String> dash = new java.util.HashMap<>();
+            for (String k : new String[]{"look", "lang", "owner_en", "owner_ar", "area"}) if (i.hasExtra(k)) dash.put(k, i.getStringExtra(k));
+            if (i.hasExtra("owner_show")) dash.put("owner_show", String.valueOf(i.getBooleanExtra("owner_show", false)));
+            if (i.hasExtra("saver_min")) dash.put("saver_min", String.valueOf(i.getIntExtra("saver_min", 3)));
+            if (!dash.isEmpty()) PanelHttp.dashSettings(PanelService.instance, cfg, dash);
             Log.i("config updated by broadcast");
             PanelService s = PanelService.instance;
             if (s != null) { s.reload(); return; }

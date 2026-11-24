@@ -127,6 +127,8 @@ public class SettingsActivity extends Activity implements PanelService.Listener 
     private View buildSettings() {
         LinearLayout s = new LinearLayout(this);
         s.setOrientation(LinearLayout.VERTICAL);
+        buildDashboardSettings(s);
+        s.addView(Ui.text(this, "Music", 20, Ui.ACCENT, true), topGap());
         EditText host = field("Server (Music Assistant) IP", cfg.host());
         EditText name = field("Panel name", cfg.name());
         EditText u = field("MA username", "");
@@ -161,6 +163,73 @@ public class SettingsActivity extends Activity implements PanelService.Listener 
         });
         s.addView(perm, topGap());
         return s;
+    }
+
+    /** smart-home dashboard: Home Assistant, look, language, owner name, room, screensaver, PINs */
+    private void buildDashboardSettings(LinearLayout s) {
+        s.addView(Ui.text(this, "Smart home dashboard", 20, Ui.ACCENT, true));
+        DashHub hub = PanelService.instance == null ? null : PanelService.instance.hub;
+        String haState = hub == null || hub.ha == null ? "not set" : hub.ha.connected ? "connected" : hub.ha.status;
+        TextView st = Ui.text(this, "Home Assistant: " + haState, 15, Ui.SUB, false); st.setSingleLine(false);
+        s.addView(st);
+        EditText haUrl = field("Home Assistant address (empty = http://" + cfg.host() + ":8123)", cfg.haUrlRaw());
+        EditText haTok = field(cfg.haToken().isEmpty() ? "Home Assistant token (HA → Profile → Security → Long-lived tokens)" : "Home Assistant token: saved (paste a new one to replace)", "");
+        haTok.setInputType(InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_VARIATION_PASSWORD);
+        String[] looks = {"auto", "graphite", "pearl"}, lookNames = {"Auto (pearl by day, graphite at night)", "Graphite (dark)", "Pearl (light)"};
+        final int[] look = {Math.max(0, java.util.Arrays.asList(looks).indexOf(cfg.look()))};
+        Button lookB = Ui.button(this, "Look: " + lookNames[look[0]]);
+        lookB.setOnClickListener(v -> { look[0] = (look[0] + 1) % 3; lookB.setText("Look: " + lookNames[look[0]]); });
+        final boolean[] ar = {"ar".equals(cfg.lang())};
+        Button langB = Ui.button(this, ar[0] ? "Language: العربية" : "Language: English");
+        langB.setOnClickListener(v -> { ar[0] = !ar[0]; langB.setText(ar[0] ? "Language: العربية" : "Language: English"); });
+        // this panel's room: HA areas (auto = matched by panel name)
+        java.util.List<String[]> areas = new java.util.ArrayList<>();
+        areas.add(new String[]{"", "Auto (matched by panel name)"});
+        if (hub != null && hub.ha != null) for (int i = 0; i < hub.ha.areas.length(); i++) {
+            org.json.JSONObject a = hub.ha.areas.optJSONObject(i);
+            if (a != null) areas.add(new String[]{a.optString("area_id"), a.optString("name")});
+        }
+        final int[] area = {0};
+        String curArea = cfg.panelData().optString("area", "");
+        for (int i = 0; i < areas.size(); i++) if (areas.get(i)[0].equals(curArea)) area[0] = i;
+        Button areaB = Ui.button(this, "This panel's room: " + areas.get(area[0])[1]);
+        areaB.setOnClickListener(v -> { area[0] = (area[0] + 1) % areas.size(); areaB.setText("This panel's room: " + areas.get(area[0])[1]); });
+        EditText ownEn = field("Owner name (English), e.g. Al Rashid Residence", cfg.ownerEn());
+        EditText ownAr = field("Owner name (Arabic)", cfg.ownerAr());
+        CheckBox ownShow = check("Show the owner name on this panel", cfg.ownerShow());
+        EditText saver = field("Screensaver after minutes (0 = never)", String.valueOf(cfg.saverMin())); saver.setInputType(InputType.TYPE_CLASS_NUMBER);
+        EditText pinO = field(cfg.hasPin(Cfg.OWNER) ? "Owner PIN: set (type a new one to change, 0 = remove)" : "Owner PIN (protects settings + unlocking)", "");
+        pinO.setInputType(InputType.TYPE_CLASS_NUMBER | InputType.TYPE_NUMBER_VARIATION_PASSWORD);
+        EditText pinI = field(cfg.hasPin(Cfg.INSTALLER) ? "Installer PIN: set (change it from the AJ Installer)" : "Installer PIN (opens everything)", "");
+        pinI.setInputType(InputType.TYPE_CLASS_NUMBER | InputType.TYPE_NUMBER_VARIATION_PASSWORD);
+        pinI.setEnabled(!cfg.hasPin(Cfg.INSTALLER));
+        CheckBox dashOn = check("Use the dashboard as AJ Panel's start screen", cfg.dashboard());
+        for (View v : new View[]{haUrl, haTok}) s.addView(v);
+        for (Button b : new Button[]{lookB, langB, areaB}) s.addView(b, topGap());
+        for (View v : new View[]{ownEn, ownAr, ownShow, saver, pinO, pinI, dashOn}) s.addView(v);
+        Button save = Ui.button(this, "Save dashboard settings");
+        save.setOnClickListener(v -> {
+            android.content.SharedPreferences.Editor e = cfg.edit();
+            e.putString("ha_url", haUrl.getText().toString().trim());
+            String tok = haTok.getText().toString().trim();
+            if (!tok.isEmpty()) e.putString("ha_token", tok);
+            e.putBoolean("dashboard", dashOn.isChecked());
+            e.commit();
+            haTok.setText("");
+            String po = pinO.getText().toString().trim(), pi = pinI.getText().toString().trim();
+            if (po.equals("0")) cfg.setPin(Cfg.OWNER, ""); else if (po.length() >= 4) cfg.setPin(Cfg.OWNER, po);
+            if (pi.length() >= 4 && !cfg.hasPin(Cfg.INSTALLER)) cfg.setPin(Cfg.INSTALLER, pi);
+            pinO.setText(""); pinI.setText("");
+            java.util.Map<String, String> m = new java.util.HashMap<>();
+            m.put("look", looks[look[0]]); m.put("lang", ar[0] ? "ar" : "en"); m.put("area", areas.get(area[0])[0]);
+            m.put("owner_en", ownEn.getText().toString()); m.put("owner_ar", ownAr.getText().toString());
+            m.put("owner_show", String.valueOf(ownShow.isChecked())); m.put("saver_min", saver.getText().toString());
+            PanelService sv = PanelService.instance;
+            PanelHttp.dashSettings(sv, cfg, m);
+            if (sv != null) sv.reload(); else PanelService.start(this);
+            Toast.makeText(this, (po.length() > 0 && po.length() < 4 && !po.equals("0")) ? "Saved (PIN needs at least 4 digits)" : "Saved", Toast.LENGTH_LONG).show();
+        });
+        s.addView(save, topGap());
     }
 
     private EditText field(String hint, String v) {
