@@ -33,6 +33,12 @@ import java.util.Set;
  *     the panel signed in as that user shows ONLY what carries it (or <b>AJ all</b>);</li>
  * <li>no AJ label at all – the panel shows everything its user can see.</li></ul>
  * This hides things on the panel; Home Assistant itself does not limit what a normal user may switch.</p>
+ *
+ * <p><b>AJ Netweb Room Access</b> (add-on "Room &amp; Guest Pass Studio", User Room Matrix) is the main way:
+ * it publishes {@code sensor.ajnetweb_room_access} with {@code users = {user_id: {areas: [...], home: area}}}.
+ * A panel signed in as a listed (non-admin) user shows only those rooms – their devices, scenes, sensors – and opens
+ * on its "device room". Admins and users without ticks see the whole home (same rule as the AJ Netweb dashboard).
+ * Smoke / gas / leak alarms stay visible everywhere.</p>
  */
 public class Dash {
     public static final String LIGHT = "light", DIMMER = "dimmer", SWITCH = "switch", FAN = "fan", COVER = "cover", CLIMATE = "climate",
@@ -159,6 +165,18 @@ public class Dash {
     public String label = "";
     /** true = this panel shows only what carries its label (or AJ all) */
     public boolean restricted;
+    public static final String ROOM_ACCESS = "sensor.ajnetweb_room_access";
+    /** rooms allowed by AJ Netweb Room Access for this panel's user (null = whole home) and its device room */
+    public Set<String> allowedRooms; public String homeRoom = "";
+
+    /** Room Access entry of the signed-in user, or null (admin / not listed / add-on not installed) */
+    static JSONObject roomAccess(Ha ha) {
+        if (ha.userId.isEmpty() || ha.userAdmin) return null;
+        JSONObject u = ha.attrs(ROOM_ACCESS).optJSONObject("users");
+        JSONObject me = u == null ? null : u.optJSONObject(ha.userId);
+        JSONArray a = me == null ? null : me.optJSONArray("areas");
+        return a == null || a.length() == 0 ? null : me;
+    }
 
     public static Dash build(Ha ha, JSONObject ov, String panelName, String myHostId, String haUser) {
         Dash d = new Dash();
@@ -185,8 +203,16 @@ public class Dash {
             d.restricted = all.contains(mine);
         }
 
+        JSONObject access = roomAccess(ha);
+        if (access != null) {
+            d.allowedRooms = new HashSet<>(list(access, "areas"));
+            d.homeRoom = s(access, "home");
+        }
+
         String myArea = s(ov, "area");
+        if ((myArea.isEmpty() || !areaName.containsKey(myArea)) && !d.homeRoom.isEmpty() && areaName.containsKey(d.homeRoom)) myArea = d.homeRoom;
         if (myArea.isEmpty() || !areaName.containsKey(myArea)) myArea = matchArea(ha.areas, panelName);
+        if (d.allowedRooms != null && !d.allowedRooms.contains(myArea)) myArea = d.homeRoom;
 
         List<String> ids = new ArrayList<>(ha.states.keySet());
         Collections.sort(ids);
@@ -213,6 +239,11 @@ public class Dash {
                 labelsOf(r, lb); labelsOf(device, lb); labelsOf(areaObj.get(area), lb);
                 if (lb.contains("aj_hide")) continue;
                 if (d.restricted && !lb.contains(d.label) && !lb.contains("aj_all")) continue;
+                // Room Access: only the allowed rooms (life-safety alarms stay, for the header alert)
+                if (d.allowedRooms != null && !d.allowedRooms.contains(area)) {
+                    if (domain.equals("binary_sensor") && isSafety(dc)) d.safety.add(id);
+                    continue;
+                }
             }
 
             if (domain.equals("weather")) { if (d.weather == null) d.weather = id; continue; }

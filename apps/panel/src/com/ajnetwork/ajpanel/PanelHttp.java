@@ -309,7 +309,8 @@ public class PanelHttp {
                 .put("clock", new java.text.SimpleDateFormat("yyyy-MM-dd HH:mm Z", java.util.Locale.US).format(new java.util.Date()))
                 .put("time_zone", java.util.TimeZone.getDefault().getID())
                 .put("dashboard", cfg.dashboard()).put("ha", svc.hub == null || svc.hub.ha == null ? "not set" : svc.hub.ha.connected ? "connected" : svc.hub.ha.status)
-                .put("ha_url", cfg.haUrl()).put("ha_user", cfg.haUser()).put("look", cfg.look()).put("lang", cfg.lang()).put("owner_show", cfg.ownerShow())
+                .put("ha_url", cfg.haUrl()).put("ha_user", cfg.haUser())
+                .put("room_access", svc.hub == null || svc.hub.dash.allowedRooms == null ? "whole home" : String.join(",", svc.hub.dash.allowedRooms)).put("look", cfg.look()).put("lang", cfg.lang()).put("owner_show", cfg.ownerShow())
                 .put("pins", new JSONObject().put("owner", cfg.hasPin(Cfg.OWNER)).put("installer", cfg.hasPin(Cfg.INSTALLER)))
                 .put("dash_tiles", svc.hub == null ? 0 : svc.hub.dash.tiles.size());
     }

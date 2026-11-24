@@ -102,6 +102,7 @@ public class HaTest {
                         case "frontend/get_user_data": res = o("value", userData.containsKey(m.optString("key")) ? userData.get(m.optString("key")) : JSONObject.NULL); break;
                         case "frontend/set_user_data": userData.put(m.optString("key"), m.opt("value")); break;
                         case "ping": send(out, o("id", id, "type", "pong").toString(), false); continue;
+                        case "auth/current_user": res = o("id", "u1", "name", "Kitchen panel", "is_owner", false, "is_admin", false); break;
                         case "auth/long_lived_access_token": lastTokenName = m.optString("client_name"); res = "llat-new"; break;
                         case "auth/refresh_tokens": res = a(o("id", "old1", "client_name", "AJ Panel · Kitchen · eeff00 · 2026-01-01 10:00", "type", "long_lived_access_token"),
                                 o("id", "other", "client_name", "Phone", "type", "long_lived_access_token")); break;
@@ -271,6 +272,18 @@ public class HaTest {
         check(l2.restricted && l2.tiles.keySet().equals(new HashSet<>(Arrays.asList("light.living_room_ceiling", "switch.kitchen_kettle"))), "user label = only its devices + AJ all: " + l2.tiles.keySet());
         Dash l3 = Dash.build(ha, null, "Living room", "x", "majlis");
         check(!l3.restricted && l3.tiles.containsKey("cover.living_room_curtain"), "user without a label sees everything");
+
+        // AJ Netweb Room Access (sensor.ajnetweb_room_access): only the user's rooms, opens on its device room
+        check("u1".equals(ha.userId) && !ha.userAdmin, "auth/current_user read");
+        ha.states.put("sensor.ajnetweb_room_access", Mock.st("sensor.ajnetweb_room_access", "1", Mock.o("users", Mock.o("u1", Mock.o("areas", Mock.a("kitchen", "garage"), "home", "kitchen")))));
+        ha.entities.optJSONObject(1).put("labels", Mock.a());
+        Dash ra = Dash.build(ha, null, "Living room", "x", "");
+        List<String> rr = new ArrayList<>(); for (Dash.Room r : ra.rooms) rr.add(r.id);
+        check(ra.allowedRooms != null && rr.equals(Collections.singletonList("kitchen")) && ra.mine != null && ra.mine.id.equals("kitchen"), "room access: only kitchen (+garage sensors), opens on kitchen: " + rr);
+        check(!ra.tiles.containsKey("lock.front_door") && !ra.tiles.containsKey("scene.welcome") && ra.openNow(ha).contains("binary_sensor.garage_door") && ra.safety.contains("binary_sensor.smoke"), "other rooms / no-room items hidden, garage alert kept (allowed), smoke kept");
+        ha.userAdmin = true;
+        check(Dash.build(ha, null, "Living room", "x", "").allowedRooms == null, "admin sees the whole home");
+        ha.userAdmin = false;
 
         // misc
         check(Ha.wsUrl("http://192.168.8.5:8123/").equals("ws://192.168.8.5:8123/api/websocket") && Ha.wsUrl("192.168.8.5").equals("ws://192.168.8.5:8123/api/websocket") && Ha.wsUrl("https://ha.example.com").equals("wss://ha.example.com/api/websocket"), "wsUrl");

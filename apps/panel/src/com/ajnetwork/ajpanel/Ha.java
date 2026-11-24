@@ -46,6 +46,9 @@ public class Ha {
     public final ConcurrentHashMap<String, JSONObject> states = new ConcurrentHashMap<>();
     public volatile JSONArray areas = new JSONArray(), devices = new JSONArray(), entities = new JSONArray();
     public volatile JSONObject config = new JSONObject();
+    /** the HA user this panel is signed in as (auth/current_user) – AJ Netweb Room Access limits it by this id */
+    public volatile String userId = "", userName = "";
+    public volatile boolean userAdmin;
     /** dashboard settings stored in HA: this panel's own and the site-wide ones (owner name, look, language) */
     public volatile JSONObject panelData, siteData;
     public volatile boolean dataLoaded;
@@ -126,6 +129,11 @@ public class Ha {
                 for (String ev : new String[]{"area_registry_updated", "device_registry_updated", "entity_registry_updated"})
                     regSubs.add(send(new JSONObjectX().put("type", "subscribe_events").put("event_type", ev).o, null));
                 send(new JSONObjectX().put("type", "get_config").o, (ok, r, e) -> { if (ok && r instanceof JSONObject) config = (JSONObject) r; });
+                send(new JSONObjectX().put("type", "auth/current_user").o, (ok, r, e) -> {
+                    if (!ok || !(r instanceof JSONObject)) return;
+                    JSONObject u = (JSONObject) r;
+                    userId = u.optString("id"); userName = u.optString("name"); userAdmin = u.optBoolean("is_admin") || u.optBoolean("is_owner");
+                });
                 loadData();
                 loadRegistries();
                 send(new JSONObjectX().put("type", "get_states").o, (ok, r, e) -> {
