@@ -62,15 +62,15 @@ public class Overlay {
         top.setGravity(Gravity.CENTER_VERTICAL);
         art = new ImageView(c);
         art.setScaleType(ImageView.ScaleType.CENTER_CROP);
-        art.setBackground(Ui.round(c, Ui.CARD, 12));
+        art.setBackground(Ui.round(c, 0xFF2F3238, 12));
         art.setClipToOutline(true);
         top.addView(art, new LinearLayout.LayoutParams(Ui.dp(c, 96), Ui.dp(c, 96)));
         LinearLayout txt = new LinearLayout(c);
         txt.setOrientation(LinearLayout.VERTICAL);
         txt.setPadding(pad, 0, 0, 0);
-        title = Ui.text(c, "", 24, Ui.TEXT, true);
-        sub = Ui.text(c, "", 17, Ui.SUB, false);
-        user = Ui.text(c, "", 17, Ui.ACCENT, false);
+        title = Ui.text(c, "", 24, 0xFFF1F2F4, true);
+        sub = Ui.text(c, "", 17, 0xFF9CA0A8, false);
+        user = Ui.text(c, "", 17, 0xFFFF9F43, false);
         txt.addView(title); txt.addView(sub); txt.addView(user);
         top.addView(txt, new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1));
         Button close = Ui.button(c, "▾");
@@ -98,7 +98,7 @@ public class Overlay {
             public void onStartTrackingTouch(SeekBar s) { userTouchingVol = true; }
             public void onStopTrackingTouch(SeekBar s) { userTouchingVol = false; svc.setVolume(s.getProgress()); }
         });
-        row.addView(Ui.text(c, "🔊", 20, Ui.TEXT, false));
+        row.addView(Ui.text(c, "🔊", 20, 0xFFF1F2F4, false));
         row.addView(vol, new LinearLayout.LayoutParams(0, Ui.dp(c, 48), 1));
         root.addView(row);
         card = root;
@@ -106,7 +106,7 @@ public class Overlay {
         LinearLayout ch = new LinearLayout(c);
         ch.setBackground(Ui.round(c, Ui.BG, 28));
         ch.setPadding(Ui.dp(c, 20), Ui.dp(c, 12), Ui.dp(c, 20), Ui.dp(c, 12));
-        chipText = Ui.text(c, "", 18, Ui.TEXT, false);
+        chipText = Ui.text(c, "", 18, 0xFFF1F2F4, false);
         chipText.setMaxWidth(Ui.dp(c, 420));
         ch.addView(chipText);
         ch.setOnClickListener(v -> setExpanded(true));

@@ -86,11 +86,12 @@ public class HomeActivity extends Activity implements DashHub.L, PanelService.Li
         android.util.DisplayMetrics m = getResources().getDisplayMetrics();
         int w = Math.max(m.widthPixels, 1), hh = Math.max(m.heightPixels, 1);
         // design is 1280×800; wide screens scale by height, squarer/portrait screens get a compact layout
-        Kit.k = Math.min(hh / 800f, w / (w >= hh * 1.4f ? 1280f : 900f));
+        Nav.setup(this);
         wU = w / Kit.k; hU = hh / Kit.k;
         Log.i("home: screen " + w + "x" + hh + " -> " + Math.round(wU) + "x" + Math.round(hU) + " units (k " + String.format(Locale.US, "%.2f", Kit.k) + ")");
         root = new FrameLayout(this);
         setContentView(root);
+        int p0 = getIntent().getIntExtra("page", HOME); if (p0 != MUSIC) page = p0;
         build();
     }
 
@@ -126,7 +127,12 @@ public class HomeActivity extends Activity implements DashHub.L, PanelService.Li
             return r != null && r.activityInfo != null && getPackageName().equals(r.activityInfo.packageName);
         } catch (Exception e) { return false; }
     }
-    @Override protected void onNewIntent(Intent i) { super.onNewIntent(i); closeSheet(); hideSaver(); if (page != HOME) showPage(HOME); }
+    @Override protected void onNewIntent(Intent i) {
+        super.onNewIntent(i); closeSheet(); hideSaver();
+        int p = i.getIntExtra("page", HOME);
+        if (p == MUSIC) p = HOME;
+        if (page != p) showPage(p);
+    }
 
     @Override public boolean dispatchTouchEvent(MotionEvent e) {
         lastTouch = System.currentTimeMillis();
@@ -135,15 +141,15 @@ public class HomeActivity extends Activity implements DashHub.L, PanelService.Li
     }
 
     // =================================================================================== look + structure
-    private Skin wantSkin() { Ha a = ha(); return Skin.pick(cfg.look(), a == EMPTY ? null : a.stateOf("sun.sun").equals("unavailable") ? null : a.stateOf("sun.sun")); }
+    private Skin wantSkin() { Ha a = ha(); return Nav.skin(cfg, a == EMPTY ? null : a); }
     private boolean needsRebuild() { DashHub d = hub(); if (d != null) d.applyLang(); return builtSkin != wantSkin() || builtAr != Lang.ar; }
 
     private void build() {
-        DashHub d = hub(); if (d != null) d.applyLang(); else Lang.ar = "ar".equals(cfg.lang());
-        Kit.skin = builtSkin = wantSkin(); Kit.rtl = builtAr = Lang.ar;
+        Nav.applyLook(cfg);
+        builtSkin = Kit.skin; builtAr = Lang.ar;
         root.removeAllViews();
         root.setLayoutDirection(Lang.ar ? View.LAYOUT_DIRECTION_RTL : View.LAYOUT_DIRECTION_LTR);
-        root.addView(new Backdrop(this), new FrameLayout.LayoutParams(-1, -1));
+        root.addView(new Nav.Backdrop(this), new FrameLayout.LayoutParams(-1, -1));
         LinearLayout row = new LinearLayout(this);
         nav = buildNav();
         row.addView(nav, new LinearLayout.LayoutParams(u(116), -1));
@@ -162,89 +168,12 @@ public class HomeActivity extends Activity implements DashHub.L, PanelService.Li
         if (firstStart) { firstStart = false; splash(); }
     }
 
-    /** radial graphite / soft pearl background with a faint diagonal sheen (one bitmap-free draw) */
-    private static class Backdrop extends View {
-        private final Paint p = new Paint(), s = new Paint();
-        Backdrop(android.content.Context c) { super(c); }
-        @Override protected void onSizeChanged(int w, int h, int ow, int oh) {
-            Skin k = skin;
-            if (k.dark) p.setShader(new RadialGradient(w * (rtl ? 0.88f : 0.12f), 0, Math.max(w, h) * 0.9f, new int[]{k.bg0, k.bg1, k.bg2}, new float[]{0, .42f, 1}, Shader.TileMode.CLAMP));
-            else p.setShader(new LinearGradient(0, 0, w, h, new int[]{k.bg0, k.bg1, k.bg2}, new float[]{0, .55f, 1}, Shader.TileMode.CLAMP));
-            s.setShader(new LinearGradient(w * 0.45f, 0, w * 0.75f, h * 0.6f, new int[]{0, k.sheen, 0}, new float[]{0, .5f, 1}, Shader.TileMode.CLAMP));
-        }
-        @Override protected void onDraw(Canvas c) { c.drawRect(0, 0, getWidth(), getHeight(), p); c.drawRect(0, 0, getWidth(), getHeight(), s); }
-    }
-
-    // ------------------------------------------------------------------ navigation
-    private final Map<Integer, NavItem> navItems = new HashMap<>();
+    // ------------------------------------------------------------------ navigation (shared with the music screen)
     private LinearLayout buildNav() {
-        LinearLayout n = new LinearLayout(this); n.setOrientation(LinearLayout.VERTICAL); n.setGravity(Gravity.CENTER_HORIZONTAL);
-        n.setPadding(0, u(26), 0, u(20));
-        View logo = new LogoMark(this);
-        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(u(52), u(52)); lp.bottomMargin = u(16);
-        n.addView(logo, lp);
-        logo.setOnClickListener(v -> showPage(HOME));
-        navItems.clear();
-        Dash d = dash();
-        boolean small = hU < 760;
-        int[][] items = {{HOME, Glyph.HOME}, {ROOMS, Glyph.ROOMS}, {SCENES, Glyph.SCENES}, {CLIMATE, Glyph.CLIMATE}, {MUSIC, Glyph.MUSIC}, {SECURITY, Glyph.SECURITY}, {APPS, Glyph.APPS}};
-        String[] keys = {"home", "rooms", "scenes", "climate", "music", "security", "apps"};
-        for (int i = 0; i < items.length; i++) {
-            int pg = items[i][0];
-            if (pg == CLIMATE && d.climate.isEmpty() && !hasTemps(d)) continue;
-            if (pg == SECURITY && d.security.isEmpty() && d.openings.isEmpty() && d.safety.isEmpty()) continue;
-            if (pg == APPS && launchable().isEmpty()) continue;
-            NavItem it = new NavItem(this, items[i][1], Lang.s(keys[i]));
-            it.setOnClickListener(v -> { if (pg == MUSIC) openMusic(); else showPage(pg); });
-            LinearLayout.LayoutParams p = new LinearLayout.LayoutParams(u(88), u(small ? 70 : 76)); p.bottomMargin = u(6);
-            n.addView(it, p);
-            navItems.put(pg, it);
-        }
-        n.addView(new View(this), new LinearLayout.LayoutParams(1, 0, 1));
-        NavItem set = new NavItem(this, Glyph.GEAR, Lang.s("settings"));
-        set.setOnClickListener(v -> withPin(Cfg.OWNER, () -> startActivity(new Intent(this, SettingsActivity.class))));
-        n.addView(set, new LinearLayout.LayoutParams(u(88), u(70)));
-        return n;
+        return Nav.build(this, page == ROOM ? ROOMS : page, dash(), pg -> { if (pg == MUSIC) openMusic(); else showPage(pg); },
+                () -> withPin(Cfg.OWNER, () -> startActivity(new Intent(this, SettingsActivity.class))));
     }
-    private static boolean hasTemps(Dash d) { for (Dash.Room r : d.rooms) if (!r.temps.isEmpty()) return true; return false; }
-
-    private void markNav() {
-        int sel = page == ROOM ? ROOMS : page;
-        for (Map.Entry<Integer, NavItem> e : navItems.entrySet()) e.getValue().sel(e.getKey() == sel);
-    }
-
-    static class NavItem extends View {
-        private final int glyph; private final String label; private boolean sel;
-        private final TextPaint t = paint(13, 0, MED); private final Paint p = new Paint(Paint.ANTI_ALIAS_FLAG);
-        NavItem(android.content.Context c, int g, String l) { super(c); glyph = g; label = l; setContentDescription(l); setClickable(true); Kit.pressable(this); }
-        void sel(boolean s) { if (s != sel) { sel = s; invalidate(); } }
-        @Override protected void onDraw(Canvas c) {
-            float W = getWidth(), H = getHeight();
-            if (sel) {
-                p.setShader(new LinearGradient(0, 0, W * 0.3f, H, skin.accentBg0, skin.accentBg1, Shader.TileMode.CLAMP));
-                c.drawRoundRect(0, 0, W, H, uf(20), uf(20), p); p.setShader(null);
-            }
-            int col = sel ? skin.accent : skin.sub;
-            float g = uf(28);
-            Glyph.draw(c, glyph, (W - g) / 2, H * 0.5f - g + uf(2), g, col);
-            t.setColor(col); t.setTypeface(sel ? BOLD : MED);
-            CharSequence s = android.text.TextUtils.ellipsize(label, t, W - uf(6), android.text.TextUtils.TruncateAt.END);
-            c.drawText(s, 0, s.length(), (W - t.measureText(s, 0, s.length())) / 2, H * 0.5f + uf(22), t);
-        }
-    }
-
-    /** the green AJ mark from the mockups (logo bitmap when the app has it) */
-    static class LogoMark extends View {
-        private final Paint p = new Paint(Paint.ANTI_ALIAS_FLAG | Paint.FILTER_BITMAP_FLAG); private final TextPaint t = paint(17, 0xFF0F1A0B, BOLD);
-        LogoMark(android.content.Context c) { super(c); setClickable(true); setContentDescription("AJ"); }
-        @Override protected void onDraw(Canvas c) {
-            float W = getWidth(), H = getHeight();
-            p.setShader(new RadialGradient(W / 2, H * 0.6f, W * 0.75f, 0x556EC850, 0x006EC850, Shader.TileMode.CLAMP)); c.drawCircle(W / 2, H * 0.6f, W * 0.75f, p);
-            p.setShader(new LinearGradient(0, 0, W, H, skin.logo0, skin.logo1, Shader.TileMode.CLAMP));
-            c.drawRoundRect(0, 0, W, H, uf(16), uf(16), p); p.setShader(null);
-            c.drawText("AJ", (W - t.measureText("AJ")) / 2, H / 2 + t.getTextSize() * 0.36f, t);
-        }
-    }
+    private void markNav() { Nav.select(nav, page == ROOM ? ROOMS : page); }
 
     // ------------------------------------------------------------------ header
     private View buildHeader() {
@@ -499,27 +428,8 @@ public class HomeActivity extends Activity implements DashHub.L, PanelService.Li
         content.addView(scroll(f));
     }
 
-    private List<ResolveInfo> launchable() {
-        Intent i = new Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LAUNCHER);
-        List<ResolveInfo> l = new ArrayList<>();
-        try {
-            for (ResolveInfo r : getPackageManager().queryIntentActivities(i, 0)) {
-                String p = r.activityInfo.packageName;
-                if (p.equals(getPackageName())) continue;
-                if (p.equals("com.android.settings") || p.startsWith("com.android.") && !p.contains("browser") && !p.contains("gallery")) continue;
-                l.add(r);
-            }
-        } catch (Exception ignored) { }
-        // YouTube first
-        java.util.Collections.sort(l, (x, y) -> {
-            boolean ax = x.activityInfo.packageName.contains("youtube"), ay = y.activityInfo.packageName.contains("youtube");
-            return ax != ay ? (ax ? -1 : 1) : 0;
-        });
-        return l;
-    }
-
     private void buildApps() {
-        List<ResolveInfo> l = launchable();
+        List<ResolveInfo> l = Nav.launchable(this);
         if (l.isEmpty()) { content.addView(empty("no_apps")); return; }
         Flow f = new Flow(this, wide() ? 5 : 3, 190, 14);
         PackageManager pm = getPackageManager();
@@ -848,7 +758,7 @@ public class HomeActivity extends Activity implements DashHub.L, PanelService.Li
         LinearLayout c = new LinearLayout(this); c.setOrientation(LinearLayout.VERTICAL); c.setGravity(Gravity.CENTER);
         Bitmap logo = Theme.logo(this);
         if (logo != null) { ImageView iv = new ImageView(this); iv.setImageBitmap(logo); iv.setScaleType(ImageView.ScaleType.FIT_CENTER); c.addView(iv, new LinearLayout.LayoutParams(u(90), u(120))); }
-        else c.addView(new LogoMark(this), new LinearLayout.LayoutParams(u(96), u(96)));
+        else c.addView(new Nav.LogoMark(this), new LinearLayout.LayoutParams(u(96), u(96)));
         String o = cfg.ownerShow() ? cfg.owner() : "";
         if (!o.isEmpty()) {
             TextView w = tv(this, Lang.s("welcome"), 18, skin.sub, REG); w.setPadding(0, u(30), 0, 0); c.addView(w);

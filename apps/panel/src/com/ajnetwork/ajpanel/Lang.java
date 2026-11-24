@@ -121,6 +121,112 @@ public final class Lang {
         t("all_closed", "All closed", "الكل مغلق");
     }
 
+    // ------------------------------------------------------------------ music screen (keyed by its English text)
+    private static final Map<String, String> TR = new HashMap<>();
+    private static void r(String en, String arText) { TR.put(en, arText); }
+    static {
+        r("Add", "إضافة");
+        r("Albums", "الألبومات");
+        r("All ", "الكل ");
+        r("All rooms", "كل الغرف");
+        r("Anything you play here is heard there too", "كل ما تشغله هنا يُسمع هناك أيضاً");
+        r("App update", "تحديث التطبيق");
+        r("Artists", "الفنانون");
+        r("Break", "استراحة");
+        r("Browse", "تصفح");
+        r("Cancel", "إلغاء");
+        r("Change", "تغيير");
+        r("Close", "إغلاق");
+        r("Couldn't load the library (", "تعذر تحميل المكتبة (");
+        r("Done", "تم");
+        r("Downloading…", "جارٍ التنزيل…");
+        r("Everywhere", "في كل مكان");
+        r("Group rooms", "تجميع الغرف");
+        r("Group rooms…", "تجميع الغرف…");
+        r("Group this room", "ضم هذه الغرفة");
+        r("Group", "تجميع");
+        r("Groups", "المجموعات");
+        r("Install?", "تثبيت؟");
+        r("Join", "انضمام");
+        r("Library", "المكتبة");
+        r("Live", "مباشر");
+        r("Loading rooms…", "جارٍ تحميل الغرف…");
+        r("Loading…", "جارٍ التحميل…");
+        r("Music", "الموسيقى");
+        r("Mute this room", "كتم هذه الغرفة");
+        r("Next", "التالي");
+        r("Nothing found for “", "لا توجد نتائج لـ “");
+        r("Nothing here yet – add music in Music Assistant", "لا يوجد شيء بعد – أضف الموسيقى في Music Assistant");
+        r("Nothing played yet", "لم يتم تشغيل شيء بعد");
+        r("Nothing playing", "لا يوجد تشغيل");
+        r("Offline", "غير متصل");
+        r("On a break from ", "في استراحة من ");
+        r("Only ", "فقط ");
+        r("Only this room", "هذه الغرفة فقط");
+        r("Open Music", "فتح الموسيقى");
+        r("Or rooms (", "أو الغرف (");
+        r("Paused", "متوقف مؤقتاً");
+        r("Pick a group to play in all its rooms. To make a new group, use Group rooms.", "اختر مجموعة للتشغيل في كل غرفها. لإنشاء مجموعة جديدة استخدم تجميع الغرف.");
+        r("Pick rooms", "اختيار الغرف");
+        r("Pick something in Music, or play from the AJ Audio app, AirPlay or Bluetooth.", "اختر شيئاً من المكتبة، أو شغّل من تطبيق AJ Audio أو AirPlay أو البلوتوث.");
+        r("Play in ", "تشغيل في ");
+        r("Play music in other rooms", "تشغيل الموسيقى في غرف أخرى");
+        r("Play on ", "تشغيل على ");
+        r("Play on", "تشغيل على");
+        r("Play or pause", "تشغيل أو إيقاف مؤقت");
+        r("Play this panel in…", "تشغيل صوت هذه الشاشة في…");
+        r("Play", "تشغيل");
+        r("Played by ", "شغّلها ");
+        r("Playing ", "يعمل ");
+        r("Playing in other rooms", "يعمل في غرف أخرى");
+        r("Playing in: ", "يعمل في: ");
+        r("Playing with this room", "يعمل مع هذه الغرفة");
+        r("Playing “", "يتم تشغيل “");
+        r("Playing", "يعمل الآن");
+        r("Playlists", "قوائم التشغيل");
+        r("Previous", "السابق");
+        r("Radio", "الراديو");
+        r("Recent", "الأخيرة");
+        r("Rejoin", "العودة");
+        r("Results for “", "نتائج “");
+        r("Rooms", "الغرف");
+        r("Scenes", "المشاهد");
+        r("Search songs, artists, radio", "ابحث عن أغانٍ أو فنانين أو راديو");
+        r("Searching for “", "جارٍ البحث عن “");
+        r("Share", "مشاركة");
+        r("Sharing stopped", "توقفت المشاركة");
+        r("Songs", "الأغاني");
+        r("Speakers", "السماعات");
+        r("Starting: ", "جارٍ البدء: ");
+        r("Starting…", "جارٍ البدء…");
+        r("Stop sharing", "إيقاف المشاركة");
+        r("Stop", "إيقاف");
+        r("Take a break from ", "استراحة من ");
+        r("Take a break", "خذ استراحة");
+        r("Tap Install in the Android window", "اضغط تثبيت في نافذة أندرويد");
+        r("Tap to play on ", "اضغط للتشغيل على ");
+        r("Tap to play", "اضغط للتشغيل");
+        r("This room is in it", "هذه الغرفة ضمنها");
+        r("This room", "هذه الغرفة");
+        r("Tick the rooms that should play together with ", "حدد الغرف التي تعمل مع ");
+        r("Try again", "حاول مجدداً");
+        r("Unmute this room", "إلغاء كتم هذه الغرفة");
+        r("Until 07:00", "حتى 07:00");
+        r("Until I stop my own music", "حتى أوقف موسيقاي");
+        r("Until the group's music ends", "حتى تنتهي موسيقى المجموعة");
+        r("Update", "تحديث");
+        r("Volume · ", "الصوت · ");
+        r("Whatever plays on ", "كل ما يعمل على ");
+        r("Where this room plays now", "أين تعمل هذه الغرفة الآن");
+        r("Where to play", "مكان التشغيل");
+        r("You have ", "لديك ");
+        r("AJ Panel vX is available", "يتوفر AJ Panel vX");
+        r("This panel runs Android ", "هذه الشاشة تعمل بنظام أندرويد ");
+        r("What works on this panel, in sync in every room:\n", "ما يعمل على هذه الشاشة بتزامن في كل غرفة:\n");
+    }
+    /** English text of the music screen → Arabic when Arabic is on (unknown text stays English) */
+    public static String tr(String en) { if (!ar) return en; String a = TR.get(en); return a == null ? en : a; }
+
     public static String s(String key) {
         String[] v = T.get(key);
         if (v == null) return key;

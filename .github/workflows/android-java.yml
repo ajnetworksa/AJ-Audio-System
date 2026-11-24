@@ -34,7 +34,7 @@ jobs:
       - name: AJ Panel – Home Assistant client + dashboard tests (mock HA over WebSocket)
         run: |
           mkdir -p "$RUNNER_TEMP/pt"; S=apps/panel/src/com/ajnetwork/ajpanel
-          javac -encoding UTF-8 -d "$RUNNER_TEMP/pt" $(find apps/panel/test/stub -name '*.java') $S/Ws.java $S/Ha.java $S/Dash.java $S/Skin.java $S/Lang.java apps/panel/test/HaTest.java
+          javac -encoding UTF-8 -d "$RUNNER_TEMP/pt" $(find apps/panel/test/stub -name '*.java') $S/Ws.java $S/Ha.java $S/HaLogin.java $S/Dash.java $S/Skin.java $S/Lang.java apps/panel/test/HaTest.java
           java -cp "$RUNNER_TEMP/pt" com.ajnetwork.ajpanel.HaTest
       - name: Build
         env:

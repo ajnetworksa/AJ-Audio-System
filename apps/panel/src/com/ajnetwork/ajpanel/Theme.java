@@ -29,22 +29,36 @@ import android.widget.TextView;
 public final class Theme {
     private Theme() { }
 
-    // ---- colours ----
-    public static final int BG = 0xFF0A0F1A;          // page (brand navy, near black)
-    public static final int SURFACE = 0xFF141B29;     // cards, sheets
-    public static final int SURFACE2 = 0xFF1F2738;    // buttons, chips
-    public static final int SURFACE3 = 0xFF2A3346;    // pressed / selected chip
-    public static final int LINE = 0x1FFFFFFF;
-    public static final int TEXT = 0xFFFFFFFF;
-    // AJ Network Solutions brand (logo green, navy)
-    public static final int BRAND = 0xFF6BBC46;
-    public static final int BRAND_DARK = 0xFF418331;
+    // ---- colours: set from the panel look (graphite / pearl) by apply(), same palette as the dashboard ----
+    public static int BG = 0xFF121316;          // page
+    public static int SURFACE = 0xFF2F3238;     // cards, sheets
+    public static int SURFACE2 = 0xFF33373F;    // buttons, chips
+    public static int SURFACE3 = 0xFF3E434C;    // pressed / selected chip
+    public static int LINE = 0x17FFFFFF;
+    public static int TEXT = 0xFFF1F2F4;
+    public static int BRAND = 0xFFFF9F43;       // primary action = the dashboard accent
+    public static int BRAND_DARK = 0xFFC9762C;
     public static final int NAVY = 0xFF0B1220;
-    public static final int SUB = 0xFFA1A1A8;
-    public static final int MUTED = 0xFF6B6B73;
-    public static final int LIVE = 0xFF7FD45A;        // "playing" indicator (brand green, lighter)
-    public static final int AMBER = 0xFFF2B54A;       // break
-    public static final int INK = 0xFF0B1220;         // text on brand green / white
+    public static int SUB = 0xFF9CA0A8;
+    public static int MUTED = 0xFF6E727A;
+    public static int LIVE = 0xFF6FDB9A;        // "playing" indicator
+    public static final int AMBER = 0xFFF2B54A; // break
+    public static int INK = 0xFF1A1208;         // text on the accent
+    /** see-through layers over the page (chips, idle cards): white on graphite, black on pearl */
+    public static int OVER = 0x24FFFFFF, OVER_SOFT = 0x1AFFFFFF, OVER_STRONG = 0x66FFFFFF, RIPPLE = 0x22FFFFFF, TRACK = 0x38FFFFFF;
+    public static boolean dark = true;
+
+    /** take the colours of the dashboard look (call before building a screen) */
+    public static void apply(Skin k) {
+        dark = k.dark;
+        BG = k.bg2; SURFACE = k.card0; LINE = k.line; TEXT = k.text; SUB = k.sub; MUTED = k.muted; LIVE = k.ok;
+        SURFACE2 = k.dark ? 0xFF33373F : 0xFFE9ECF0;
+        SURFACE3 = k.dark ? 0xFF3E434C : 0xFFDDE2E8;
+        BRAND = k.accent; BRAND_DARK = k.dark ? 0xFFC9762C : 0xFFB8601A;
+        INK = k.dark ? 0xFF1A1208 : 0xFFFFFFFF;
+        OVER = k.dark ? 0x24FFFFFF : 0x12000000; OVER_SOFT = k.dark ? 0x1AFFFFFF : 0x0C000000; OVER_STRONG = k.dark ? 0x66FFFFFF : 0x55000000;
+        RIPPLE = k.dark ? 0x22FFFFFF : 0x1A000000; TRACK = k.dark ? 0x38FFFFFF : 0x22000000;
+    }
 
     /** UI scale so every panel looks alike: 1.0 on a 1024×600 dp screen, bigger on screens with more dp (e.g. DSPPA). Set by MainActivity. */
     public static float scale = 1f;
@@ -68,8 +82,9 @@ public final class Theme {
         GradientDrawable g = box(c, fill, radius); g.setStroke(dp(c, 1.5f), stroke); return g;
     }
     /** background with touch ripple */
-    public static Drawable press(Context c, Drawable content, float radius, boolean dark) {
-        return new RippleDrawable(ColorStateList.valueOf(dark ? 0x22000000 : 0x22FFFFFF), content, box(c, 0xFFFFFFFF, radius));
+    public static Drawable press(Context c, Drawable content, float radius, boolean darkRipple) {
+        boolean dark = darkRipple;
+        return new RippleDrawable(ColorStateList.valueOf(dark ? 0x22000000 : RIPPLE), content, box(c, 0xFFFFFFFF, radius));
     }
     public static void clickable(View v, Drawable bg, float radius) {
         v.setBackground(press(v.getContext(), bg, radius, false)); v.setClickable(true); v.setFocusable(true);
@@ -81,7 +96,7 @@ public final class Theme {
         b.setGravity(Gravity.CENTER);
         b.setPadding(dp(c, 22), 0, dp(c, 22), 0);
         b.setMinHeight(dp(c, 48));
-        Drawable bg = kind == 1 ? box(c, BRAND, 24) : kind == 2 ? outline(c, 0x00000000, 0x55FFFFFF, 24) : box(c, SURFACE2, 24);
+        Drawable bg = kind == 1 ? box(c, BRAND, 24) : kind == 2 ? outline(c, 0x00000000, OVER_STRONG, 24) : box(c, SURFACE2, 24);
         b.setBackground(press(c, bg, 24, kind == 1));
         b.setClickable(true); b.setFocusable(true);
         return b;
@@ -218,7 +233,7 @@ public final class Theme {
         private final Paint track = new Paint(Paint.ANTI_ALIAS_FLAG), fill = new Paint(Paint.ANTI_ALIAS_FLAG), thumb = new Paint(Paint.ANTI_ALIAS_FLAG);
         public Slider(Context c) {
             super(c);
-            track.setColor(0x38FFFFFF); fill.setColor(BRAND); thumb.setColor(TEXT);
+            track.setColor(TRACK); fill.setColor(BRAND); thumb.setColor(dark ? TEXT : 0xFFFFFFFF);
             thumb.setShadowLayer(dp(c, 3), 0, dp(c, 1), 0x66000000);
             setLayerType(LAYER_TYPE_SOFTWARE, null);
         }
@@ -231,15 +246,18 @@ public final class Theme {
         @Override protected void onDraw(Canvas cv) {
             float h = getHeight(), r = dp(getContext(), 8), y = h / 2, th = dp(getContext(), 2);
             float x0 = showThumb ? r : 0, x1 = getWidth() - (showThumb ? r : 0);
-            float x = x0 + (x1 - x0) * shown / 100f;
+            boolean rtl = getLayoutDirection() == LAYOUT_DIRECTION_RTL;
+            float x = rtl ? x1 - (x1 - x0) * shown / 100f : x0 + (x1 - x0) * shown / 100f;
             cv.drawRoundRect(new RectF(x0, y - th, x1, y + th), th, th, track);
-            cv.drawRoundRect(new RectF(x0, y - th, Math.max(x0 + th * 2, x), y + th), th, th, fill);
+            if (rtl) cv.drawRoundRect(new RectF(Math.min(x1 - th * 2, x), y - th, x1, y + th), th, th, fill);
+            else cv.drawRoundRect(new RectF(x0, y - th, Math.max(x0 + th * 2, x), y + th), th, th, fill);
             if (showThumb) cv.drawCircle(x, y, dragging ? r * 1.25f : r, thumb);
         }
         @Override public boolean onTouchEvent(MotionEvent e) {
             if (!enabled || l == null) return false;
             float r = showThumb ? dp(getContext(), 8) : 0;
-            int v = Math.round(Math.max(0, Math.min(1, (e.getX() - r) / Math.max(1, getWidth() - 2 * r))) * 100);
+            float ex = getLayoutDirection() == LAYOUT_DIRECTION_RTL ? getWidth() - e.getX() : e.getX();
+            int v = Math.round(Math.max(0, Math.min(1, (ex - r) / Math.max(1, getWidth() - 2 * r))) * 100);
             switch (e.getActionMasked()) {
                 case MotionEvent.ACTION_DOWN: dragging = true; getParent().requestDisallowInterceptTouchEvent(true);
                 case MotionEvent.ACTION_MOVE: shown = v; invalidate(); l.onChange(v, false); return true;
@@ -256,7 +274,7 @@ public final class Theme {
         private Bitmap blur; private Bitmap src;
         private final Paint p = new Paint(Paint.FILTER_BITMAP_FLAG | Paint.ANTI_ALIAS_FLAG);
         private final Paint shade = new Paint();
-        public Backdrop(Context c) { super(c); setBackgroundColor(BG); }
+        public Backdrop(Context c) { super(c); }
         public void set(Bitmap b) {
             if (b == src) return;
             src = b;
@@ -264,7 +282,8 @@ public final class Theme {
             invalidate();
         }
         @Override protected void onSizeChanged(int w, int h, int ow, int oh) {
-            shade.setShader(new LinearGradient(0, 0, 0, h, new int[]{0xB80A0F1A, 0xE00A0F1A, 0xF70A0F1A}, new float[]{0, .55f, 1}, Shader.TileMode.CLAMP));
+            int b = BG & 0x00FFFFFF;
+            shade.setShader(new LinearGradient(0, 0, 0, h, new int[]{0xB8000000 | b, 0xE0000000 | b, 0xF7000000 | b}, new float[]{0, .55f, 1}, Shader.TileMode.CLAMP));
         }
         @Override protected void onDraw(Canvas cv) {
             if (blur == null) return;

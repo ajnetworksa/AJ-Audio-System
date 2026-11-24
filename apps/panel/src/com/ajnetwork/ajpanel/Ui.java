@@ -11,7 +11,12 @@ import android.widget.TextView;
 
 /** Tiny helpers so the UI can be built in code (no resources needed). */
 public final class Ui {
-    public static final int BG = 0xF00A0F1A, CARD = 0xFF141B29, ACCENT = 0xFF6BBC46, TEXT = Color.WHITE, SUB = 0xFFAAB4C3;
+    public static int BG = 0xF0121316, CARD = 0xFF2F3238, ACCENT = 0xFFFF9F43, TEXT = Color.WHITE, SUB = 0xFF9CA0A8, BUTTON = 0xFF33373F, PAGE = 0xFF121316;
+    /** same look as the dashboard (graphite / pearl); Overlay keeps a dark card over other apps */
+    public static void apply(Skin k) {
+        PAGE = k.bg2; CARD = k.card0; ACCENT = k.accent; TEXT = k.text; SUB = k.sub;
+        BUTTON = k.dark ? 0xFF33373F : 0xFFE9ECF0;
+    }
     private Ui() { }
     public static int dp(Context c, float v) { return Math.round(v * c.getResources().getDisplayMetrics().density); }
     public static GradientDrawable round(Context c, int color, float r) {
@@ -26,7 +31,7 @@ public final class Ui {
     }
     public static Button button(Context c, String s) {
         Button b = new Button(c); b.setText(s); b.setAllCaps(false); b.setTextSize(18); b.setTextColor(TEXT);
-        b.setBackground(round(c, 0xFF2C3545, 14)); b.setGravity(Gravity.CENTER);
+        b.setBackground(round(c, BUTTON, 14)); b.setGravity(Gravity.CENTER);
         b.setMinHeight(dp(c, 56)); b.setPadding(dp(c, 18), 0, dp(c, 18), 0);
         return b;
     }

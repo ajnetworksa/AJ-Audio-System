@@ -26,6 +26,13 @@ import java.util.Set;
  *   "move": {"switch.x": "kitchen"} }             put an entity into another room
  * </pre>
  * Site-wide settings come first, the panel's own settings override them.
+ *
+ * <p>What a panel may show is set in Home Assistant with labels (Settings → Labels), on entities, devices or areas:
+ * <ul><li><b>AJ hide</b> (aj_hide) – never on any panel;</li>
+ * <li><b>AJ &lt;panel user&gt;</b> (e.g. "AJ Kitchen" for the HA user "kitchen") – once that label is used anywhere,
+ *     the panel signed in as that user shows ONLY what carries it (or <b>AJ all</b>);</li>
+ * <li>no AJ label at all – the panel shows everything its user can see.</li></ul>
+ * This hides things on the panel; Home Assistant itself does not limit what a normal user may switch.</p>
  */
 public class Dash {
     public static final String LIGHT = "light", DIMMER = "dimmer", SWITCH = "switch", FAN = "fan", COVER = "cover", CLIMATE = "climate",
@@ -142,7 +149,18 @@ public class Dash {
 
     private static final List<String> ORDER = java.util.Arrays.asList(DIMMER, LIGHT, COVER, CLIMATE, HEATER, FAN, SWITCH, VALVE, LOCK, ALARM, VACUUM, MEDIA, SCENE, SCRIPT, BUTTON);
 
-    public static Dash build(Ha ha, JSONObject ov, String panelName, String myHostId) {
+    public static Dash build(Ha ha, JSONObject ov, String panelName, String myHostId) { return build(ha, ov, panelName, myHostId, ""); }
+
+    /** HA's slugify for label ids: "AJ Kitchen" → aj_kitchen */
+    static String slug(String s) { return s == null ? "" : s.toLowerCase(Locale.ROOT).replaceAll("[^a-z0-9]+", "_").replaceAll("^_+|_+$", ""); }
+    private static void labelsOf(JSONObject o, Set<String> into) { JSONArray a = o == null ? null : o.optJSONArray("labels"); for (int i = 0; a != null && i < a.length(); i++) into.add(a.optString(i)); }
+
+    /** label id that limits a panel signed in as {@code haUser} ("" = none) */
+    public String label = "";
+    /** true = this panel shows only what carries its label (or AJ all) */
+    public boolean restricted;
+
+    public static Dash build(Ha ha, JSONObject ov, String panelName, String myHostId, String haUser) {
         Dash d = new Dash();
         if (ov == null) ov = new JSONObject();
         Set<String> hide = new HashSet<>(list(ov, "hide")), roomsHide = new HashSet<>(list(ov, "rooms_hide"));
@@ -153,6 +171,19 @@ public class Dash {
         for (int i = 0; i < ha.devices.length(); i++) { JSONObject x = ha.devices.optJSONObject(i); if (x != null) dev.put(s(x, "id"), x); }
         Map<String, JSONObject> reg = new HashMap<>();
         for (int i = 0; i < ha.entities.length(); i++) { JSONObject x = ha.entities.optJSONObject(i); if (x != null) reg.put(s(x, "entity_id"), x); }
+
+        // HA labels: aj_hide everywhere; aj_<user> = allow-list for the panel signed in as <user>
+        Map<String, JSONObject> areaObj = new HashMap<>();
+        for (int i = 0; i < ha.areas.length(); i++) { JSONObject a = ha.areas.optJSONObject(i); if (a != null) areaObj.put(s(a, "area_id"), a); }
+        String mine = haUser == null || slug(haUser).isEmpty() ? "" : "aj_" + slug(haUser);
+        d.label = mine;
+        if (!mine.isEmpty()) {
+            Set<String> all = new HashSet<>();
+            for (JSONObject x : reg.values()) labelsOf(x, all);
+            for (JSONObject x : dev.values()) labelsOf(x, all);
+            for (JSONObject x : areaObj.values()) labelsOf(x, all);
+            d.restricted = all.contains(mine);
+        }
 
         String myArea = s(ov, "area");
         if (myArea.isEmpty() || !areaName.containsKey(myArea)) myArea = matchArea(ha.areas, panelName);
@@ -177,6 +208,12 @@ public class Dash {
             if (area.isEmpty() && device != null) area = s(device, "area_id");
             if (!area.isEmpty() && !areaName.containsKey(area)) area = "";
             String dc = s(attrs, "device_class");
+            if (!domain.equals("weather")) {
+                Set<String> lb = new HashSet<>();
+                labelsOf(r, lb); labelsOf(device, lb); labelsOf(areaObj.get(area), lb);
+                if (lb.contains("aj_hide")) continue;
+                if (d.restricted && !lb.contains(d.label) && !lb.contains("aj_all")) continue;
+            }
 
             if (domain.equals("weather")) { if (d.weather == null) d.weather = id; continue; }
             if (domain.equals("sensor") || domain.equals("binary_sensor")) {

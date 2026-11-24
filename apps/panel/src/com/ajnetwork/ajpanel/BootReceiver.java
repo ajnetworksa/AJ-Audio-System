@@ -15,7 +15,7 @@ import android.content.SharedPreferences;
  *      [--es ha_url http://192.168.8.5:8123] [--es ha_token <HA long-lived token>] [--ez dashboard true]
  *      [--es look auto|graphite|pearl] [--es lang en|ar] [--es owner_en "Al Rashid"] [--ez owner_show true] [--ei saver_min 3]
  *      [--es area living_room] [--es pin_owner 1234] [--es pin_installer 987654]   (dashboard, see HomeActivity)
- *   ... -a com.ajnetwork.ajpanel.LOGIN --es user panels --es pass <password>
+ *   ... -a com.ajnetwork.ajpanel.LOGIN --es user panels --es pass <password> [--es which music|home|both]
  *       (logs in once, keeps only a long-lived token; the password is not stored)
  *   ... -a com.ajnetwork.ajpanel.STOP   (stop service + player)
  */
@@ -33,7 +33,9 @@ public class BootReceiver extends BroadcastReceiver {
             new Thread(() -> {
                 for (int k = 0; k < 50 && PanelService.instance == null; k++) try { Thread.sleep(100); } catch (InterruptedException ignored) { }
                 PanelService s = PanelService.instance;
-                if (s != null) s.login(u, p, null); else Log.i("login: service not running");
+                // which = music (default, as before) | home | both – the same username + password for both systems
+                String which = i.getStringExtra("which");
+                if (s != null) s.login(u, p, which == null || !which.matches("music|home|both") ? "music" : which, null); else Log.i("login: service not running");
                 pr.finish();
             }).start();
             return;

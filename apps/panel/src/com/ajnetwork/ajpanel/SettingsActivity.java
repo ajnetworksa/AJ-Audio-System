@@ -39,13 +39,15 @@ public class SettingsActivity extends Activity implements PanelService.Listener 
     @Override protected void onCreate(Bundle b) {
         super.onCreate(b);
         cfg = new Cfg(this);
+        Nav.setup(this);
+        Nav.applyLook(cfg);
         getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
         PanelService.start(this);
         int pad = Ui.dp(this, 20);
 
         LinearLayout root = new LinearLayout(this);
         root.setOrientation(LinearLayout.HORIZONTAL);
-        root.setBackgroundColor(0xFF0E1117);
+        root.setBackgroundColor(Ui.PAGE);
         root.setPadding(pad, pad, pad, pad);
 
         // ---- left: now playing ----
@@ -131,8 +133,8 @@ public class SettingsActivity extends Activity implements PanelService.Listener 
         s.addView(Ui.text(this, "Music", 20, Ui.ACCENT, true), topGap());
         EditText host = field("Server (Music Assistant) IP", cfg.host());
         EditText name = field("Panel name", cfg.name());
-        EditText u = field("MA username", "");
-        EditText p = field("MA password", ""); p.setInputType(InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_VARIATION_PASSWORD);
+        EditText u = field("Panel username (signs in to Music Assistant AND Home Assistant)", cfg.haUser());
+        EditText p = field("Password (not stored – the panel keeps only tokens)", ""); p.setInputType(InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_VARIATION_PASSWORD);
         EditText lat = field("Latency trim ms (+ = later)", String.valueOf(cfg.latencyMs())); lat.setInputType(InputType.TYPE_CLASS_NUMBER | InputType.TYPE_NUMBER_FLAG_SIGNED);
         CheckBox opensl = check("Use OpenSL output (try if sound stutters)", "opensl".equals(cfg.engine()));
         CheckBox ov = check("Show floating now-playing card", cfg.overlay());
@@ -149,7 +151,7 @@ public class SettingsActivity extends Activity implements PanelService.Listener 
             String user = u.getText().toString().trim();
             PanelService sv = PanelService.instance;
             if (sv == null) { PanelService.start(this); return; }
-            if (!user.isEmpty()) sv.login(user, p.getText().toString(), () -> Toast.makeText(this, cfg.token().isEmpty() ? "Login failed – see log" : "Logged in", Toast.LENGTH_LONG).show());
+            if (!user.isEmpty() && p.getText().length() > 0) sv.login(user, p.getText().toString(), "both", () -> Toast.makeText(this, sv.loginResult, Toast.LENGTH_LONG).show());
             else sv.reload();
             p.setText("");
         });

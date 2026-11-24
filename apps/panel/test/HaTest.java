@@ -75,13 +75,17 @@ public class HaTest {
             try {
                 current = s; connections++;
                 InputStream in = new BufferedInputStream(s.getInputStream()); OutputStream out = s.getOutputStream();
-                String key = null; String line;
-                while (!(line = readLine(in)).isEmpty()) if (line.toLowerCase().startsWith("sec-websocket-key:")) key = line.substring(18).trim();
+                String key = null; String line; String first = readLine(in); int clen = 0;
+                while (!(line = readLine(in)).isEmpty()) {
+                    if (line.toLowerCase().startsWith("sec-websocket-key:")) key = line.substring(18).trim();
+                    if (line.toLowerCase().startsWith("content-length:")) clen = Integer.parseInt(line.substring(15).trim());
+                }
+                if (key == null) { http(first, in, out, clen); s.close(); return; }
                 String acc = Base64.getEncoder().encodeToString(MessageDigest.getInstance("SHA-1").digest((key + "258EAFA5-E914-47DA-95CA-C5AB0DC85B11").getBytes()));
                 out.write(("HTTP/1.1 101 Switching Protocols\r\nUpgrade: websocket\r\nConnection: Upgrade\r\nSec-WebSocket-Accept: " + acc + "\r\n\r\n").getBytes()); out.flush();
                 send(out, o("type", "auth_required", "ha_version", "2026.11.0").toString(), false);
                 JSONObject auth = new JSONObject(read(in));
-                if (!token.equals(auth.optString("access_token"))) { send(out, o("type", "auth_invalid", "message", "bad").toString(), false); s.close(); return; }
+                if (!token.equals(auth.optString("access_token")) && !"acc1".equals(auth.optString("access_token"))) { send(out, o("type", "auth_invalid", "message", "bad").toString(), false); s.close(); return; }
                 send(out, o("type", "auth_ok").toString(), false);
                 int stateSub = -1;
                 String msg;
@@ -98,6 +102,10 @@ public class HaTest {
                         case "frontend/get_user_data": res = o("value", userData.containsKey(m.optString("key")) ? userData.get(m.optString("key")) : JSONObject.NULL); break;
                         case "frontend/set_user_data": userData.put(m.optString("key"), m.opt("value")); break;
                         case "ping": send(out, o("id", id, "type", "pong").toString(), false); continue;
+                        case "auth/long_lived_access_token": lastTokenName = m.optString("client_name"); res = "llat-new"; break;
+                        case "auth/refresh_tokens": res = a(o("id", "old1", "client_name", "AJ Panel · Kitchen · eeff00 · 2026-01-01 10:00", "type", "long_lived_access_token"),
+                                o("id", "other", "client_name", "Phone", "type", "long_lived_access_token")); break;
+                        case "auth/delete_refresh_token": deleted.add(m.optString("refresh_token_id")); break;
                         case "energy/get_prefs": res = o("energy_sources", a(o("type", "grid", "flow_from", a(o("stat_energy_from", "sensor.energy_total"))))); break;
                         case "recorder/statistics_during_period": res = o("sensor.energy_total", a(o("change", 1.5), o("change", 2.0), o("change", 0.5))); break;
                         case "recorder/statistic_during_period": res = o("change", 16.0); break;
@@ -148,6 +156,23 @@ public class HaTest {
             out.write(b0);
             if (len < 126) out.write(len); else if (len < 65536) { out.write(126); out.write(len >> 8); out.write(len); } else { out.write(127); for (int i = 7; i >= 0; i--) out.write((int) ((long) len >> (8 * i))); }
             out.write(p, off, len);
+        }
+        final List<String> deleted = new CopyOnWriteArrayList<>();
+        volatile String lastTokenName = "";
+        /** HA auth endpoints: login flow (user "kitchen" / "secret"), token, revoke */
+        void http(String first, InputStream in, OutputStream out, int clen) throws Exception {
+            byte[] b = new byte[clen]; new DataInputStream(in).readFully(b);
+            String body = new String(b, StandardCharsets.UTF_8), path = first.split(" ")[1];
+            JSONObject r;
+            if (path.equals("/auth/login_flow")) r = o("type", "form", "flow_id", "f1", "step_id", "init");
+            else if (path.equals("/auth/login_flow/f1")) {
+                JSONObject j = new JSONObject(body);
+                r = "kitchen".equals(j.optString("username")) && "secret".equals(j.optString("password")) && j.optString("client_id").startsWith("https://")
+                        ? o("type", "create_entry", "result", "code123") : o("type", "form", "flow_id", "f1", "step_id", "init", "errors", o("base", "invalid_auth"));
+            } else if (path.equals("/auth/token")) r = body.contains("code=code123") ? o("access_token", "acc1", "refresh_token", "ref1", "token_type", "Bearer") : o("error", "invalid_request");
+            else r = o();
+            byte[] rb = r.toString().getBytes(StandardCharsets.UTF_8);
+            out.write(("HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: " + rb.length + "\r\nConnection: close\r\n\r\n").getBytes()); out.write(rb); out.flush();
         }
         void drop() { try { current.close(); } catch (Exception e) { } }
     }
@@ -227,6 +252,25 @@ public class HaTest {
         waitFor(() -> bad.status.startsWith("token"), 4000);
         check(bad.status.equals("token rejected") && !bad.connected, "bad token -> 'token rejected'");
         bad.stop();
+
+        // panel sign-in with username + password -> long-lived token, old token of this panel removed
+        HaLogin.Result lr = HaLogin.login("http://127.0.0.1:" + mock.port(), "kitchen", "secret", "Kitchen", "ajpanel_aabbcceeff00");
+        Thread.sleep(200);
+        check("llat-new".equals(lr.token) && lr.error == null, "username/password login -> long-lived token (" + lr.error + ")");
+        check(mock.lastTokenName.startsWith("AJ Panel · Kitchen · eeff00 ·") && mock.deleted.equals(Collections.singletonList("old1")), "token named per panel, older one deleted: " + mock.deleted);
+        HaLogin.Result bad2 = HaLogin.login("http://127.0.0.1:" + mock.port(), "kitchen", "nope", "Kitchen", "x");
+        check(bad2.token == null && "wrong username or password".equals(bad2.error), "wrong password reported");
+
+        // labels: aj_hide hides; aj_<user> = allow-list for that panel user
+        ha.entities.optJSONObject(1).put("labels", Mock.a("aj_hide"));                    // light.kitchen hidden everywhere
+        ha.devices.optJSONObject(0).put("labels", Mock.a("aj_kitchen"));                   // living dimmer device for 'kitchen' panel
+        ha.entities.optJSONObject(2).put("labels", Mock.a("aj_all"));                      // kettle on all panels
+        Dash l1 = Dash.build(ha, null, "Living room", "x", "");
+        check(!l1.tiles.containsKey("light.kitchen") && l1.tiles.containsKey("cover.living_room_curtain") && !l1.restricted, "aj_hide; no user = everything else");
+        Dash l2 = Dash.build(ha, null, "Living room", "x", "Kitchen");
+        check(l2.restricted && l2.tiles.keySet().equals(new HashSet<>(Arrays.asList("light.living_room_ceiling", "switch.kitchen_kettle"))), "user label = only its devices + AJ all: " + l2.tiles.keySet());
+        Dash l3 = Dash.build(ha, null, "Living room", "x", "majlis");
+        check(!l3.restricted && l3.tiles.containsKey("cover.living_room_curtain"), "user without a label sees everything");
 
         // misc
         check(Ha.wsUrl("http://192.168.8.5:8123/").equals("ws://192.168.8.5:8123/api/websocket") && Ha.wsUrl("192.168.8.5").equals("ws://192.168.8.5:8123/api/websocket") && Ha.wsUrl("https://ha.example.com").equals("wss://ha.example.com/api/websocket"), "wsUrl");

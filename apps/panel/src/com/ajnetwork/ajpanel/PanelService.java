@@ -430,17 +430,44 @@ public class PanelService extends Service implements SnapProcess.Listener {
     void reloadFromAnyThread() { main.post(() -> { ma.base = cfg.maBase(); reload(); }); }
 
     /** login with MA user/password, then swap for a long-lived token stored on the panel */
-    public void login(String user, String pass, Runnable done) {
+    /** result of the last panel sign-in, for the Settings screen / API ("music: ok · home: wrong password") */
+    public volatile String loginResult = "";
+
+    /**
+     * Panel sign-in with ONE username + password: Music Assistant (rooms this user may play) and Home Assistant
+     * (devices this user's panels may show, see Dash labels). Each side keeps only its own long-lived token.
+     * which: "both" | "music" | "home"
+     */
+    public void login(String user, String pass, Runnable done) { login(user, pass, "both", done); }
+    public void login(String user, String pass, String which, Runnable done) {
         io.execute(() -> {
-            try {
-                Ma m = new Ma(cfg.maBase(), null);
-                m.login(user, pass, "AJ Panel " + cfg.name());
-                String t;
-                try { t = m.longToken("AJ Panel " + cfg.name() + " " + cfg.hostId()); }
-                catch (Exception e) { Log.e("long-lived token (using session token)", e); t = m.token; }
-                cfg.edit().putString("token", t).apply();
-                Log.i("logged in as " + user + " (long-lived token saved)");
-            } catch (Exception e) { Log.e("login", e); }
+            StringBuilder res = new StringBuilder();
+            if (!which.equals("home")) {
+                try {
+                    Ma m = new Ma(cfg.maBase(), null);
+                    m.login(user, pass, "AJ Panel " + cfg.name());
+                    String t;
+                    try { t = m.longToken("AJ Panel " + cfg.name() + " " + cfg.hostId()); }
+                    catch (Exception e) { Log.e("long-lived token (using session token)", e); t = m.token; }
+                    cfg.edit().putString("token", t).apply();
+                    Log.i("logged in as " + user + " (long-lived token saved)");
+                    res.append("Music: signed in");
+                } catch (Exception e) { Log.e("login", e); res.append("Music: ").append(e.getMessage() == null ? "failed" : e.getMessage()); }
+            }
+            if (!which.equals("music")) {
+                HaLogin.Result r = HaLogin.login(cfg.haUrl(), user, pass, cfg.name(), cfg.hostId());
+                if (r.token != null) {
+                    cfg.edit().putString("ha_token", r.token).putString("ha_user", user).apply();
+                    Log.i("home assistant: signed in as " + user + " (long-lived token saved)");
+                    if (res.length() > 0) res.append(" · ");
+                    res.append("Home: signed in as ").append(user);
+                } else {
+                    Log.i("home assistant sign-in: " + r.error);
+                    if (res.length() > 0) res.append(" · ");
+                    res.append("Home: ").append(r.error);
+                }
+            }
+            loginResult = res.toString();
             main.post(() -> { reload(); if (done != null) done.run(); });
         });
     }

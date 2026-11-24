@@ -35,7 +35,7 @@ while ($true) {
   Write-Host " w) Wi-Fi panels: fewer background scans, Wi-Fi never sleeps (DSPPA drops)"
   Write-Host " i) Inventory: complete hardware + software info of panels (read only)"
   Write-Host " d) Remove apps panels don't need (dry run first; u = undo)"
-  Write-Host " h) Smart-home dashboard: Home Assistant token, look, language, owner name, PIN"
+  Write-Host " h) Smart-home dashboard: panel sign-in (username + password), look, language, owner name, PIN"
   Write-Host " 9) Edit panel list (panels.txt)"
   Write-Host " 0) Exit"
   switch (Read-Host "Choose") {
@@ -102,9 +102,21 @@ while ($true) {
       $ps = Pick "Dashboard settings for:"; if (-not $ps.Count) { continue }
       $x = @()
       $url = Read-Host "Home Assistant address (Enter = same Pi as Music Assistant, port 8123)"; if ($url) { $x += "--es ha_url $url" }
-      $sec = Read-Host "Home Assistant long-lived token (HA > Profile > Security; Enter = keep the panel's)" -AsSecureString
-      $tok = [Runtime.InteropServices.Marshal]::PtrToStringAuto([Runtime.InteropServices.Marshal]::SecureStringToBSTR($sec))
-      if ($tok) { $x += "--es ha_token $tok" }
+      # sign-in: the panel's own username + password (same user in Music Assistant and Home Assistant) - the panel keeps
+      # only tokens; labels "AJ <username>" in Home Assistant then decide what that panel shows
+      $login = $null
+      $usr = Read-Host "Panel username (Enter = skip; t = paste a Home Assistant token instead)"
+      if ($usr -eq "t") {
+        $sec = Read-Host "Home Assistant long-lived token" -AsSecureString
+        $tok = [Runtime.InteropServices.Marshal]::PtrToStringAuto([Runtime.InteropServices.Marshal]::SecureStringToBSTR($sec))
+        if ($tok) { $x += "--es ha_token $tok" }
+      } elseif ($usr) {
+        $sec = Read-Host "Password for $usr" -AsSecureString
+        $pw = [Runtime.InteropServices.Marshal]::PtrToStringAuto([Runtime.InteropServices.Marshal]::SecureStringToBSTR($sec))
+        $w = Read-Host "Sign in to: Enter = music + home, m = music only, h = home only"
+        $which = @{ m = "music"; h = "home" }[$w]; if (-not $which) { $which = "both" }
+        $login = "am broadcast -f 32 -n com.ajnetwork.ajpanel/.BootReceiver -a com.ajnetwork.ajpanel.LOGIN --es user '" + ($usr -replace "'", "") + "' --es pass '" + ($pw -replace "'", "'\''") + "' --es which $which"
+      }
       $look = Read-Host "Look: a = auto (pearl by day), g = graphite, p = pearl (Enter = keep)"
       $lk = @{ a = "auto"; g = "graphite"; p = "pearl" }[$look]; if ($lk) { $x += "--es look $lk" }
       $lang = Read-Host "Language: e = English, r = Arabic (Enter = keep)"
@@ -115,15 +127,16 @@ while ($true) {
       if ($show -eq "y") { $x += "--ez owner_show true" } elseif ($show -eq "n") { $x += "--ez owner_show false" }
       $pin = Read-Host "Owner PIN, 4-8 digits (Enter = keep, 0 = remove)"
       if ($pin -match '^\d{4,8}$') { $x += "--es pin_owner $pin" } elseif ($pin -eq "0") { $x += "--es pin_owner ''" }
-      if (-not $x.Count) { Write-Host "  nothing to change"; continue }
+      if (-not $x.Count -and -not $login) { Write-Host "  nothing to change"; continue }
       foreach ($p in $ps) {
         $d = "$($p.ip):5555"; & $ADB connect $d | Out-Null
-        & $ADB -s $d shell ("am broadcast -f 32 -n com.ajnetwork.ajpanel/.BootReceiver -a com.ajnetwork.ajpanel.CONFIG " + ($x -join " ")) | Out-Null
+        if ($x.Count) { & $ADB -s $d shell ("am broadcast -f 32 -n com.ajnetwork.ajpanel/.BootReceiver -a com.ajnetwork.ajpanel.CONFIG " + ($x -join " ")) | Out-Null }
+        if ($login) { & $ADB -s $d shell $login | Out-Null; Start-Sleep 6 }
         Start-Sleep 2
-        try { $i = Invoke-RestMethod "http://$($p.ip):8766/api/info" -TimeoutSec 4; Write-Host ("  {0}: Home Assistant {1}, look {2}, language {3}, {4} tiles" -f $p.name, $i.ha, $i.look, $i.lang, $i.dash_tiles) }
+        try { $i = Invoke-RestMethod "http://$($p.ip):8766/api/info" -TimeoutSec 4; Write-Host ("  {0}: Home Assistant {1} (user {5}), look {2}, language {3}, {4} tiles" -f $p.name, $i.ha, $i.look, $i.lang, $i.dash_tiles, $(if ($i.ha_user) { $i.ha_user } else { "-" })) }
         catch { Write-Host "  $($p.name): sent (panel did not answer /api/info)" -ForegroundColor Yellow }
       }
-      $tok = $null; $x = $null
+      $tok = $null; $pw = $null; $login = $null; $x = $null
     }
     "9" { notepad $list }
     "0" { return }

@@ -35,6 +35,7 @@ import java.util.Map;
  *                     &pin_owner=&pin_installer=&dashboard=true|false     admin: smart-home dashboard (values never logged)
  *  GET  /api/dashboard           admin: generated layout + this panel's and the site's dashboard settings (Installer editor)
  *  POST /api/dashboard           admin: body {"panel":{…},"site":{…}} replaces those settings (saved in Home Assistant too)
+ *  POST /api/login               admin: body {"user":"…","pass":"…","which":"both|music|home"} – panel signs in, keeps only tokens
  * "admin" = header "Authorization: Bearer <Music Assistant token>" of an MA user with role admin;
  * the panel checks the token with MA (auth/me) – no extra passwords.
  */
@@ -199,6 +200,21 @@ public class PanelHttp {
                     reply(o, 200, "application/json; charset=utf-8", r.toString().getBytes(StandardCharsets.UTF_8));
                     return;
                 }
+                case "/api/login": {
+                    long len = 0;
+                    for (String l : lines) if (l.toLowerCase().startsWith("content-length:")) len = Long.parseLong(l.substring(15).trim());
+                    if (len <= 0 || len > 10_000) { reply(o, 400, "text/plain", "JSON body missing".getBytes()); return; }
+                    byte[] body = new byte[(int) len]; int got = 0;
+                    while (got < len) { int n = in.read(body, got, (int) len - got); if (n < 0) break; got += n; }
+                    JSONObject b = new JSONObject(new String(body, 0, got, StandardCharsets.UTF_8));
+                    String user = b.optString("user"), pass = b.optString("pass"), which = b.optString("which", "both");
+                    if (user.isEmpty() || pass.isEmpty() || !which.matches("music|home|both")) { reply(o, 400, "text/plain", "user + pass needed".getBytes()); return; }
+                    final Object lock = new Object(); final boolean[] fin = {false};
+                    svc.login(user, pass, which, () -> { synchronized (lock) { fin[0] = true; lock.notifyAll(); } });
+                    synchronized (lock) { long t0 = System.currentTimeMillis(); while (!fin[0] && System.currentTimeMillis() - t0 < 30_000) lock.wait(1000); }
+                    reply(o, 200, "application/json; charset=utf-8", new JSONObject().put("result", svc.loginResult).put("ha_user", cfg.haUser()).toString().getBytes(StandardCharsets.UTF_8));
+                    return;
+                }
                 case "/api/adb_pair":
                     // Judian panels can't use device owner: ask for "Allow debugging" once (tap on the panel)
                     LocalAdb.pair(svc);
@@ -293,7 +309,7 @@ public class PanelHttp {
                 .put("clock", new java.text.SimpleDateFormat("yyyy-MM-dd HH:mm Z", java.util.Locale.US).format(new java.util.Date()))
                 .put("time_zone", java.util.TimeZone.getDefault().getID())
                 .put("dashboard", cfg.dashboard()).put("ha", svc.hub == null || svc.hub.ha == null ? "not set" : svc.hub.ha.connected ? "connected" : svc.hub.ha.status)
-                .put("ha_url", cfg.haUrl()).put("look", cfg.look()).put("lang", cfg.lang()).put("owner_show", cfg.ownerShow())
+                .put("ha_url", cfg.haUrl()).put("ha_user", cfg.haUser()).put("look", cfg.look()).put("lang", cfg.lang()).put("owner_show", cfg.ownerShow())
                 .put("pins", new JSONObject().put("owner", cfg.hasPin(Cfg.OWNER)).put("installer", cfg.hasPin(Cfg.INSTALLER)))
                 .put("dash_tiles", svc.hub == null ? 0 : svc.hub.dash.tiles.size());
     }

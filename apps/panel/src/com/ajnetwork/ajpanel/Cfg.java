@@ -57,6 +57,8 @@ public class Cfg {
     /** Home Assistant address; default = the music server (same Pi) on 8123 */
     public String haUrl()   { String u = p.getString("ha_url", ""); return u.isEmpty() ? "http://" + host() + ":8123" : u; }
     /** HA long-lived access token (typed/pasted on the panel or sent by the Installer) – never logged */
+    /** Home Assistant user this panel signed in as (labels "AJ <user>" decide what it shows) */
+    public String haUser() { return p.getString("ha_user", ""); }
     public String haUrlRaw() { return p.getString("ha_url", ""); }
     public String haToken() { return p.getString("ha_token", ""); }
     private JSONObjectSafe json(String k) { return new JSONObjectSafe(p.getString(k, "")); }

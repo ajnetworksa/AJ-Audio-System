@@ -74,7 +74,7 @@ public class DashHub implements Ha.Listener {
         Ha h = ha;
         if (h == null) { dash = new Dash(); fire(REBUILT, null); return; }
         long t0 = System.currentTimeMillis();
-        dash = Dash.build(h, Dash.merge(cfg.siteData(), cfg.panelData()), cfg.name(), cfg.hostId());
+        dash = Dash.build(h, Dash.merge(cfg.siteData(), cfg.panelData()), cfg.name(), cfg.hostId(), cfg.haUser());
         long ms = System.currentTimeMillis() - t0;
         if (ms > 40) Log.i("dashboard built in " + ms + " ms (" + dash.tiles.size() + " tiles)");
         fire(REBUILT, null);
