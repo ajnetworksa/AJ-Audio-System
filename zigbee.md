@@ -100,6 +100,23 @@ wrong flow control, **or the wrong chip** – it crash-loops) leaves the radio u
 panel itself (screen, music, dashboard) keeps working; only its Zigbee radio is lost. Hence: S10A only, image built for this
 module, and `-flash` only after the owner accepts that risk.
 
+### If the radio is bricked – recovery with the cover open (SWD)
+A "bricked" radio is not broken hardware: the chip is fine, it just runs firmware we cannot talk to over the cable. The
+chip's debug port (SWD) always works (unless Tuya set the debug lock – then a full chip erase unlocks it).
+- **Tools (one of):** Segger J-Link (EDU Mini for home use / BASE for business) + free Simplicity Commander; or a cheap
+  **ST-Link V2 clone + OpenOCD** (its `efm32` driver knows EFR32MG1B/MG12/MG13); fine wire or pogo pins, soldering iron.
+- **5 wires** to the module/test pads: **SWCLK = PF0, SWDIO = PF1** (all EFR32 Series 1), **GND**, **VTref/3.3 V**
+  (only as reference – the panel powers the module; never feed 3.3 V from the programmer into a powered panel), optional RESET.
+  Exact pads: module datasheet (TYZS4) or by tracing.
+- **Recovery:** (1) read out the flash first if it is readable (`commander readmem --device EFR32MG1B232F256GM48 --range
+  0x0:0x40000 --outfile s10a_now.bin`); (2) write a working bootloader + NCP – e.g. the Lidl project's
+  `bootloader-uart-xmodem-2.4.2-combined.s37`, then the NCP `.gbl` over the cable as usual (or the NCP directly over SWD);
+  (3) if locked: `commander device recover` (J-Link) / mass erase, then step 2. Radio IEEE comes from the chip's factory info.
+- **With the cover open anyway, do the full backup first** (`readmem` of the whole flash = exact Tuya original incl. bootloader
+  and tokens) – then even Smart Life can be restored byte for byte (`commander flash s10a_original.bin`).
+- What cannot be recovered without such a backup: the exact Tuya firmware (Tuya only delivers it from its cloud). The radio can
+  always be made a Zigbee2MQTT / ZHA coordinator again.
+
 ### Steps (each script says what it changes)
 0. S10A_EN first: `zigbee_probe.bat -panels 192.168.8.60` (read only: is there a radio on /dev/ttyS3, which gateway app), then
    `zigbee_test.bat -panel 192.168.8.60` (backup only) and `-panel 192.168.8.60 -on` (gateway off, bridge on, network backup).
