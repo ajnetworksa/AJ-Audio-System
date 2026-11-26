@@ -12,6 +12,9 @@
 #                                         to give the radio back to the Judian gateway (zigbee_test.bat -off)
 #   zigbee_fw.bat -restorenet           WRITES the radio's network settings: puts the last zigbee_network.json back
 #                                         (keeps PAN/channel/key so paired devices stay on the network)
+#   zigbee_fw.bat -identify           READ ONLY: asks the radio "what are you?" in every way (EmberZNet at 115200/230400/460800,
+#                                         Gecko bootloader, CPC, Spinel, router), with and without RTS/CTS - after a flash
+#                                         that does not answer. Writes nothing.
 #   -panel <ip>   REQUIRED (no default, so a panel in daily use is never flashed by mistake)
 #   -baud 115200 -flow rtscts|none         how the radio talks NOW (default: Tuya firmware = 115200 + rtscts)
 #   -newbaud / -newflow                    how the NEW firmware talks after -flash/-revert (default: same as now)
@@ -19,7 +22,7 @@
 # Before you start: the Judian gateway app must be off (zigbee_test.bat -on done) and Home Assistant must NOT use this
 # radio (disable ZHA / stop Zigbee2MQTT). Needs AJ Panel 0.9.7+ and Python 3 on this PC (tools\.zigpy-venv).
 # Output: tools\zigbee_backup\<ip>_fw_<date>\  (git-ignored; zigbee_network.json holds the network key - keep it private)
-param([string]$panel = "", [string]$flash = "", [string]$revert = "", [switch]$restorenet, [switch]$probe,
+param([string]$panel = "", [string]$flash = "", [string]$revert = "", [switch]$restorenet, [switch]$probe, [switch]$identify,
       [int]$baud = 115200, [ValidateSet("rtscts", "none")][string]$flow = "rtscts",
       [int]$newbaud = 0, [string]$newflow = "")
 if (-not $panel) { Write-Host "Say which panel: zigbee_fw.bat -panel 192.168.8.60  (S10A_EN test panel)" -ForegroundColor Red; exit 1 }
@@ -99,6 +102,27 @@ $dir = Join-Path $root ("$($panel)_fw_" + (Get-Date -Format "yyyyMMdd_HHmmss"))
 New-Item -ItemType Directory -Force $dir | Out-Null
 Write-Host "Panel $panel  AJ Panel $($i.version)  -> $dir"
 Cfg "--ez zigbee_bridge true --es zigbee_allow any --es zigbee_flow $flow --ei zigbee_baud $baud"; Start-Sleep 4
+
+if ($identify) {
+  $py = Py
+  $exe = Join-Path $venv "Scripts\universal-silabs-flasher.exe"
+  $methods = "ezsp:115200,bootloader:115200,ezsp:460800,ezsp:230400,cpc:460800,cpc:115200,spinel:460800,router:115200"
+  $seen = @()
+  foreach ($fl in @("rtscts", "none")) {
+    Write-Host "`n  asking the radio with flow control $fl ..."
+    Cfg "--es zigbee_flow $fl --ei zigbee_baud 115200"; Start-Sleep 5
+    $out = Join-Path $dir "identify_$fl.txt"
+    & $exe --device $sock --probe-methods $methods probe 2>&1 | Tee-Object $out | Out-Host
+    $ii = Info; if ($ii) { "bridge: $($ii.zigbee_bridge) | serial $($ii.zigbee_serial) | radio->PC $($ii.zigbee_rx) B, PC->radio $($ii.zigbee_tx) B" | Tee-Object -Append $out | Out-Host }
+    $t = Get-Content $out -Raw -ErrorAction SilentlyContinue
+    if ($t -match "Detected ([A-Za-z_.]+)[^\r\n]*") { $seen += "$fl -> $($Matches[0])"; Write-Host "  $fl -> $($Matches[0])" -ForegroundColor Green }
+    else { $seen += "$fl -> no answer"; Write-Host "  $fl -> no answer" -ForegroundColor Yellow }
+  }
+  $seen | Out-File (Join-Path $dir "identify_summary.txt") -Encoding utf8
+  Cfg "--es zigbee_flow $flow --ei zigbee_baud $baud --es zigbee_allow ha"
+  Write-Host "`nNothing was written to the radio. Send me $dir (identify_*.txt)."
+  exit 0
+}
 
 # Tuya radio-firmware files the gateway may have kept (the way back to the exact original firmware, if found)
 Write-Host "  looking for Tuya radio-firmware files on the panel ..."
