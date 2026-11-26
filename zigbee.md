@@ -1,6 +1,6 @@
 # zigbee.md — using the panels' built-in Zigbee radio with Home Assistant (instead of Smart Life)
 
-Status: ZHA test on the X8 through the AJ Panel bridge (D-022). Radio firmware change for Zigbee2MQTT prepared (D-029) – nothing flashed yet.
+Status: ZHA test on the X8 through the AJ Panel bridge (D-022). Radio firmware change tried on S10A_EN (D-029): radio silent afterwards, waits for SWD repair – do not flash other panels.
 
 ## What we know about our panels
 - **Judian P8** (and likely X8/M20): Tuya Zigbee gateway inside, module on **/dev/ttyS3** (`tuya-kdql3oqd1xupvuxq`), Android 10, no root via adb, SELinux permissive, a root `sshd` on :22 (key-only, key unknown).
@@ -99,6 +99,16 @@ is no bootloader pin/button (Lidl/TYZS4 post-mortem). So an image that starts bu
 wrong flow control, **or the wrong chip** – it crash-loops) leaves the radio unreachable → only SWD helps (cover off). The
 panel itself (screen, music, dashboard) keeps working; only its Zigbee radio is lost. Hence: S10A only, image built for this
 module, and `-flash` only after the owner accepts that risk.
+
+### Result on S10A_EN (2026-11-26): radio silent after the flash – needs SWD
+- `-flash ncp-uart-hw-7.5.2-115200-hw.gbl`: EZSP 6.5.0 detected, bootloader entered, **upload 208 kB / 208 kB accepted**.
+- Afterwards: no answer at all – `-identify` (EZSP 115200/230400/460800, Gecko bootloader, CPC, Spinel, router; with and
+  without RTS/CTS) got **0 bytes from the radio**, also after a 10–15 s power cut. Not in the bootloader either → the new
+  application starts but does not talk on these UART/flow pins, or does not run on this chip / with this old bootloader (1.8).
+- The panel itself works normally; only its Zigbee radio is out until it is opened (SWD, below).
+- **Rule now: do not flash any other panel** until the S10A is opened and read over SWD (exact chip from its DEVINFO, the
+  image that is on it, real UART/RTS/CTS routing). The S10A then becomes the reference that makes the others safe.
+- X8 / P8 untouched (Tuya firmware, ZHA still possible on one of them).
 
 ### If the radio is bricked – recovery with the cover open (SWD)
 A "bricked" radio is not broken hardware: the chip is fine, it just runs firmware we cannot talk to over the cable. The

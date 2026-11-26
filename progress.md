@@ -59,6 +59,7 @@ Newest entries on top. Decisions are `D-###`.
 ## Log
 
 ### 2026-11-26
+- **S10A radio flash (D-029): radio silent afterwards.** EmberZNet 7.5.2 NCP (Lidl/TYZS4 build, 115200 RTS/CTS) uploaded through the stock bootloader (208 kB accepted), but the radio sends 0 bytes to every probe (EZSP 3 bauds, bootloader, CPC, Spinel, router; RTS/CTS on and off), also after a power cut → needs SWD (cover open, ST-Link/J-Link). Panel works; no other panel gets flashed until the S10A was read over SWD. `zigbee_fw.bat -identify` added.
 - S10A_EN (192.168.8.60) chosen as the radio-firmware test panel. `zigbee_test -on` there: gateway disabled, bridge up, but the network backup failed – the Python venv still pointed to the old project folder (BUG-038/FIX-036, scripts rebuild it now). After moving the old venv aside: `zigbee_fw` probe = EZSP v7 / EmberZNet 6.5.0 build 188, **Gecko bootloader 1.8 present**, EFR32 (micro 24), network backed up. Next: module photo → pick the image.
 
 ### 2026-11-24
