@@ -58,6 +58,9 @@ Newest entries on top. Decisions are `D-###`.
 
 ## Log
 
+### 2026-11-26
+- S10A_EN (192.168.8.60) chosen as the radio-firmware test panel. `zigbee_test -on` there: gateway disabled, bridge up, but the network backup failed – the Python venv still pointed to the old project folder (BUG-038/FIX-036, scripts rebuild it now).
+
 ### 2026-11-24
 - **Zigbee radio firmware change prepared (D-029), nothing flashed.** `tools\zigbee_fw.bat`: default = READ ONLY probe (fresh network backup, EZSP/stack version, board, radio IEEE, bootloader yes/no, copies any Tuya radio-firmware file); `-flash <gbl>` (typed FLASH, bridge without flow control while the bootloader runs, universal-silabs-flasher over the bridge, probe after), `-revert`, `-restorenet`. **Panel 0.9.7:** bridge speed + flow control as settings (`zigbee_baud`, `zigbee_flow`), `/api/info` `zigbee_serial`. zigbee.md: four-level backup plan, steps, Zigbee2MQTT over `tcp://panel:6638`, several panels. Found: the 2026-11-17 network backup = EmberZNet 6.5.0.0 build 188, EZSP v7, chip unknown; no Tuya firmware file kept on the panel.
 - **Panel 0.9.6 (BUG-037/FIX-035):** centred texts really centred (empty pages, sheet buttons, PIN pad, music tabs); empty Rooms/Scenes without Home Assistant show the sign-in card. px30 (now **192.168.8.115**, panels.txt still says .166; Android 8.1, 1440×720, not signed in to HA yet) drops its music connection every 1–2 min on Ethernet with constant "Not enough frames" while resampling 48→44.1 kHz – the light-converter fallback now also counts socket aborts so it kicks in.

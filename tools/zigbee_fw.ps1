@@ -42,8 +42,10 @@ function Info { try { Invoke-RestMethod "http://$($panel):8766/api/info" -Timeou
 function Stop-Here([string]$msg) { Write-Host $msg -ForegroundColor Red; Cfg "--es zigbee_allow ha --es zigbee_flow $flow --ei zigbee_baud $baud"; exit 1 }
 
 function Py {
-  if (-not (Test-Path $vpy)) {
-    Write-Host "Python tools not installed yet - run zigbee_test.bat -netbackup once (it installs them), then run this again." -ForegroundColor Yellow
+  $cfgFile = Join-Path $venv "pyvenv.cfg"
+  $here = (Test-Path $cfgFile) -and ((Get-Content $cfgFile -Raw) -like "*$venv*")
+  if (-not (Test-Path $vpy) -or -not $here) {
+    Write-Host "Python tools missing or installed in another folder - run zigbee_test.bat -panel $panel -netbackup once (it (re)installs them), then run this again." -ForegroundColor Yellow
     exit 1
   }
   & $vpy -m pip install -q --upgrade zigpy-cli bellows universal-silabs-flasher 2>&1 | Out-String | Write-Host

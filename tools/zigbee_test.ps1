@@ -30,7 +30,12 @@ function LastBackup { Get-ChildItem $root -Directory -Filter "$($panel)_*" -Erro
 function Zigpy {
   $venv = Join-Path $PSScriptRoot ".zigpy-venv"
   $exe = Join-Path $venv "Scripts\zigpy.exe"
-  if (Test-Path $exe) { return $exe }
+  # a venv only works where it was created: after the project folder moved (Smart Tuya\AJ-Audio-System -> AJ\aj-audio)
+  # its zigpy.exe still points to the old path and cannot start -> rebuild it here
+  $cfgFile = Join-Path $venv "pyvenv.cfg"
+  $here = (Test-Path $cfgFile) -and ((Get-Content $cfgFile -Raw) -like "*$venv*")
+  if ((Test-Path $exe) -and $here) { return $exe }
+  if (Test-Path $exe) { Write-Host "  Python tools were installed in another folder (project moved) - reinstalling them here ..." -ForegroundColor Yellow }
   # find a REAL Python 3 (Windows has a fake "python" that only opens the Microsoft Store)
   $py = $null
   foreach ($cs in @("py -3", "python", "python3")) {

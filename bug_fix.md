@@ -194,3 +194,9 @@ Each section's id matches the bug in `bug.md` (FIX-001 ↔ BUG-001). Include: wh
 - **Client / Installer (Android):** card at the top "… vX is available · Update" with download progress; native `AppUpdater` (PackageInstaller session, no file provider) + `AppUpdater$Result` receiver, added to the generated manifest by `tools/patch_update_manifest.py` in CI. The Installer now has its own native folder (`android/app/src/main/{java,kotlin}` kept in git like the Client).
 - iPhone apps can't update themselves – new IPA via Sideloadly/AltStore from the release page.
 - Needs: the GitHub repo is public; every release is signed with the same release key (CI secrets) – otherwise Android refuses the update ("signatures do not match") and the app says to uninstall once.
+
+## FIX-036
+**BUG-038 – Zigbee network backup failed after the project folder moved**
+- A Python venv only works in the folder it was created in: `Scripts\zigpy.exe` has the old `python.exe` path built in.
+- `zigbee_test.ps1` (Zigpy) now checks that `.zigpy-venv\pyvenv.cfg` names the current folder; if not, it deletes and recreates the venv here (pip install zigpy-cli bellows from PyPI). `zigbee_fw.ps1` refuses to run with a moved venv and says to run `zigbee_test.bat -panel <ip> -netbackup` first.
+- Test: S10A_EN (192.168.8.60) `zigbee_test.bat -panel 192.168.8.60 -netbackup` → `zigbee_network.json` written.
