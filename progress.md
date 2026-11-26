@@ -59,7 +59,7 @@ Newest entries on top. Decisions are `D-###`.
 ## Log
 
 ### 2026-11-26
-- S10A_EN (192.168.8.60) chosen as the radio-firmware test panel. `zigbee_test -on` there: gateway disabled, bridge up, but the network backup failed – the Python venv still pointed to the old project folder (BUG-038/FIX-036, scripts rebuild it now).
+- S10A_EN (192.168.8.60) chosen as the radio-firmware test panel. `zigbee_test -on` there: gateway disabled, bridge up, but the network backup failed – the Python venv still pointed to the old project folder (BUG-038/FIX-036, scripts rebuild it now). After moving the old venv aside: `zigbee_fw` probe = EZSP v7 / EmberZNet 6.5.0 build 188, **Gecko bootloader 1.8 present**, EFR32 (micro 24), network backed up. Next: module photo → pick the image.
 
 ### 2026-11-24
 - **Zigbee radio firmware change prepared (D-029), nothing flashed.** `tools\zigbee_fw.bat`: default = READ ONLY probe (fresh network backup, EZSP/stack version, board, radio IEEE, bootloader yes/no, copies any Tuya radio-firmware file); `-flash <gbl>` (typed FLASH, bridge without flow control while the bootloader runs, universal-silabs-flasher over the bridge, probe after), `-revert`, `-restorenet`. **Panel 0.9.7:** bridge speed + flow control as settings (`zigbee_baud`, `zigbee_flow`), `/api/info` `zigbee_serial`. zigbee.md: four-level backup plan, steps, Zigbee2MQTT over `tcp://panel:6638`, several panels. Found: the 2026-11-17 network backup = EmberZNet 6.5.0.0 build 188, EZSP v7, chip unknown; no Tuya firmware file kept on the panel.

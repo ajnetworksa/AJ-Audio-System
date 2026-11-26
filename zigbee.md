@@ -66,6 +66,13 @@ and Zigbee2MQTT then talks to the panel over the same bridge: `tcp://<panel>:663
 a **serial bootloader** (`bootloader version` ≠ 0xFFFF), and its pins. No Tuya radio-firmware file is stored on the panel
 (`.jd-tuya` only has `ncp_ver65_1_0_5_flag`; Tuya downloads the image from its cloud only when updating).
 
+### S10A_EN probe (2026-11-26, `zigbee_fw.bat`, read only)
+EZSP **v7**, EmberZNet **6.5.0.0 build 188** (same Tuya NCP as the X8), no board/manufacturer strings, radio IEEE
+`c4:d8:c8:ff:fe:51:86:2b`, **Gecko bootloader present, version 0x0108 (1.8)** → serial reflash possible. platform/micro/phy
+4 / 24 / 15 = Cortex-M / `EMBER_MICRO_CORTEXM3_EFR32` (Silicon Labs EFR32; the id does not tell MG1B vs MG13 vs MG21 → module
+photo). Network backup OK (`192.168.8.60_fw_20261126_105029\zigbee_network.json`). No Tuya firmware file on the panel.
+Note: a 2019-era bootloader (1.8) may need a bootloader update before EmberZNet 7.4+ images run – check per image.
+
 ### Backup plan – four levels of "going back"
 | Level | What it saves | How | Status |
 |---|---|---|---|
