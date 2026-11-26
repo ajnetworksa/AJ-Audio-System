@@ -73,6 +73,18 @@ EZSP **v7**, EmberZNet **6.5.0.0 build 188** (same Tuya NCP as the X8), no board
 photo). Network backup OK (`192.168.8.60_fw_20261126_105029\zigbee_network.json`). No Tuya firmware file on the panel.
 Note: a 2019-era bootloader (1.8) may need a bootloader update before EmberZNet 7.4+ images run – check per image.
 
+**Which chip, without opening the panel (2026-11-26):** the software cannot name the exact part (micro 24 = any EFR32,
+phy 15 = RAIL). Evidence:
+- EmberZNet **6.5.0.0** cannot be Series 2 – EFR32xG21 support came in 6.5.3 → Series 1 (MG1B / MG12 / MG13).
+- The stock radio of the **Lidl Silvercrest / Tuya TYGWZ01 gateway** reports exactly the same `6.5.0.0 build 188`, EZSP v7,
+  RTS/CTS – its module is the **Tuya TYZS4 = EFR32MG1B232F256GM48**, UART TX PA0, RX PA1, RTS PA4, CTS PA5, 115200.
+  Lidl owners flash a new NCP over the **stock Tuya bootloader** through a serial→TCP bridge, exactly our method.
+- → most likely the same TYZS4 module (not proven). Candidate image: jnilo1/hacking-lidl-silvercrest-gateway (MIT)
+  `2-Zigbee-Radio-Silabs-EFR32/24-NCP-UART-HW/firmware/ncp-uart-hw-7.5.2-115200-hw.gbl` – EmberZNet 7.5.2, EZSP v13,
+  115200, hardware flow control, built for EFR32MG1B232F256GM48 (sha256 c6996c6c…0f703cce, repo commit 695628a).
+- Ways to confirm without tools: Judian's spec sheet / ask Judian or the seller "which Zigbee module (TYZS4?)", a teardown
+  photo of the same model, a label visible through a vent.
+
 ### Backup plan – four levels of "going back"
 | Level | What it saves | How | Status |
 |---|---|---|---|
@@ -81,9 +93,12 @@ Note: a 2019-era bootloader (1.8) may need a bootloader update before EmberZNet 
 | 3. Back to Tuya / Smart Life | the Judian gateway only accepts **EZSP v7** (it checks the protocol version) | Tuya's own image if the probe finds one on the panel (`tuya_fw\`), otherwise a full SWD dump (level 4); a generic EmberZNet 6.x image works with ZHA but may not satisfy the Tuya app | ⚠️ no Tuya image yet |
 | 4. Full flash image | exact original incl. bootloader and tokens; the **only rescue** if a new firmware starts but cannot talk (wrong UART/RTS/CTS pins) | panel opened, SWD debugger (J-Link or ST-Link V2 clone) on SWDIO/SWCLK/GND/3V3, `commander readmem … --outfile original.bin` (Simplicity Commander) or OpenOCD; restore `commander flash original.bin` | optional, strongly recommended before the first flash |
 
-**Main brick risk:** an image built for other UART/RTS/CTS pins runs, but the panel cannot reach it → it cannot be told to enter the
-bootloader → only SWD helps. So: only an image built for this exact module (pins from the module's datasheet), one panel first,
-SWD dump first if a debugger is at hand. A wrong-chip image is less dangerous (it does not start → radio stays in the bootloader).
+**Main brick risk:** on these Tuya modules the bootloader can only be entered by a command from the running firmware
+(EZSP `launchStandaloneBootloader`) or when the application slot is empty – a reset goes straight to the application and there
+is no bootloader pin/button (Lidl/TYZS4 post-mortem). So an image that starts but does not answer on the UART (wrong pins,
+wrong flow control, **or the wrong chip** – it crash-loops) leaves the radio unreachable → only SWD helps (cover off). The
+panel itself (screen, music, dashboard) keeps working; only its Zigbee radio is lost. Hence: S10A only, image built for this
+module, and `-flash` only after the owner accepts that risk.
 
 ### Steps (each script says what it changes)
 0. S10A_EN first: `zigbee_probe.bat -panels 192.168.8.60` (read only: is there a radio on /dev/ttyS3, which gateway app), then
