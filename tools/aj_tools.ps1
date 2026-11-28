@@ -15,6 +15,7 @@ function Pick([string]$what) {
   for ($i = 0; $i -lt $ps.Count; $i++) { Write-Host ("  {0}) {1}  {2}" -f ($i + 1), $ps[$i].name, $ps[$i].ip) }
   Write-Host "  A) all panels"
   $c = Read-Host "Choose"
+  # callers wrap the result in @( ): Windows PowerShell 5.1 turns a one-panel result into a single object without .Count
   if ($c -match '^[aA]$') { return $ps }
   $n = 0; if ([int]::TryParse($c, [ref]$n) -and $n -ge 1 -and $n -le $ps.Count) { return @($ps[$n - 1]) }
   return @()
@@ -47,14 +48,14 @@ while ($true) {
         } catch { "{0,-12} {1,-15} not reachable (off, other network, or no AJ Panel)" -f $p.name, $p.ip | Write-Host -ForegroundColor Yellow }
       }
     }
-    "2" { $ps = Pick "Install AJ Panel on:"; if ($ps.Count) { Run "deploy_ajpanel.bat" ("-panels `"" + (($ps | ForEach-Object { "$($_.ip)=$($_.name)" }) -join ",") + "`"") } }
-    "3" { $ps = Pick "Silent updates on:"; if ($ps.Count) { Run "panel_silent_updates.bat" ("-panels `"" + (($ps | ForEach-Object { $_.ip }) -join ",") + "`"") } }
+    "2" { $ps = @(Pick "Install AJ Panel on:"); if ($ps.Count) { Run "deploy_ajpanel.bat" ("-panels `"" + (($ps | ForEach-Object { "$($_.ip)=$($_.name)" }) -join ",") + "`"") } }
+    "3" { $ps = @(Pick "Silent updates on:"); if ($ps.Count) { Run "panel_silent_updates.bat" ("-panels `"" + (($ps | ForEach-Object { $_.ip }) -join ",") + "`"") } }
     "4" { $ph = Read-Host "Phone connected by USB too? (y/n)"; $ps = @(Panels); Run "collect_logs.bat" ("-panels `"" + (($ps | ForEach-Object { $_.ip }) -join ",") + "`"" + $(if ($ph -eq "y") { " -phone" } else { "" })) }
     "5" { foreach ($p in (Pick "Locate:")) { try { Invoke-RestMethod -Method Post "http://$($p.ip):8766/api/locate" -TimeoutSec 5 | Out-Null; Write-Host "  $($p.name) flashes + beeps for 30 s" } catch { Write-Host "  $($p.name): $_" -ForegroundColor Yellow } } }
     "6" { foreach ($p in (Pick "Restart AJ Panel on:")) { & $ADB connect "$($p.ip):5555" | Out-Null; & $ADB -s "$($p.ip):5555" shell "am force-stop com.ajnetwork.ajpanel; sleep 1; am broadcast -f 32 -n com.ajnetwork.ajpanel/.BootReceiver -a com.ajnetwork.ajpanel.START" | Out-Null; Write-Host "  $($p.name) restarted" } }
     "7" { foreach ($p in (Pick "Reboot:")) { & $ADB connect "$($p.ip):5555" | Out-Null; & $ADB -s "$($p.ip):5555" reboot; Write-Host "  $($p.name) rebooting (1-2 min)" } }
     "8" {
-      $ps = Pick "Zigbee panel:"; if (-not $ps.Count) { continue }
+      $ps = @(Pick "Zigbee panel:"); if (-not $ps.Count) { continue }
       Write-Host "  b) backup only   o) switch to Home Assistant   f) back to Tuya   s) status"
       $m = Read-Host "Choose"
       $flag = @{ b = ""; o = "-on"; f = "-off"; s = "-status" }[$m]
@@ -85,9 +86,9 @@ while ($true) {
         }
       }
     }
-    "i" { $ps = Pick "Inventory of:"; if ($ps.Count) { Run "panel_inventory.bat" ("-panels `"" + (($ps | ForEach-Object { $_.ip }) -join ",") + "`"") } }
+    "i" { $ps = @(Pick "Inventory of:"); if ($ps.Count) { Run "panel_inventory.bat" ("-panels `"" + (($ps | ForEach-Object { $_.ip }) -join ",") + "`"") } }
     "d" {
-      $ps = Pick "Clean up which panel (test ONE first):"
+      $ps = @(Pick "Clean up which panel (test ONE first):")
       if ($ps.Count) {
         $ips = ($ps | ForEach-Object { $_.ip }) -join ","
         $m = Read-Host "Enter = dry run (shows the list), a = remove stage 1, 2 = stage 2 (vendor home screen - only when our app is ready), u = undo"
@@ -99,7 +100,7 @@ while ($true) {
     "h" {
       # CHANGES: AJ Panel settings only (Home Assistant address/token, look, language, owner name, PIN) via adb broadcast.
       # The token is typed here by you, sent to the panel and stored there - this script does not save or print it.
-      $ps = Pick "Dashboard settings for:"; if (-not $ps.Count) { continue }
+      $ps = @(Pick "Dashboard settings for:"); if (-not $ps.Count) { continue }
       $x = @()
       $url = Read-Host "Home Assistant address (Enter = same Pi as Music Assistant, port 8123)"; if ($url) { $x += "--es ha_url $url" }
       # sign-in: the panel's own username + password (same user in Music Assistant and Home Assistant) - the panel keeps
